@@ -3,6 +3,10 @@ var masterEnabled = true;
 var rulesLoaded = false;
 var loadCallbacks = [];
 
+var hitCounters = {};
+var lastHitTime = {};
+var tabSeenRequests = {};
+
 function loadRules() {
   chrome.storage.local.get({ rules: [], masterEnabled: true }, function (data) {
     currentRules = data.rules || [];
@@ -51,6 +55,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return true;
   }
   if (msg.type === "saveRules") {
+    hitCounters = {};
+    lastHitTime = {};
     saveRules(msg.rules, msg.masterEnabled);
     sendResponse({ success: true });
     return true;
@@ -58,6 +64,54 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === "openPanel") {
     chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") });
     sendResponse({ success: true });
+    return true;
+  }
+
+  if (msg.type === "hitCount") {
+    var id = msg.ruleId;
+    hitCounters[id] = (hitCounters[id] || 0) + 1;
+    lastHitTime[id] = msg.timestamp;
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (msg.type === "getHitCounters") {
+    sendResponse({ counters: hitCounters, lastHitTime: lastHitTime });
+    return true;
+  }
+
+  if (msg.type === "resetHitCounters") {
+    hitCounters = {};
+    lastHitTime = {};
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (msg.type === "seenRequests") {
+    var tabId = sender.tab ? sender.tab.id : "unknown";
+    tabSeenRequests[tabId] = msg.requests;
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (msg.type === "getSeenRequests") {
+    if (msg.tabId && tabSeenRequests[msg.tabId]) {
+      sendResponse({ requests: tabSeenRequests[msg.tabId] });
+    } else {
+      var all = [];
+      var urls = {};
+      for (var tid in tabSeenRequests) {
+        var reqs = tabSeenRequests[tid];
+        for (var i = 0; i < reqs.length; i++) {
+          var key = reqs[i].method + " " + reqs[i].url;
+          if (!urls[key]) {
+            urls[key] = true;
+            all.push(reqs[i]);
+          }
+        }
+      }
+      sendResponse({ requests: all });
+    }
     return true;
   }
 });

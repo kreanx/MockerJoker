@@ -1,6 +1,8 @@
 (function () {
   var rules = [];
   var masterEnabled = true;
+  var seenRequests = [];
+  var SEEN_MAX = 100;
 
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
@@ -27,6 +29,34 @@
       return rule;
     }
     return null;
+  }
+
+  function addSeenRequest(url, method) {
+    if (!url || url.indexOf("blob:") === 0 || url.indexOf("data:") === 0) return;
+    for (var i = 0; i < seenRequests.length; i++) {
+      if (seenRequests[i].url === url && seenRequests[i].method === method) return;
+    }
+    seenRequests.push({ url: url, method: method });
+    if (seenRequests.length > SEEN_MAX) seenRequests.shift();
+  }
+
+  var seenTimer = null;
+  function flushSeenRequests() {
+    if (seenTimer) return;
+    seenTimer = setTimeout(function () {
+      seenTimer = null;
+      window.postMessage({ type: "REQUEST_MOCKER_SEEN", requests: seenRequests }, "*");
+    }, 500);
+  }
+
+  function reportHit(ruleId, url, method) {
+    window.postMessage({
+      type: "REQUEST_MOCKER_HIT",
+      ruleId: ruleId,
+      url: url,
+      method: method,
+      timestamp: Date.now()
+    }, "*");
   }
 
   function applyRequestModifications(init, rule) {
@@ -61,13 +91,17 @@
     }
     method = ((init && init.method) || method || "GET").toUpperCase();
 
+    addSeenRequest(url, method);
+    flushSeenRequests();
+
     var rule = findRule(url, method);
 
     if (rule && rule.action.type === "mockResponse") {
       var delay = rule.action.delay || 0;
       var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
+      reportHit(rule.id, url, method);
       console.log(
-        "%c[Request Mocker]%c FETCH intercepted: " + method + " " + url + " → " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
+        "%c[Request Mocker]%c FETCH intercepted: " + method + " " + url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
         "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
         "color:#e74c3c;font-weight:bold",
         "\n  Rule:", rule.name,
@@ -95,6 +129,7 @@
       if (init && init.headers) {
         init.headers.forEach(function (v, k) { modifiedHeaders[k] = v; });
       }
+      reportHit(rule.id, url, method);
       console.log(
         "%c[Request Mocker]%c FETCH modified: " + method + " " + url,
         "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
@@ -131,12 +166,16 @@
   OrigXHR.prototype.send = function (body) {
     var self = this;
     if (this.__rm) {
+      addSeenRequest(this.__rm.url, this.__rm.method);
+      flushSeenRequests();
+
       var rule = findRule(this.__rm.url, this.__rm.method);
 
       if (rule && rule.action.type === "mockResponse") {
         var delay = rule.action.delay || 0;
+        reportHit(rule.id, self.__rm.url, self.__rm.method);
         console.log(
-          "%c[Request Mocker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " → " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
+          "%c[Request Mocker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
           "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
           "color:#e74c3c;font-weight:bold",
           "\n  Rule:", rule.name,
@@ -155,6 +194,7 @@
             origXhrSetHeader.call(self, k, rule.action.setHeaders[k]);
           });
         }
+        reportHit(rule.id, self.__rm.url, self.__rm.method);
         console.log(
           "%c[Request Mocker]%c XHR modified: " + self.__rm.method + " " + self.__rm.url,
           "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",

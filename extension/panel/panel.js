@@ -133,33 +133,47 @@ function renderRules() {
       '<p>Выберите пресет слева или нажмите "Добавить правило"</p></div>';
     return;
   }
-  var html = "";
-  rules.forEach(function (rule) {
-    var actionLabel, statusColor = "";
-    if (rule.action.type === "mockResponse") {
-      actionLabel = "Mock " + rule.action.status;
-      var s = rule.action.status;
-      if (s >= 400) statusColor = "badge-error";
-      else if (s >= 300) statusColor = "badge-redirect";
-      else statusColor = "badge-success";
-    } else {
-      actionLabel = "Modify";
-    }
-    var badgeClass = rule.action.type === "mockResponse" ? "badge-mock" : "badge-modify";
-    var disabledClass = rule.enabled ? "" : " disabled";
-    html += '<div class="rule-item' + disabledClass + '" data-id="' + rule.id + '">';
-    html += '<input type="checkbox" class="rule-toggle" data-id="' + rule.id + '"' + (rule.enabled ? " checked" : "") + '>';
-    html += '<div class="rule-info">';
-    html += '<div class="rule-name">' + escapeHtml(rule.name || "Без названия") + '</div>';
-    html += '<div class="rule-detail">' + escapeHtml(rule.match.urlPattern) + " &middot; " + rule.match.method + '</div>';
-    html += '</div>';
-    html += '<span class="rule-badge ' + badgeClass + " " + statusColor + '">' + actionLabel + '</span>';
-    html += '<div class="rule-actions">';
-    html += '<button class="btn-edit" data-id="' + rule.id + '" title="Редактировать">&#9998;</button>';
-    html += '<button class="btn-delete" data-id="' + rule.id + '" title="Удалить">&times;</button>';
-    html += '</div></div>';
+  chrome.runtime.sendMessage({ type: "getHitCounters" }, function (res) {
+    var counters = (res && res.counters) || {};
+    var lastTime = (res && res.lastHitTime) || {};
+    var html = "";
+    rules.forEach(function (rule) {
+      var actionLabel, statusColor = "";
+      if (rule.action.type === "mockResponse") {
+        actionLabel = "Mock " + rule.action.status;
+        var s = rule.action.status;
+        if (s >= 400) statusColor = "badge-error";
+        else if (s >= 300) statusColor = "badge-redirect";
+        else statusColor = "badge-success";
+      } else {
+        actionLabel = "Modify";
+      }
+      var badgeClass = rule.action.type === "mockResponse" ? "badge-mock" : "badge-modify";
+      var disabledClass = rule.enabled ? "" : " disabled";
+      var hits = counters[rule.id] || 0;
+      var hitClass = hits > 0 ? "has-hits" : "";
+      var hitTitle = hits > 0 ? "Перехвачено: " + hits + " (последний: " + formatTime(lastTime[rule.id]) + ")" : "Нет перехватов";
+      html += '<div class="rule-item' + disabledClass + '" data-id="' + rule.id + '">';
+      html += '<input type="checkbox" class="rule-toggle" data-id="' + rule.id + '"' + (rule.enabled ? " checked" : "") + '>';
+      html += '<div class="rule-info">';
+      html += '<div class="rule-name">' + escapeHtml(rule.name || "Без названия") + '</div>';
+      html += '<div class="rule-detail">' + escapeHtml(rule.match.urlPattern) + " &middot; " + rule.match.method + '</div>';
+      html += '</div>';
+      html += '<span class="hit-counter ' + hitClass + '" title="' + hitTitle + '">' + hits + '</span>';
+      html += '<span class="rule-badge ' + badgeClass + " " + statusColor + '">' + actionLabel + '</span>';
+      html += '<div class="rule-actions">';
+      html += '<button class="btn-edit" data-id="' + rule.id + '" title="Редактировать">&#9998;</button>';
+      html += '<button class="btn-delete" data-id="' + rule.id + '" title="Удалить">&times;</button>';
+      html += '</div></div>';
+    });
+    list.innerHTML = html;
   });
-  list.innerHTML = html;
+}
+
+function formatTime(ts) {
+  if (!ts) return "-";
+  var d = new Date(ts);
+  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function escapeHtml(str) {
@@ -190,11 +204,9 @@ function bindEvents() {
   document.querySelectorAll(".preset-card").forEach(function (card) {
     card.addEventListener("click", function () {
       var presetName = this.getAttribute("data-preset");
-      var urlPattern = prompt("URL-паттерн (например: */api/users*):", "*/api/*");
-      if (!urlPattern) return;
       var factory = presetFactories[presetName];
       if (factory) {
-        var rule = factory(urlPattern);
+        var rule = factory("");
         rules.push(rule);
         saveState();
         renderRules();
@@ -291,8 +303,38 @@ function openEditor(ruleId) {
     rule.action.removeHeaders.forEach(function (h) { addRemoveHeaderTag(h); });
   }
   toggleActionFields(rule.action.type);
+  updateUrlDatalist();
   $("editor").classList.remove("hidden");
-  $("editName").focus();
+  $("editUrlPattern").focus();
+}
+
+function updateUrlDatalist() {
+  chrome.runtime.sendMessage({ type: "getSeenRequests" }, function (res) {
+    var dl = $("urlSuggestions");
+    if (!dl) return;
+    var items = {};
+    dl.innerHTML = "";
+    if (res && res.requests) {
+      res.requests.forEach(function (r) {
+        if (!items[r.url]) {
+          items[r.url] = true;
+          var opt = document.createElement("option");
+          opt.value = r.url;
+          opt.label = r.method;
+          dl.appendChild(opt);
+        }
+      });
+    }
+    rules.forEach(function (r) {
+      var p = r.match.urlPattern;
+      if (p && !items[p]) {
+        items[p] = true;
+        var opt = document.createElement("option");
+        opt.value = p;
+        dl.appendChild(opt);
+      }
+    });
+  });
 }
 
 function closeEditor() { $("editor").classList.add("hidden"); editingRuleId = null; }

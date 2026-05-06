@@ -49,7 +49,8 @@
       <input type="text" id="editName" placeholder="Например: Мок для /api/users">
 
       <label>URL-паттерн <span class="hint">(* = маска)</span></label>
-      <input type="text" id="editUrlPattern" placeholder="*/api/*">
+      <input type="text" id="editUrlPattern" placeholder="*/api/*" list="urlSuggestions" autocomplete="off">
+      <datalist id="urlSuggestions"></datalist>
 
       <div class="row">
         <div class="col">

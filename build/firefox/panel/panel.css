@@ -332,6 +332,21 @@ body {
   min-width: 0;
 }
 
+.hit-counter {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #ecf0f1;
+  color: #95a5a6;
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: default;
+}
+.hit-counter.has-hits {
+  background: #d5f5e3;
+  color: #27ae60;
+}
+
 .rule-name {
   font-weight: 600;
   font-size: 14px;
