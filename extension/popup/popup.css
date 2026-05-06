@@ -185,12 +185,13 @@ body {
 .rule-item:hover .rule-detail {
   white-space: normal;
   word-break: break-all;
+  overflow: visible;
 }
 .rule-item.disabled { opacity: 0.5; }
 
 .rule-toggle { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
 
-.rule-info { flex: 1; min-width: 0; overflow: hidden; }
+.rule-info { flex: 1; min-width: 0; }
 
 .hit-counter {
   font-size: 10px;

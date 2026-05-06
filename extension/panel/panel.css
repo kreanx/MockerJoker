@@ -320,6 +320,7 @@ body {
 .rule-item:hover .rule-detail {
   white-space: normal;
   word-break: break-all;
+  overflow: visible;
 }
 
 .rule-item.disabled {
@@ -337,7 +338,6 @@ body {
 .rule-info {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
 }
 
 .hit-counter {
