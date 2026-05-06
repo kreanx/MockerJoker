@@ -303,7 +303,7 @@ body {
 
 .rule-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
   background: #fff;
@@ -316,6 +316,12 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.rule-item:hover .rule-name,
+.rule-item:hover .rule-detail {
+  white-space: normal;
+  word-break: break-all;
+}
+
 .rule-item.disabled {
   opacity: 0.45;
 }
@@ -325,6 +331,7 @@ body {
   height: 18px;
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 3px;
 }
 
 .rule-info {
@@ -342,6 +349,7 @@ body {
   font-weight: 700;
   flex-shrink: 0;
   cursor: default;
+  margin-top: 3px;
 }
 .hit-counter.has-hits {
   background: #d5f5e3;
@@ -363,6 +371,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  word-break: break-all;
 }
 
 .rule-badge {
@@ -371,6 +380,7 @@ body {
   border-radius: 12px;
   font-weight: 700;
   flex-shrink: 0;
+  margin-top: 3px;
 }
 
 .badge-mock { background: #e8f5e9; color: #2e7d32; }
@@ -384,6 +394,7 @@ body {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .rule-actions button {

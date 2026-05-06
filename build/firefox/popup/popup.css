@@ -174,15 +174,21 @@ body {
 
 .rule-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 14px;
   border-bottom: 1px solid #eee;
+  transition: background 0.15s;
 }
 .rule-item:hover { background: #f0f4f8; }
+.rule-item:hover .rule-name,
+.rule-item:hover .rule-detail {
+  white-space: normal;
+  word-break: break-all;
+}
 .rule-item.disabled { opacity: 0.5; }
 
-.rule-toggle { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+.rule-toggle { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
 
 .rule-info { flex: 1; min-width: 0; overflow: hidden; }
 
@@ -195,6 +201,7 @@ body {
   font-weight: 700;
   flex-shrink: 0;
   cursor: default;
+  margin-top: 2px;
 }
 .hit-counter.has-hits {
   background: #d5f5e3;
@@ -207,6 +214,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: none;
 }
 
 .rule-detail {
@@ -215,6 +223,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  word-break: break-all;
+  transition: none;
 }
 
 .rule-badge {
@@ -223,6 +233,7 @@ body {
   border-radius: 3px;
   font-weight: 600;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .badge-mock { background: #e8f5e9; color: #2e7d32; }
@@ -231,7 +242,7 @@ body {
 .badge-redirect { background: #fff3e0; color: #e67e22; }
 .badge-success { background: #e8f5e9; color: #27ae60; }
 
-.rule-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.rule-actions { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
 .rule-actions button {
   background: none;
   border: none;
