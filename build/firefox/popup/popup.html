@@ -6,7 +6,7 @@
 </head>
 <body>
   <div class="header">
-    <h1>Request Mocker</h1>
+    <h1>MockerJoker</h1>
     <div class="header-right">
       <button id="btnHelp" class="btn-help" title="Справка">?</button>
       <button id="btnOpenTab" class="btn-open-tab" title="Открыть в новой вкладке">&#8599;</button>
@@ -119,7 +119,7 @@
       </div>
       <div class="help-body">
         <p><b>URL-паттерны:</b></p>
-        <p><code>*</code> — любое количество символов, <code>?</code> — один символ</p>
+        <p><code>*</code> — любое количество символов</p>
         <p>Пример: <code>*/api/users*</code> перехватит все запросы, содержащие /api/users</p>
         <br>
         <p><b>Пресеты:</b></p>
@@ -135,9 +135,10 @@
         <p>Используйте для тестирования спиннеров и таймаутов</p>
         <br>
         <p><b>Советы:</b></p>
-        <p>- После создания правила <b>перезагрузите страницу</b> (F5)</p>
+        <p>- Правила применяются <b>сразу</b> без перезагрузки страницы</p>
+        <p>- Если правило не сработало — попробуйте обновить страницу (F5)</p>
         <p>- Перехватываются только <code>fetch</code> и <code>XMLHttpRequest</code></p>
-        <p>- Мокированные запросы видны в <b>консоли</b> (F12 → Console)</p>
+        <p>- Мокированные запросы видны в <b>консоли</b> (F12 → Console) с тегом [MockerJoker]</p>
         <p>- Экспорт/Импорт работает в полной панели</p>
       </div>
     </div>

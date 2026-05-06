@@ -13,7 +13,6 @@
   function globToRegex(pattern) {
     var escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
     escaped = escaped.replace(/\*/g, ".*");
-    escaped = escaped.replace(/\?/g, ".");
     return new RegExp("^" + escaped + "$", "i");
   }
 
@@ -101,7 +100,7 @@
       var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
       reportHit(rule.id, url, method);
       console.log(
-        "%c[Request Mocker]%c FETCH intercepted: " + method + " " + url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
+        "%c[MockerJoker]%c FETCH intercepted: " + method + " " + url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
         "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
         "color:#e74c3c;font-weight:bold",
         "\n  Rule:", rule.name,
@@ -131,7 +130,7 @@
       }
       reportHit(rule.id, url, method);
       console.log(
-        "%c[Request Mocker]%c FETCH modified: " + method + " " + url,
+        "%c[MockerJoker]%c FETCH modified: " + method + " " + url,
         "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
         "color:#f39c12;font-weight:bold",
         "\n  Rule:", rule.name,
@@ -175,7 +174,7 @@
         var delay = rule.action.delay || 0;
         reportHit(rule.id, self.__rm.url, self.__rm.method);
         console.log(
-          "%c[Request Mocker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
+          "%c[MockerJoker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
           "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
           "color:#e74c3c;font-weight:bold",
           "\n  Rule:", rule.name,
@@ -196,7 +195,7 @@
         }
         reportHit(rule.id, self.__rm.url, self.__rm.method);
         console.log(
-          "%c[Request Mocker]%c XHR modified: " + self.__rm.method + " " + self.__rm.url,
+          "%c[MockerJoker]%c XHR modified: " + self.__rm.method + " " + self.__rm.url,
           "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
           "color:#f39c12;font-weight:bold",
           "\n  Rule:", rule.name,

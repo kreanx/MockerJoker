@@ -7,19 +7,43 @@
   (document.head || document.documentElement).appendChild(script);
 
   var contextValid = true;
+  var retryTimer = null;
+
+  function tryRecover() {
+    if (retryTimer) return;
+    retryTimer = setTimeout(function () {
+      retryTimer = null;
+      try {
+        chrome.runtime.sendMessage({ type: "getRules" }, function (res) {
+          if (chrome.runtime.lastError) {
+            contextValid = false;
+            tryRecover();
+            return;
+          }
+          contextValid = true;
+          sendRulesToPage();
+        });
+      } catch (e) {
+        contextValid = false;
+        tryRecover();
+      }
+    }, 3000);
+  }
 
   function safeSendMessage(msg, callback) {
-    if (!contextValid) return;
     try {
       chrome.runtime.sendMessage(msg, function (res) {
         if (chrome.runtime.lastError) {
           contextValid = false;
+          tryRecover();
           return;
         }
+        contextValid = true;
         if (callback) callback(res);
       });
     } catch (e) {
       contextValid = false;
+      tryRecover();
     }
   }
 
@@ -36,7 +60,6 @@
 
   window.addEventListener("message", function (event) {
     if (event.source !== window) return;
-    if (!contextValid) return;
     var data = event.data;
     if (!data) return;
 

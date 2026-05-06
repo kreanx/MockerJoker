@@ -2,14 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Request Mocker</title>
+  <title>MockerJoker</title>
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
   <header class="header">
     <div class="header-left">
-      <h1>Request Mocker</h1>
-      <span class="header-version">v1.0.0</span>
+      <h1>MockerJoker</h1>
+      <span id="headerVersion" class="header-version"></span>
     </div>
     <div class="header-right">
       <button id="btnHelp" class="btn-panel-help" title="Справка">?</button>
@@ -181,7 +181,7 @@
       </div>
       <div class="help-dialog-body">
         <h4>URL-паттерны</h4>
-        <p><code>*</code> — любое количество символов, <code>?</code> — один символ</p>
+        <p><code>*</code> — любое количество символов</p>
         <p>Пример: <code>*/api/users*</code> — перехватит все запросы с /api/users в URL</p>
 
         <h4>Пресеты</h4>
@@ -201,9 +201,10 @@
 
         <h4>Советы</h4>
         <ul>
-          <li>После создания правила <b>перезагрузите страницу</b> (F5)</li>
+          <li>Правила применяются <b>сразу</b> без перезагрузки страницы</li>
+          <li>Если правило не сработало — попробуйте обновить страницу (F5)</li>
           <li>Перехватываются только <code>fetch</code> и <code>XMLHttpRequest</code></li>
-          <li>Мокированные запросы видны в <b>консоли</b> (F12 → Console)</li>
+          <li>Мокированные запросы видны в <b>консоли</b> (F12 → Console) с тегом [MockerJoker]</li>
           <li>Используйте экспорт/импорт для передачи правил коллегам</li>
         </ul>
       </div>

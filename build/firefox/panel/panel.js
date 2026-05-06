@@ -95,6 +95,9 @@ var presetFactories = {
 var $ = function (id) { return document.getElementById(id); };
 
 function init() {
+  var manifest = chrome.runtime.getManifest();
+  var ver = $("headerVersion");
+  if (ver && manifest.version) ver.textContent = "v" + manifest.version;
   loadState();
   bindEvents();
 }
