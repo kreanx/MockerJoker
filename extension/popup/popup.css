@@ -182,9 +182,9 @@ body {
 .rule-item:hover { background: #f0f4f8; }
 .rule-item.disabled { opacity: 0.5; }
 
-.rule-toggle { width: 16px; height: 16px; cursor: pointer; }
+.rule-toggle { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
 
-.rule-info { flex: 1; min-width: 0; }
+.rule-info { flex: 1; min-width: 0; overflow: hidden; }
 
 .hit-counter {
   font-size: 10px;
@@ -222,6 +222,7 @@ body {
   padding: 2px 7px;
   border-radius: 3px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .badge-mock { background: #e8f5e9; color: #2e7d32; }
@@ -230,7 +231,7 @@ body {
 .badge-redirect { background: #fff3e0; color: #e67e22; }
 .badge-success { background: #e8f5e9; color: #27ae60; }
 
-.rule-actions { display: flex; gap: 4px; }
+.rule-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .rule-actions button {
   background: none;
   border: none;
