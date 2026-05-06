@@ -511,6 +511,50 @@ body {
   display: flex;
   gap: 16px;
 }
+
+.autocomplete-wrap {
+  position: relative;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 200;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 1px solid #f5f5f5;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.autocomplete-item:hover {
+  background: #3498db;
+  color: #fff;
+}
+
+.autocomplete-item .ac-method {
+  font-weight: 700;
+  color: #7f8c8d;
+  margin-right: 8px;
+}
+
+.autocomplete-item:hover .ac-method {
+  color: #fff;
+}
+}
 .form-row .form-group { flex: 1; }
 
 .key-value-editor {

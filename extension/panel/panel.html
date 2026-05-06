@@ -95,8 +95,10 @@
             </div>
             <div class="form-group">
               <label for="editUrlPattern">URL-паттерн <span class="hint">(поддерживает * как маску)</span></label>
-              <input type="text" id="editUrlPattern" placeholder="*/api/users*" list="urlSuggestions" autocomplete="off">
-              <datalist id="urlSuggestions"></datalist>
+              <div class="autocomplete-wrap">
+                <input type="text" id="editUrlPattern" placeholder="*/api/users*" autocomplete="off">
+                <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
+              </div>
             </div>
             <div class="form-row">
               <div class="form-group">

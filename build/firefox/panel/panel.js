@@ -235,6 +235,16 @@ function bindEvents() {
   $("btnCancel").addEventListener("click", closeEditor);
   $("btnSave").addEventListener("click", saveEditor);
 
+  $("editUrlPattern").addEventListener("input", function () {
+    showUrlDropdown(this.value);
+  });
+  $("editUrlPattern").addEventListener("focus", function () {
+    showUrlDropdown(this.value);
+  });
+  $("editUrlPattern").addEventListener("blur", function () {
+    $("urlDropdown").classList.add("hidden");
+  });
+
   $("editActionType").addEventListener("change", function () {
     toggleActionFields(this.value);
   });
@@ -303,41 +313,60 @@ function openEditor(ruleId) {
     rule.action.removeHeaders.forEach(function (h) { addRemoveHeaderTag(h); });
   }
   toggleActionFields(rule.action.type);
-  updateUrlDatalist();
+  loadSeenUrls();
   $("editor").classList.remove("hidden");
   $("editUrlPattern").focus();
 }
 
-function updateUrlDatalist() {
+var seenUrls = [];
+
+function loadSeenUrls() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     var tabId = tabs && tabs[0] ? tabs[0].id : null;
     chrome.runtime.sendMessage({ type: "getSeenRequests", tabId: tabId }, function (res) {
-      var dl = $("urlSuggestions");
-      if (!dl) return;
-      var items = {};
-      dl.innerHTML = "";
+      seenUrls = [];
+      var seen = {};
       if (res && res.requests) {
         res.requests.forEach(function (r) {
-          if (!items[r.url]) {
-            items[r.url] = true;
-            var opt = document.createElement("option");
-            opt.value = r.url;
-            opt.label = r.method;
-            dl.appendChild(opt);
+          if (!seen[r.url]) {
+            seen[r.url] = true;
+            seenUrls.push({ url: r.url, method: r.method });
           }
         });
       }
       rules.forEach(function (r) {
         var p = r.match.urlPattern;
-        if (p && !items[p]) {
-          items[p] = true;
-          var opt = document.createElement("option");
-          opt.value = p;
-          dl.appendChild(opt);
+        if (p && !seen[p]) {
+          seen[p] = true;
+          seenUrls.push({ url: p, method: "" });
         }
       });
     });
   });
+}
+
+function showUrlDropdown(filter) {
+  var dd = $("urlDropdown");
+  if (!dd) return;
+  dd.innerHTML = "";
+  var items = seenUrls;
+  if (filter) {
+    var lower = filter.toLowerCase();
+    items = items.filter(function (u) { return u.url.toLowerCase().indexOf(lower) !== -1; });
+  }
+  if (items.length === 0) { dd.classList.add("hidden"); return; }
+  items.slice(0, 20).forEach(function (item) {
+    var div = document.createElement("div");
+    div.className = "autocomplete-item";
+    div.innerHTML = (item.method ? '<span class="ac-method">' + escapeHtml(item.method) + '</span>' : '') + escapeHtml(item.url);
+    div.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      $("editUrlPattern").value = item.url;
+      dd.classList.add("hidden");
+    });
+    dd.appendChild(div);
+  });
+  dd.classList.remove("hidden");
 }
 
 function closeEditor() { $("editor").classList.add("hidden"); editingRuleId = null; }
