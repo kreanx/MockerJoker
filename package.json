@@ -1,0 +1,11 @@
+{
+  "name": "request-mocker",
+  "version": "1.0.0",
+  "description": "Browser extension + mock server for HTTP request mocking in corporate network",
+  "scripts": {
+    "server": "node server/server.mjs"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Request Mocker</h1>
+    <div class="header-right">
+      <button id="btnHelp" class="btn-help" title="Справка">?</button>
+      <button id="btnOpenTab" class="btn-open-tab" title="Открыть в новой вкладке">&#8599;</button>
+      <label class="master-toggle" title="Включить/выключить все правила">
+        <input type="checkbox" id="masterToggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button id="btnAdd" class="btn btn-primary">+ Добавить</button>
+    <div class="dropdown">
+      <button id="btnPresets" class="btn btn-secondary">Пресеты &#9662;</button>
+      <div id="presetsMenu" class="dropdown-menu hidden">
+        <button class="preset-btn" data-preset="error500">500 Internal Error</button>
+        <button class="preset-btn" data-preset="forbidden403">403 Forbidden</button>
+        <button class="preset-btn" data-preset="mock401">401 Unauthorized</button>
+        <button class="preset-btn" data-preset="noContent204">204 No Content</button>
+        <button class="preset-btn" data-preset="partialData">Частичные данные</button>
+        <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
+        <button class="preset-btn" data-preset="removeCookies">Убрать Cookie</button>
+      </div>
+    </div>
+    <div class="toolbar-spacer"></div>
+    <button id="btnExport" class="btn btn-accent">Экспорт ↗</button>
+    <button id="btnImport" class="btn btn-accent">Импорт ↗</button>
+    <input type="file" id="importFile" accept=".json" class="hidden">
+  </div>
+
+  <div id="rulesList" class="rules-list"></div>
+
+  <div id="editor" class="editor hidden">
+    <div class="editor-header">
+      <span id="editorTitle">Новое правило</span>
+      <button id="btnCloseEditor" class="btn-close">&times;</button>
+    </div>
+    <div class="editor-body">
+      <label>Название</label>
+      <input type="text" id="editName" placeholder="Например: Мок для /api/users">
+
+      <label>URL-паттерн <span class="hint">(* = маска)</span></label>
+      <input type="text" id="editUrlPattern" placeholder="*/api/*">
+
+      <div class="row">
+        <div class="col">
+          <label>Метод</label>
+          <select id="editMethod">
+            <option value="ANY">Любой</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Тип</label>
+          <select id="editActionType">
+            <option value="mockResponse">Mock (подмена ответа)</option>
+            <option value="modifyRequest">Modify (изменение запроса)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="mockResponseFields">
+        <div class="row">
+          <div class="col">
+            <label>Статус-код</label>
+            <input type="number" id="editStatus" value="200" min="100" max="599">
+          </div>
+          <div class="col">
+            <label>Задержка (мс)</label>
+            <input type="number" id="editDelay" value="0" min="0" step="100" placeholder="0">
+          </div>
+        </div>
+        <label>Заголовки ответа</label>
+        <div id="headersEditor" class="key-value-editor"></div>
+        <button id="btnAddHeader" class="btn btn-small">+ Заголовок</button>
+        <label>Тело ответа</label>
+        <textarea id="editBody" rows="4" placeholder='{"error": "message"}'></textarea>
+        <button id="btnFormatBody" class="btn btn-small">Форматировать</button>
+      </div>
+
+      <div id="modifyRequestFields" class="hidden">
+        <label>Удалить заголовки</label>
+        <input type="text" id="inputRemoveHeader" placeholder="Имя заголовка, Enter">
+        <div id="removeHeadersTags" class="tags"></div>
+        <label>Установить заголовки</label>
+        <div id="setHeadersEditor" class="key-value-editor"></div>
+        <button id="btnAddSetHeader" class="btn btn-small">+ Заголовок</button>
+      </div>
+    </div>
+    <div class="editor-footer">
+      <button id="btnSave" class="btn btn-primary">Сохранить</button>
+      <button id="btnCancel" class="btn btn-secondary">Отмена</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+
+  <div id="helpOverlay" class="help-overlay hidden">
+    <div class="help-content">
+      <div class="help-header">
+        <span>Справка</span>
+        <button id="btnCloseHelp" class="btn-close">&times;</button>
+      </div>
+      <div class="help-body">
+        <p><b>URL-паттерны:</b></p>
+        <p><code>*</code> — любое количество символов, <code>?</code> — один символ</p>
+        <p>Пример: <code>*/api/users*</code> перехватит все запросы, содержащие /api/users</p>
+        <br>
+        <p><b>Пресеты:</b></p>
+        <p><b>500</b> — ошибка сервера</p>
+        <p><b>403</b> — запрет доступа</p>
+        <p><b>401</b> — нет авторизации</p>
+        <p><b>204</b> — пустой ответ</p>
+        <p><b>Частичные данные</b> — неполный JSON (отредактировать body)</p>
+        <p><b>Убрать Auth/Cookie</b> — удалить заголовок из запроса</p>
+        <br>
+        <p><b>Задержка (мс):</b></p>
+        <p>Укажите в редакторе правила. <code>3000</code> = 3 сек, <code>30000</code> = 30 сек</p>
+        <p>Используйте для тестирования спиннеров и таймаутов</p>
+        <br>
+        <p><b>Советы:</b></p>
+        <p>- После создания правила <b>перезагрузите страницу</b> (F5)</p>
+        <p>- Перехватываются только <code>fetch</code> и <code>XMLHttpRequest</code></p>
+        <p>- Мокированные запросы видны в <b>консоли</b> (F12 → Console)</p>
+        <p>- Экспорт/Импорт работает в полной панели</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
