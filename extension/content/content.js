@@ -6,8 +6,25 @@
   };
   (document.head || document.documentElement).appendChild(script);
 
+  var contextValid = true;
+
+  function safeSendMessage(msg, callback) {
+    if (!contextValid) return;
+    try {
+      chrome.runtime.sendMessage(msg, function (res) {
+        if (chrome.runtime.lastError) {
+          contextValid = false;
+          return;
+        }
+        if (callback) callback(res);
+      });
+    } catch (e) {
+      contextValid = false;
+    }
+  }
+
   function sendRulesToPage() {
-    chrome.runtime.sendMessage({ type: "getRules" }, function (res) {
+    safeSendMessage({ type: "getRules" }, function (res) {
       if (res) {
         window.postMessage(
           { type: "REQUEST_MOCKER_RULES", rules: res.rules, masterEnabled: res.masterEnabled },
@@ -19,6 +36,7 @@
 
   window.addEventListener("message", function (event) {
     if (event.source !== window) return;
+    if (!contextValid) return;
     var data = event.data;
     if (!data) return;
 
@@ -27,7 +45,7 @@
     }
 
     if (data.type === "REQUEST_MOCKER_HIT") {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         type: "hitCount",
         ruleId: data.ruleId,
         url: data.url,
@@ -37,7 +55,7 @@
     }
 
     if (data.type === "REQUEST_MOCKER_SEEN") {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         type: "seenRequests",
         requests: data.requests
       });

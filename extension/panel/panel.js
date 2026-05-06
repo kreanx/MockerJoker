@@ -309,30 +309,33 @@ function openEditor(ruleId) {
 }
 
 function updateUrlDatalist() {
-  chrome.runtime.sendMessage({ type: "getSeenRequests" }, function (res) {
-    var dl = $("urlSuggestions");
-    if (!dl) return;
-    var items = {};
-    dl.innerHTML = "";
-    if (res && res.requests) {
-      res.requests.forEach(function (r) {
-        if (!items[r.url]) {
-          items[r.url] = true;
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+    var tabId = tabs && tabs[0] ? tabs[0].id : null;
+    chrome.runtime.sendMessage({ type: "getSeenRequests", tabId: tabId }, function (res) {
+      var dl = $("urlSuggestions");
+      if (!dl) return;
+      var items = {};
+      dl.innerHTML = "";
+      if (res && res.requests) {
+        res.requests.forEach(function (r) {
+          if (!items[r.url]) {
+            items[r.url] = true;
+            var opt = document.createElement("option");
+            opt.value = r.url;
+            opt.label = r.method;
+            dl.appendChild(opt);
+          }
+        });
+      }
+      rules.forEach(function (r) {
+        var p = r.match.urlPattern;
+        if (p && !items[p]) {
+          items[p] = true;
           var opt = document.createElement("option");
-          opt.value = r.url;
-          opt.label = r.method;
+          opt.value = p;
           dl.appendChild(opt);
         }
       });
-    }
-    rules.forEach(function (r) {
-      var p = r.match.urlPattern;
-      if (p && !items[p]) {
-        items[p] = true;
-        var opt = document.createElement("option");
-        opt.value = p;
-        dl.appendChild(opt);
-      }
     });
   });
 }
