@@ -503,10 +503,7 @@ body {
 .help-tip:hover { border-color: #3498db; color: #3498db; }
 .help-tip .help-tip-text {
   display: none;
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
+  position: fixed;
   background: #2c3e50;
   color: #ecf0f1;
   padding: 10px 12px;
@@ -515,7 +512,7 @@ body {
   font-weight: 400;
   white-space: normal;
   width: 300px;
-  z-index: 1000;
+  z-index: 10000;
   line-height: 1.5;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   text-align: left;
@@ -526,7 +523,7 @@ body {
   border-radius: 2px;
   font-size: 11px;
 }
-.help-tip:hover .help-tip-text { display: block; }
+.help-tip.active .help-tip-text { display: block; }
 
 .form-group input[type="text"],
 .form-group input[type="number"],

@@ -678,3 +678,25 @@ function renderRuleItem(rule, counters, lastTime) {
   html += '</div></div>';
   return html;
 }
+
+document.addEventListener("mouseenter", function (e) {
+  var tip = e.target.closest(".help-tip");
+  if (!tip) return;
+  var text = tip.querySelector(".help-tip-text");
+  if (!text) return;
+  tip.classList.add("active");
+  var box = tip.getBoundingClientRect();
+  var tipW = text.offsetWidth;
+  var left = box.left + box.width / 2 - tipW / 2;
+  if (left < 4) left = 4;
+  if (left + tipW > window.innerWidth - 4) left = window.innerWidth - tipW - 4;
+  text.style.left = left + "px";
+  var top = box.top - text.offsetHeight - 8;
+  if (top < 4) top = box.bottom + 8;
+  text.style.top = top + "px";
+}, true);
+
+document.addEventListener("mouseleave", function (e) {
+  var tip = e.target.closest(".help-tip");
+  if (tip) tip.classList.remove("active");
+}, true);
