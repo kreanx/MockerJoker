@@ -1,7 +1,10 @@
 # MockerJoker
 
 Кроссбраузерное расширение (Chrome + Firefox) для подмены HTTP-запросов. Позволяет тестировать поведение приложения при ошибках сервера, задержках, отсутствии авторизации и других сценариях без доступа к бэкенду.
-<img width="595" height="696" alt="Screenshot_2026-05-07_13-43-55" src="https://github.com/user-attachments/assets/5b327ab6-aa2d-460c-8dc5-817d80bdede8" />
+<img width="598" height="665" alt="image" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
+<img width="616" height="756" alt="image" src="https://github.com/user-attachments/assets/4810aeb8-46b8-449e-a27c-fe4cafa77bab" />
+<img width="2245" height="1260" alt="image" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
+
 
 ## Возможности
 
