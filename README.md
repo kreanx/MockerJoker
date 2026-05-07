@@ -36,8 +36,8 @@ extension/
 └── icons/                    — иконки 16/48/128px
 manifest.firefox.json         — Firefox манифест (background.scripts)
 build-firefox.sh              — сборка Firefox билда
-build-zip.sh                  — создание ZIP-архивов для тестировщиков
-GUIDE.md                      — инструкция для тестировщика
+build-zip.sh                  — создание ZIP-архивов
+GUIDE.md                      — руководство пользователя
 ```
 
 ## Разработка
@@ -56,7 +56,7 @@ GUIDE.md                      — инструкция для тестировщ
 
 Затем `about:debugging` → This Firefox → Load Temporary Add-on → `build/firefox/manifest.json`
 
-### Сборка ZIP для тестировщиков
+### Сборка ZIP
 
 ```bash
 ./build-zip.sh
