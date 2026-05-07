@@ -345,17 +345,18 @@ function deleteRuleById(id) {
   var btn = document.querySelector('.btn-delete[data-id="' + id + '"]');
   if (btn && btn.dataset.confirm === "1") {
     rules = rules.filter(function (r) { return r.id !== id; });
-  saveState();
-  renderRules();
-  return;
-}
-if (btn) {
-  btn.dataset.confirm = "1";
-  btn.textContent = "?";
-  btn.title = "Нажмите ещё раз для удаления";
-  setTimeout(function () {
-    if (btn) { btn.dataset.confirm = ""; btn.textContent = "\u00d7"; btn.title = "Удалить"; }
-  }, 3000);
+    saveState();
+    renderRules();
+    return;
+  }
+  if (btn) {
+    btn.dataset.confirm = "1";
+    btn.textContent = "?";
+    btn.title = "Нажмите ещё раз для удаления";
+    setTimeout(function () {
+      if (btn) { btn.dataset.confirm = ""; btn.textContent = "\u00d7"; btn.title = "Удалить"; }
+    }, 3000);
+  }
 }
 
 function openEditor(ruleId) {
