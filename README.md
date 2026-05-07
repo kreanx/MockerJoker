@@ -74,9 +74,37 @@ GUIDE.md                      — руководство пользовател�
 ## Ограничения
 
 - Перехватываются только `fetch()` и `XMLHttpRequest`
-- Forbidden headers (Cookie, Host, Connection) нельзя удалить через modify
 - Content script не перехватывает навигацию, `<script src>`, `<img>` и т.д.
 - Firefox: временное дополнение пропадает при перезапуске браузера (подписанное — нет)
+
+### Запрещённые заголовки
+
+Браузер не позволяет удалить или изменить следующие заголовки через `modifyRequest`:
+
+| Заголовок | Причина |
+|---|---|
+| `Accept-Charset` | Forbidden request header |
+| `Accept-Encoding` | Forbidden request header |
+| `Access-Control-Request-Headers` | CORS preflight |
+| `Access-Control-Request-Method` | CORS preflight |
+| `Connection` | Forbidden request header |
+| `Content-Length` | Forbidden request header |
+| `Cookie` | Forbidden request header |
+| `Cookie2` | Forbidden request header |
+| `Date` | Forbidden request header |
+| `DNT` | Forbidden request header |
+| `Expect` | Forbidden request header |
+| `Host` | Forbidden request header |
+| `Keep-Alive` | Forbidden request header |
+| `Origin` | Forbidden request header |
+| `Referer` | Forbidden request header |
+| `TE` | Forbidden request header |
+| `Trailer` | Forbidden request header |
+| `Transfer-Encoding` | Forbidden request header |
+| `Upgrade` | Forbidden request header |
+| `Via` | Forbidden request header |
+| `Sec-*` | Все заголовки начинающиеся с `Sec-` |
+| `Proxy-*` | Все заголовки начинающиеся с `Proxy-` |
 
 ## Установка
 
