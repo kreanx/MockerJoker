@@ -5,13 +5,13 @@
 <h1 align="center">MockerJoker</h1>
 
 <p align="center">
-  <em>fake it till you make it</em> — мокирование HTTP-запросов на стероидах.<br>
+  <em>fake it till you make it</em> — браузерное расширение для мокирования HTTP-запросов.<br>
   Тестируйте ошибки сервера, задержки, отсутствие авторизации и любой сценарий — без доступа к бэкенду.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Chrome-MV3-green?logo=googlechrome" alt="Chrome">
-  <img src="https://img.shields.io/badge/Firefox-MV3-orange?logo=firefox" alt="Firefox">
+  <img src="https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome" alt="Chrome">
+  <img src="https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefox" alt="Firefox">
   <img src="https://img.shields.io/badge/version-4.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
 </p>
