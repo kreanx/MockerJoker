@@ -141,8 +141,17 @@
             </div>
             <div class="form-group">
               <label for="editBody">Тело ответа (JSON)</label>
-              <textarea id="editBody" rows="6" placeholder='{"error": "message"}'></textarea>
-              <button id="btnFormatBody" class="btn btn-outline btn-sm">Форматировать JSON</button>
+              <div class="json-editor-wrap">
+                <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlight"></code></pre>
+                <textarea id="editBody" rows="8" placeholder='{"error": "message"}' spellcheck="false"></textarea>
+              </div>
+              <div class="json-editor-bar">
+                <span id="jsonValidMsg" class="json-valid-msg"></span>
+                <div class="json-editor-actions">
+                  <button id="btnFormatBody" class="json-btn">Форматировать</button>
+                  <button id="btnFullscreenBody" class="json-btn" title="Развернуть">&#x26F6;</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -207,6 +216,25 @@
           <li>Мокированные запросы видны в <b>консоли</b> (F12 → Console) с тегом [MockerJoker]</li>
           <li>Используйте экспорт/импорт для передачи правил коллегам</li>
         </ul>
+      </div>
+    </div>
+  </div>
+  <div id="bodyFullscreenModal" class="fullscreen-modal hidden">
+    <div class="fullscreen-modal-header">
+      <span>Тело ответа (JSON)</span>
+      <button id="btnCloseFullscreen" class="btn-close">&times;</button>
+    </div>
+    <div class="fullscreen-modal-body">
+      <div class="json-editor-wrap fullscreen-editor">
+        <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlightFS"></code></pre>
+        <textarea id="editBodyFS" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="fullscreen-modal-footer">
+      <span id="jsonValidMsgFS" class="json-valid-msg"></span>
+      <div class="json-editor-actions">
+        <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
+        <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
       </div>
     </div>
   </div>

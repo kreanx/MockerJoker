@@ -7,6 +7,10 @@
 - Mock ответов (статус, заголовки, тело, задержка)
 - Modify запросов (удалить/установить заголовки)
 - 7 пресетов для типичных сценариев
+- JSON editor с подсветкой синтаксиса
+- Полноэкранный режим редактирования тела (тёмная тема)
+- Валидация JSON в реальном времени
+- Автоформатирование при вставке
 - Счётчик перехваченных запросов
 - Автодополнение URL из реальных запросов на странице
 - Экспорт/импорт правил
@@ -72,4 +76,18 @@ GUIDE.md                      — инструкция для тестировщ
 - Перехватываются только `fetch()` и `XMLHttpRequest`
 - Forbidden headers (Cookie, Host, Connection) нельзя удалить через modify
 - Content script не перехватывает навигацию, `<script src>`, `<img>` и т.д.
-- Firefox: временное дополнение пропадает при перезапуске браузера
+- Firefox: временное дополнение пропадает при перезапуске браузера (подписанное — нет)
+
+## Установка
+
+### Chrome
+
+1. Скачайте `mock-extention-chrome.zip` из [Releases](https://github.com/kreanx/MockerJoker/releases)
+2. Распакуйте в папку
+3. `chrome://extensions` → Developer mode → Load unpacked → выберите папку
+
+### Firefox
+
+Ссылка для установки подписанного расширения: https://addons.mozilla.org/firefox/downloads/file/4795385/deadb76029ef4f9b86b6-2.0.0.xpi
+
+Или через `about:debugging` → Load Temporary Add-on → `build/firefox/manifest.json`

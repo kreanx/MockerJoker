@@ -90,8 +90,17 @@
         <div id="headersEditor" class="key-value-editor"></div>
         <button id="btnAddHeader" class="btn btn-small">+ Заголовок</button>
         <label>Тело ответа</label>
-        <textarea id="editBody" rows="4" placeholder='{"error": "message"}'></textarea>
-        <button id="btnFormatBody" class="btn btn-small">Форматировать</button>
+        <div class="json-editor-wrap">
+          <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlight"></code></pre>
+          <textarea id="editBody" rows="4" placeholder='{"error": "message"}' spellcheck="false"></textarea>
+        </div>
+        <div class="json-editor-bar">
+          <span id="jsonValidMsg" class="json-valid-msg"></span>
+          <div class="json-editor-actions">
+            <button id="btnFormatBody" class="json-btn">Форматировать</button>
+            <button id="btnFullscreenBody" class="json-btn" title="Развернуть">&#x26F6;</button>
+          </div>
+        </div>
       </div>
 
       <div id="modifyRequestFields" class="hidden">
@@ -110,6 +119,26 @@
   </div>
 
   <script src="popup.js"></script>
+
+  <div id="bodyFullscreenModal" class="fullscreen-modal hidden">
+    <div class="fullscreen-modal-header">
+      <span>Тело ответа (JSON)</span>
+      <button id="btnCloseFullscreen" class="btn-close">&times;</button>
+    </div>
+    <div class="fullscreen-modal-body">
+      <div class="json-editor-wrap fullscreen-editor">
+        <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlightFS"></code></pre>
+        <textarea id="editBodyFS" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="fullscreen-modal-footer">
+      <span id="jsonValidMsgFS" class="json-valid-msg"></span>
+      <div class="json-editor-actions">
+        <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
+        <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
+      </div>
+    </div>
+  </div>
 
   <div id="helpOverlay" class="help-overlay hidden">
     <div class="help-content">

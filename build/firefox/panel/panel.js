@@ -256,11 +256,21 @@ function bindEvents() {
   $("btnAddSetHeader").addEventListener("click", function () { addKvRow("setHeadersEditor", "", ""); });
 
   $("btnFormatBody").addEventListener("click", function () {
-    var body = $("editBody").value.trim();
-    if (!body) return;
-    try {
-      $("editBody").value = JSON.stringify(JSON.parse(body), null, 2);
-    } catch (e) { alert("Невалидный JSON: " + e.message); }
+    formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg");
+  });
+  $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);
+
+  $("btnFormatBodyFS").addEventListener("click", function () {
+    formatBodyIn("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS");
+  });
+  $("btnCloseFullscreen").addEventListener("click", closeBodyFullscreen);
+  $("btnApplyFullscreen").addEventListener("click", closeBodyFullscreen);
+  $("editBodyFS").addEventListener("input", function () {
+    updateBodyHighlight("editBodyFS", "editBodyHighlightFS");
+    validateJSONBody("editBodyFS", "jsonValidMsgFS");
+  });
+  $("editBodyFS").addEventListener("scroll", function () {
+    syncBodyScroll("editBodyFS", "editBodyHighlightFS");
   });
 
   $("inputRemoveHeader").addEventListener("keydown", function (e) {
@@ -318,6 +328,7 @@ function openEditor(ruleId) {
   toggleActionFields(rule.action.type);
   loadSeenUrls();
   $("editor").classList.remove("hidden");
+  setupBodyEditor("editBody", "editBodyHighlight", "jsonValidMsg");
   $("editUrlPattern").focus();
 }
 
@@ -468,6 +479,141 @@ function importRules() {
   };
   reader.readAsText(file);
   $("importFile").value = "";
+}
+
+function highlightJSON(str) {
+  if (!str) return "\n";
+  var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function (m) {
+      var c = "json-number";
+      if (/^"/.test(m)) {
+        c = /:$/.test(m) ? "json-key" : "json-string";
+      } else if (/true|false/.test(m)) {
+        c = "json-boolean";
+      } else if (/null/.test(m)) {
+        c = "json-null";
+      }
+      return '<span class="' + c + '">' + m + "</span>";
+    }
+  ) + "\n";
+}
+
+function updateBodyHighlight(textareaId, highlightId) {
+  var ta = $(textareaId);
+  var code = $(highlightId);
+  if (!ta || !code) return;
+  code.innerHTML = highlightJSON(ta.value);
+}
+
+function validateJSONBody(textareaId, msgId) {
+  var ta = $(textareaId);
+  var msg = $(msgId);
+  if (!ta || !msg) return;
+  var val = ta.value.trim();
+  if (!val) {
+    msg.textContent = "";
+    msg.className = "json-valid-msg empty";
+    return;
+  }
+  try {
+    JSON.parse(val);
+    msg.textContent = "Valid JSON";
+    msg.className = "json-valid-msg valid";
+  } catch (e) {
+    msg.textContent = e.message.replace(/^JSON\.parse:\s*/, "");
+    msg.className = "json-valid-msg invalid";
+  }
+}
+
+function syncBodyScroll(textareaId, highlightId) {
+  var ta = $(textareaId);
+  var code = $(highlightId);
+  if (!ta || !code) return;
+  var pre = code.parentElement;
+  pre.scrollTop = ta.scrollTop;
+  pre.scrollLeft = ta.scrollLeft;
+}
+
+function setupBodyEditor(textareaId, highlightId, msgId) {
+  var ta = $(textareaId);
+  if (!ta) return;
+  var wrap = ta.closest(".json-editor-wrap");
+
+  function update() {
+    updateBodyHighlight(textareaId, highlightId);
+    validateJSONBody(textareaId, msgId);
+  }
+
+  ta.addEventListener("input", update);
+  ta.addEventListener("scroll", function () { syncBodyScroll(textareaId, highlightId); });
+
+  ta.addEventListener("focus", function () { if (wrap) wrap.classList.add("focused"); });
+  ta.addEventListener("blur", function () { if (wrap) wrap.classList.remove("focused"); });
+
+  ta.addEventListener("paste", function (e) {
+    var pasted = (e.clipboardData || window.clipboardData).getData("text");
+    try {
+      var parsed = JSON.parse(pasted);
+      e.preventDefault();
+      ta.value = JSON.stringify(parsed, null, 2);
+      update();
+    } catch (err) {}
+  });
+
+  ta.addEventListener("keydown", function (e) {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      var start = ta.selectionStart;
+      var end = ta.selectionEnd;
+      ta.value = ta.value.substring(0, start) + "  " + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + 2;
+      update();
+    }
+    if (e.key === "Enter" && e.ctrlKey) {
+      e.preventDefault();
+      formatBodyIn(textareaId, highlightId, msgId);
+    }
+  });
+
+  update();
+}
+
+function formatBodyIn(textareaId, highlightId, msgId) {
+  var ta = $(textareaId);
+  if (!ta) return;
+  var val = ta.value.trim();
+  if (!val) return;
+  try {
+    ta.value = JSON.stringify(JSON.parse(val), null, 2);
+  } catch (e) {}
+  ta.scrollTop = 0;
+  ta.scrollLeft = 0;
+  updateBodyHighlight(textareaId, highlightId);
+  syncBodyScroll(textareaId, highlightId);
+  validateJSONBody(textareaId, msgId);
+}
+
+function openBodyFullscreen() {
+  var src = $("editBody");
+  var dst = $("editBodyFS");
+  if (!src || !dst) return;
+  dst.value = src.value;
+  updateBodyHighlight("editBodyFS", "editBodyHighlightFS");
+  validateJSONBody("editBodyFS", "jsonValidMsgFS");
+  $("bodyFullscreenModal").classList.remove("hidden");
+  dst.focus();
+}
+
+function closeBodyFullscreen() {
+  var src = $("editBodyFS");
+  var dst = $("editBody");
+  if (!src || !dst) return;
+  dst.value = src.value;
+  updateBodyHighlight("editBody", "editBodyHighlight");
+  validateJSONBody("editBody", "jsonValidMsg");
+  $("bodyFullscreenModal").classList.add("hidden");
 }
 
 document.addEventListener("DOMContentLoaded", init);
