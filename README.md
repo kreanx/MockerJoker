@@ -88,6 +88,6 @@ GUIDE.md                      — инструкция для тестировщ
 
 ### Firefox
 
-Ссылка для установки подписанного расширения: https://addons.mozilla.org/firefox/downloads/file/4795385/deadb76029ef4f9b86b6-2.0.0.xpi
+Ссылка для установки подписанного расширения: https://addons.mozilla.org/addon/deadb76029ef4f9b86b6/
 
 Или через `about:debugging` → Load Temporary Add-on → `build/firefox/manifest.json`
