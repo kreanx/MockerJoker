@@ -1,10 +1,24 @@
 # MockerJoker
 
-Кроссбраузерное расширение (Chrome + Firefox) для подмены HTTP-запросов. Позволяет тестировать поведение приложения при ошибках сервера, задержках, отсутствии авторизации и других сценариях без доступа к бэкенду.
-<img width="598" height="665" alt="image" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
-<img width="616" height="756" alt="image" src="https://github.com/user-attachments/assets/4810aeb8-46b8-449e-a27c-fe4cafa77bab" />
-<img width="2245" height="1260" alt="image" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
+*fake it till you make it* — подмена HTTP-запросов прямо в браузере. Тестируйте ошибки сервера, задержки, отсутствие авторизации и любой сценарий — без доступа к бэкенду.
 
+![Chrome](https://img.shields.io/badge/Chrome-MV3-green?logo=googlechrome) ![Firefox](https://img.shields.io/badge/Firefox-MV3-orange?logo=firefox) ![Version](https://img.shields.io/badge/version-4.0.0-blue) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
+<img width="598" height="665" alt="Popup" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
+<em>Popup — быстрый доступ к правилам и пресетам</em>
+
+<img width="616" height="756" alt="Popup Editor" src="https://github.com/user-attachments/assets/4810aeb8-46b8-449e-a27c-fe4cafa77bab" />
+<em>Popup — редактирование правила</em>
+
+<img width="2245" height="1260" alt="Panel" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
+<em>Panel — полноэкранный интерфейс в отдельной вкладке</em>
+
+## Быстрый старт
+
+1. Установите расширение (Chrome: загрузите распакованное, Firefox: `about:debugging`)
+2. Откройте popup — нажмите пресет **500 Internal Error**
+3. Введите URL-паттерн `*/api/*` → **Сохранить**
+4. Готово — все запросы к `/api/*` вернут ошибку 500
 
 ## Возможности
 
@@ -127,3 +141,17 @@ GUIDE.md                      — руководство пользовател�
 | `Via` | Forbidden request header |
 | `Sec-*` | Все заголовки начинающиеся с `Sec-` |
 | `Proxy-*` | Все заголовки начинающиеся с `Proxy-` |
+
+## Troubleshooting
+
+| Симптом | Решение |
+|---|---|
+| Правило не сработало | Обновите страницу (F5). Content script инжектится при загрузке |
+| Firefox: расширение пропало после перезапуска | Временное дополнение не переживает рестарт — загрузите заново через `about:debugging` |
+| Заголовок Cookie/Origin/Host не удаляется | Это forbidden headers — браузер блокирует их изменение через `fetch`/`XHR` |
+| Запрос не перехватывается | Перехватываются только `fetch()` и `XMLHttpRequest`, не `<script>`, `<img>`, навигация |
+| Правило с body condition не срабатывает | Убедитесь что тело — валидный JSON. Проверьте правильность пути (dot notation) и оператор |
+
+## License
+
+MIT
