@@ -410,6 +410,98 @@
       var reqBody = parseReqBody(body);
       var rule = findRule(this.__rm.url, this.__rm.method, reqBody);
 
+      if (rule && hasRespBC(rule)) {
+        var origORSC = self.onreadystatechange;
+        var origOnLoad = self.onload;
+        var origOnLoadEnd = self.onloadend;
+        var respHandled = false;
+
+        function handleRespBC() {
+          if (respHandled) return;
+          respHandled = true;
+          var respObj = parseRespObj(self.responseText);
+          if (!matchBodyConditions(respObj, rule.match.bodyConditions)) return;
+
+          if (rule.action.type === "mockResponse") {
+            var ms = rule.action.status || 200;
+            var mb = rule.action.body || "";
+            var mh = rule.action.headers || {};
+            try { Object.defineProperty(self, 'status', { value: ms, configurable: true, writable: true }); } catch(e) {}
+            try { Object.defineProperty(self, 'statusText', { value: '', configurable: true, writable: true }); } catch(e) {}
+            try { Object.defineProperty(self, 'responseText', { value: mb, configurable: true, writable: true }); } catch(e) {}
+            try { Object.defineProperty(self, 'response', { value: mb, configurable: true, writable: true }); } catch(e) {}
+            self.getResponseHeader = function(name) {
+              var lower = name.toLowerCase();
+              for (var k in mh) { if (k.toLowerCase() === lower) return mh[k]; }
+              return null;
+            };
+            self.getAllResponseHeaders = function() {
+              return Object.keys(mh).map(function(k) { return k.toLowerCase() + ": " + mh[k]; }).join("\r\n");
+            };
+            reportHit(rule.id, self.__rm.url, self.__rm.method);
+            logAction("#e74c3c", "XHR conditional mock \u2192 " + ms, self.__rm.method, self.__rm.url, rule, { status: ms, headers: mh });
+          } else if (rule.action.type === "modifyResponse") {
+            var modR = rule;
+            var origGH = self.getResponseHeader;
+            var origGAH = self.getAllResponseHeaders;
+            self.getResponseHeader = function(name) {
+              var val = origGH.call(self, name);
+              if (modR.action.removeResponseHeaders) {
+                var lower = name.toLowerCase();
+                for (var i = 0; i < modR.action.removeResponseHeaders.length; i++) {
+                  if (modR.action.removeResponseHeaders[i].toLowerCase() === lower) return null;
+                }
+              }
+              if (modR.action.setResponseHeaders) {
+                var lower2 = name.toLowerCase();
+                for (var k in modR.action.setResponseHeaders) {
+                  if (k.toLowerCase() === lower2) return modR.action.setResponseHeaders[k];
+                }
+              }
+              return val;
+            };
+            self.getAllResponseHeaders = function() {
+              var raw = origGAH.call(self);
+              if (!raw) return raw;
+              var result = raw;
+              if (modR.action.removeResponseHeaders) {
+                modR.action.removeResponseHeaders.forEach(function(h) {
+                  var re = new RegExp(h.toLowerCase() + ": [^\\r]*\\r?\\n?", "gi");
+                  result = result.replace(re, "");
+                });
+              }
+              if (modR.action.setResponseHeaders) {
+                Object.keys(modR.action.setResponseHeaders).forEach(function(k) {
+                  var re = new RegExp(k.toLowerCase() + ": [^\\r]*\\r?\\n?", "gi");
+                  result = result.replace(re, "");
+                  result += k.toLowerCase() + ": " + modR.action.setResponseHeaders[k] + "\r\n";
+                });
+              }
+              return result;
+            };
+            reportHit(rule.id, self.__rm.url, self.__rm.method);
+            logAction("#9b59b6", "XHR conditional modifyResponse", self.__rm.method, self.__rm.url, rule, {
+              removeHeaders: modR.action.removeResponseHeaders,
+              setHeaders: modR.action.setResponseHeaders
+            });
+          }
+        }
+
+        self.onreadystatechange = function(evt) {
+          if (self.readyState === 4) handleRespBC();
+          if (origORSC) origORSC.call(self, evt);
+        };
+        self.onload = function(evt) {
+          handleRespBC();
+          if (origOnLoad) origOnLoad.call(self, evt);
+        };
+        self.onloadend = function(evt) {
+          if (origOnLoadEnd) origOnLoadEnd.call(self, evt);
+        };
+
+        return origXhrSend.apply(self, arguments);
+      }
+
       if (rule && rule.action.type === "mockResponse") {
         var delay = rule.action.delay || 0;
         reportHit(rule.id, self.__rm.url, self.__rm.method);
