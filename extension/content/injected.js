@@ -65,6 +65,26 @@
     }, "*");
   }
 
+  function tryParseBody(str) {
+    if (!str) return str;
+    try { return JSON.parse(str); } catch(e) { return str; }
+  }
+
+  function logAction(bg, label, method, url, rule, extra) {
+    var obj = { rule: rule.name };
+    if (extra) {
+      var keys = Object.keys(extra);
+      for (var i = 0; i < keys.length; i++) obj[keys[i]] = extra[keys[i]];
+    }
+    if (rule.action.body !== undefined) obj.body = tryParseBody(rule.action.body);
+    console.log(
+      "%c[MockerJoker]%c " + label + ": " + method + " " + url,
+      "background:" + bg + ";color:#fff;padding:2px 6px;border-radius:3px",
+      "color:" + bg + ";font-weight:bold",
+      obj
+    );
+  }
+
   function applyRequestModifications(init, rule) {
     if (!init) init = {};
     var headers = new Headers(init.headers || {});
@@ -106,16 +126,11 @@
       var delay = rule.action.delay || 0;
       var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
       reportHit(rule.id, url, method);
-      console.log(
-        "%c[MockerJoker]%c FETCH intercepted: " + method + " " + url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
-        "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#e74c3c;font-weight:bold",
-        "\n  Rule:", rule.name,
-        "\n  Status:", rule.action.status,
-        "\n  Delay:", delay + "ms",
-        "\n  Headers:", respHeaders,
-        "\n  Body:", rule.action.body
-      );
+      logAction("#e74c3c", "FETCH intercepted \u2192 " + rule.action.status, method, url, rule, {
+        status: rule.action.status,
+        delay: delay + "ms",
+        headers: respHeaders
+      });
       return new Promise(function (resolve) {
         setTimeout(function () {
           resolve(
@@ -136,15 +151,11 @@
         init.headers.forEach(function (v, k) { modifiedHeaders[k] = v; });
       }
       reportHit(rule.id, url, method);
-      console.log(
-        "%c[MockerJoker]%c FETCH modified: " + method + " " + url,
-        "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#f39c12;font-weight:bold",
-        "\n  Rule:", rule.name,
-        "\n  Remove headers:", rule.action.removeHeaders,
-        "\n  Set headers:", rule.action.setHeaders,
-        "\n  Result headers:", modifiedHeaders
-      );
+      logAction("#f39c12", "FETCH modified", method, url, rule, {
+        removeHeaders: rule.action.removeHeaders,
+        setHeaders: rule.action.setHeaders,
+        resultHeaders: modifiedHeaders
+      });
       if (typeof input === "string") {
         return origFetch.call(this, input, init);
       }
@@ -153,14 +164,10 @@
 
     if (rule && rule.action.type === "modifyResponse") {
       reportHit(rule.id, url, method);
-      console.log(
-        "%c[MockerJoker]%c FETCH modifyResponse: " + method + " " + url,
-        "background:#9b59b6;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#9b59b6;font-weight:bold",
-        "\n  Rule:", rule.name,
-        "\n  Remove headers:", rule.action.removeResponseHeaders,
-        "\n  Set headers:", rule.action.setResponseHeaders
-      );
+      logAction("#9b59b6", "FETCH modifyResponse", method, url, rule, {
+        removeHeaders: rule.action.removeResponseHeaders,
+        setHeaders: rule.action.setResponseHeaders
+      });
       return origFetch.apply(this, arguments).then(function (response) {
         var newHeaders = new Headers(response.headers);
         if (rule.action.removeResponseHeaders) {
@@ -210,16 +217,11 @@
       if (rule && rule.action.type === "mockResponse") {
         var delay = rule.action.delay || 0;
         reportHit(rule.id, self.__rm.url, self.__rm.method);
-        console.log(
-          "%c[MockerJoker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
-          "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#e74c3c;font-weight:bold",
-          "\n  Rule:", rule.name,
-          "\n  Status:", rule.action.status,
-          "\n  Delay:", delay + "ms",
-          "\n  Headers:", rule.action.headers || {},
-          "\n  Body:", rule.action.body
-        );
+        logAction("#e74c3c", "XHR intercepted \u2192 " + rule.action.status, self.__rm.method, self.__rm.url, rule, {
+          status: rule.action.status,
+          delay: delay + "ms",
+          headers: rule.action.headers || {}
+        });
         mockXhrResponse(self, rule, delay);
         return;
       }
@@ -231,27 +233,19 @@
           });
         }
         reportHit(rule.id, self.__rm.url, self.__rm.method);
-        console.log(
-          "%c[MockerJoker]%c XHR modified: " + self.__rm.method + " " + self.__rm.url,
-          "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#f39c12;font-weight:bold",
-          "\n  Rule:", rule.name,
-          "\n  Remove headers:", rule.action.removeHeaders,
-          "\n  Set headers:", rule.action.setHeaders,
-          "\n  Request headers:", self.__rmReqHeaders || {}
-        );
+        logAction("#f39c12", "XHR modified", self.__rm.method, self.__rm.url, rule, {
+          removeHeaders: rule.action.removeHeaders,
+          setHeaders: rule.action.setHeaders,
+          requestHeaders: self.__rmReqHeaders || {}
+        });
       }
 
       if (rule && rule.action.type === "modifyResponse") {
         reportHit(rule.id, self.__rm.url, self.__rm.method);
-        console.log(
-          "%c[MockerJoker]%c XHR modifyResponse: " + self.__rm.method + " " + self.__rm.url,
-          "background:#9b59b6;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#9b59b6;font-weight:bold",
-          "\n  Rule:", rule.name,
-          "\n  Remove headers:", rule.action.removeResponseHeaders,
-          "\n  Set headers:", rule.action.setResponseHeaders
-        );
+        logAction("#9b59b6", "XHR modifyResponse", self.__rm.method, self.__rm.url, rule, {
+          removeHeaders: rule.action.removeResponseHeaders,
+          setHeaders: rule.action.setResponseHeaders
+        });
 
         var modRule = rule;
         self.getResponseHeader = function (name) {
