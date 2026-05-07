@@ -77,6 +77,9 @@ function bindEvents() {
   $("btnAddSetHeader").addEventListener("click", function () { addKvRow("setHeadersEditor", "", ""); });
   $("btnAddSetRespHeader").addEventListener("click", function () { addKvRow("setRespHeadersEditor", "", ""); });
 
+  $("btnAddBc").addEventListener("click", function () { addBodyConditionRow("bodyConditionsEditor", { path: "", operator: "equals", value: "" }); });
+  $("btnAddTransform").addEventListener("click", function () { addTransformRow("transformsEditor", { path: "", value: "" }); });
+
   $("inputRemoveHeader").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v); this.value = ""; } }
   });

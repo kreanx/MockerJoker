@@ -387,6 +387,7 @@ body {
 .badge-mock { background: #e8f5e9; color: #2e7d32; }
 .badge-modify { background: #e3f2fd; color: #1565c0; }
 .badge-modify-resp { background: #f3e5f5; color: #7b1fa2; }
+.badge-modify-body { background: #e0f2f1; color: #00796b; }
 
 .badge-error { background: #fde8e8; color: #c0392b; }
 .badge-redirect { background: #fff3e0; color: #e67e22; }
@@ -578,6 +579,33 @@ body {
   font-size: 16px;
   padding: 0 6px;
 }
+
+.bc-editor { display: flex; flex-direction: column; gap: 6px; }
+
+.bc-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.bc-row input, .bc-row select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.bc-row .bc-path { flex: 2; }
+.bc-row .bc-op { flex: 1; min-width: 90px; }
+.bc-row .bc-value { flex: 2; }
+.bc-row .bc-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e74c3c;
+  font-size: 16px;
+  padding: 0 6px;
+}
+
+.preset-modify-body .preset-code { background: #e0f2f1; color: #00796b; }
 
 .tags {
   display: flex;

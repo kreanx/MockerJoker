@@ -240,6 +240,7 @@ body {
 .badge-mock { background: #e8f5e9; color: #2e7d32; }
 .badge-modify { background: #e3f2fd; color: #1565c0; }
 .badge-modify-resp { background: #f3e5f5; color: #7b1fa2; }
+.badge-modify-body { background: #e0f2f1; color: #00796b; }
 .badge-error { background: #fde8e8; color: #c0392b; }
 .badge-redirect { background: #fff3e0; color: #e67e22; }
 .badge-success { background: #e8f5e9; color: #27ae60; }
@@ -364,6 +365,31 @@ body {
   font-size: 11px;
 }
 .kv-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e74c3c;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.bc-editor { display: flex; flex-direction: column; gap: 4px; }
+
+.bc-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.bc-row input, .bc-row select {
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.bc-row .bc-path { flex: 2; }
+.bc-row .bc-op { flex: 1; min-width: 70px; }
+.bc-row .bc-value { flex: 2; }
+.bc-row .bc-remove {
   background: none;
   border: none;
   cursor: pointer;

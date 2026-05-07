@@ -30,6 +30,7 @@
         <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
         <button class="preset-btn" data-preset="removeCookies">Убрать Cookie</button>
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
+        <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в теле</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -73,9 +74,14 @@
             <option value="mockResponse">Mock (подмена ответа)</option>
             <option value="modifyRequest">Modify (изменение запроса)</option>
             <option value="modifyResponse">ModResp (изменение ответа)</option>
+            <option value="modifyBody">ModBody (изменение тела)</option>
           </select>
         </div>
       </div>
+
+      <label>Условия на тело запроса <span class="hint">(JSON path, опционально)</span></label>
+      <div id="bodyConditionsEditor" class="bc-editor"></div>
+      <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
       <div id="mockResponseFields">
         <div class="row">
@@ -127,6 +133,12 @@
         <label>Установить заголовки ответа</label>
         <div id="setRespHeadersEditor" class="key-value-editor"></div>
         <button id="btnAddSetRespHeader" class="btn btn-small">+ Заголовок</button>
+      </div>
+
+      <div id="modifyBodyFields" class="hidden">
+        <label>Трансформации тела <span class="hint">(путь → новое значение)</span></label>
+        <div id="transformsEditor" class="key-value-editor"></div>
+        <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
       </div>
     </div>
     <div class="editor-footer">

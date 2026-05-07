@@ -23,7 +23,7 @@
     return new RegExp("^" + escaped + "$", "i");
   }
 
-  function findRule(url, method) {
+  function findRule(url, method, body) {
     if (!masterEnabled) return null;
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
@@ -32,6 +32,7 @@
       var regex = globToRegex(rule.match.urlPattern);
       if (!regex.test(url)) continue;
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
+      if (!matchBodyConditions(body, rule.match.bodyConditions)) continue;
       return rule;
     }
     return null;
@@ -70,6 +71,75 @@
     try { return JSON.parse(str); } catch(e) { return str; }
   }
 
+  function parseValue(str) {
+    if (str === "true") return true;
+    if (str === "false") return false;
+    if (str === "null") return null;
+    if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+    return str;
+  }
+
+  function getByPath(obj, path) {
+    var parts = path.replace(/\[(\d+)\]/g, ".$1").split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length; i++) {
+      if (cur == null) return undefined;
+      cur = cur[parts[i]];
+    }
+    return cur;
+  }
+
+  function setByPath(obj, path, value) {
+    var parts = path.replace(/\[(\d+)\]/g, ".$1").split(".");
+    var cur = obj;
+    for (var i = 0; i < parts.length - 1; i++) {
+      if (cur == null) return;
+      cur = cur[parts[i]];
+    }
+    if (cur != null) cur[parts[parts.length - 1]] = value;
+  }
+
+  function matchBodyConditions(body, conditions) {
+    if (!conditions || !conditions.length) return true;
+    if (typeof body !== "object" || body === null) return false;
+    for (var i = 0; i < conditions.length; i++) {
+      var c = conditions[i];
+      var val = getByPath(body, c.path);
+      if (c.operator === "exists") {
+        if (val === undefined) return false;
+      } else if (c.operator === "equals") {
+        if (val !== parseValue(c.value)) return false;
+      } else if (c.operator === "notEquals") {
+        if (val === parseValue(c.value)) return false;
+      } else if (c.operator === "contains") {
+        if (typeof val === "string") {
+          if (val.indexOf(c.value) === -1) return false;
+        } else if (Array.isArray(val)) {
+          if (val.indexOf(parseValue(c.value)) === -1) return false;
+        } else {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function applyBodyTransforms(body, transforms) {
+    if (!transforms || !transforms.length) return body;
+    for (var i = 0; i < transforms.length; i++) {
+      var t = transforms[i];
+      setByPath(body, t.path, parseValue(t.value));
+    }
+    return body;
+  }
+
+  function parseReqBody(body) {
+    if (body && typeof body === "string") {
+      try { return JSON.parse(body); } catch(e) {}
+    }
+    return null;
+  }
+
   function logAction(bg, label, method, url, rule, extra) {
     var obj = { rule: rule.name };
     if (extra) {
@@ -106,7 +176,7 @@
   // === FETCH ===
 
   window.fetch = function (input, init) {
-    var url, method;
+    var url, method, reqBody;
     if (typeof input === "string") {
       url = resolveUrl(input);
     } else if (input instanceof Request) {
@@ -116,11 +186,12 @@
       url = input.url || "";
     }
     method = ((init && init.method) || method || "GET").toUpperCase();
+    reqBody = parseReqBody(init && init.body);
 
     addSeenRequest(url, method);
     flushSeenRequests();
 
-    var rule = findRule(url, method);
+    var rule = findRule(url, method, reqBody);
 
     if (rule && rule.action.type === "mockResponse") {
       var delay = rule.action.delay || 0;
@@ -142,6 +213,27 @@
           );
         }, delay || 5);
       });
+    }
+
+    if (rule && rule.action.type === "modifyBody") {
+      var bodyObj = reqBody;
+      if (!bodyObj && init && init.body) {
+        bodyObj = parseReqBody(init.body);
+      }
+      if (bodyObj) {
+        bodyObj = applyBodyTransforms(bodyObj, rule.action.transforms);
+        init = init || {};
+        init.body = JSON.stringify(bodyObj);
+        reportHit(rule.id, url, method);
+        logAction("#009688", "FETCH modifyBody", method, url, rule, {
+          transforms: rule.action.transforms,
+          resultBody: bodyObj
+        });
+        if (typeof input === "string") {
+          return origFetch.call(this, input, init);
+        }
+        return origFetch.call(this, new Request(input, init));
+      }
     }
 
     if (rule && rule.action.type === "modifyRequest") {
@@ -212,7 +304,8 @@
       addSeenRequest(this.__rm.url, this.__rm.method);
       flushSeenRequests();
 
-      var rule = findRule(this.__rm.url, this.__rm.method);
+      var reqBody = parseReqBody(body);
+      var rule = findRule(this.__rm.url, this.__rm.method, reqBody);
 
       if (rule && rule.action.type === "mockResponse") {
         var delay = rule.action.delay || 0;
@@ -224,6 +317,22 @@
         });
         mockXhrResponse(self, rule, delay);
         return;
+      }
+
+      if (rule && rule.action.type === "modifyBody") {
+        var bodyObj = reqBody;
+        if (!bodyObj && body) {
+          bodyObj = parseReqBody(body);
+        }
+        if (bodyObj) {
+          bodyObj = applyBodyTransforms(bodyObj, rule.action.transforms);
+          reportHit(rule.id, self.__rm.url, self.__rm.method);
+          logAction("#009688", "XHR modifyBody", self.__rm.method, self.__rm.url, rule, {
+            transforms: rule.action.transforms,
+            resultBody: bodyObj
+          });
+          return origXhrSend.call(self, JSON.stringify(bodyObj));
+        }
       }
 
       if (rule && rule.action.type === "modifyRequest") {

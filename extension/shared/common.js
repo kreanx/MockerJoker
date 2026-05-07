@@ -1,7 +1,8 @@
 var ACTION_TYPES = {
   MOCK_RESPONSE: "mockResponse",
   MODIFY_REQUEST: "modifyRequest",
-  MODIFY_RESPONSE: "modifyResponse"
+  MODIFY_RESPONSE: "modifyResponse",
+  MODIFY_BODY: "modifyBody"
 };
 
 var $ = function (id) { return document.getElementById(id); };
@@ -15,7 +16,7 @@ function createDefaultRule() {
     id: generateId(),
     name: "",
     enabled: true,
-    match: { urlPattern: "", method: "ANY", resourceType: "" },
+    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [] },
     action: {
       type: ACTION_TYPES.MOCK_RESPONSE,
       status: 200,
@@ -25,7 +26,8 @@ function createDefaultRule() {
       removeHeaders: [],
       setHeaders: {},
       removeResponseHeaders: [],
-      setResponseHeaders: {}
+      setResponseHeaders: {},
+      transforms: []
     }
   };
 }
@@ -97,6 +99,16 @@ var presetFactories = {
       action: { type: ACTION_TYPES.MODIFY_RESPONSE,
         removeResponseHeaders: ["Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers", "Access-Control-Allow-Credentials"],
         setResponseHeaders: {} } };
+  },
+  modifyBodyValue: function (p) {
+    return { id: generateId(), name: "Заменить значение в теле", enabled: true,
+      match: { urlPattern: p, method: "POST", resourceType: "", bodyConditions: [
+        { path: "signal", operator: "equals", value: "protect" }
+      ] },
+      action: { type: ACTION_TYPES.MODIFY_BODY,
+        transforms: [
+          { path: "signal", value: "unprotect" }
+        ] } };
   }
 };
 
@@ -154,10 +166,62 @@ function collectRemoveHeaderTags(containerId) {
   return result;
 }
 
+function addBodyConditionRow(containerId, cond) {
+  var row = document.createElement("div");
+  row.className = "bc-row";
+  row.innerHTML = '<input type="text" class="bc-path" placeholder="Путь (напр. signal)" value="' + escapeAttr(cond.path || "") + '">' +
+    '<select class="bc-op">' +
+    '<option value="equals"' + (cond.operator === "equals" ? " selected" : "") + '>равно</option>' +
+    '<option value="notEquals"' + (cond.operator === "notEquals" ? " selected" : "") + '>не равно</option>' +
+    '<option value="contains"' + (cond.operator === "contains" ? " selected" : "") + '>содержит</option>' +
+    '<option value="exists"' + (cond.operator === "exists" ? " selected" : "") + '>существует</option>' +
+    '</select>' +
+    '<input type="text" class="bc-value" placeholder="Значение" value="' + escapeAttr(cond.value || "") + '">' +
+    '<button type="button" class="bc-remove">&times;</button>';
+  row.querySelector(".bc-op").addEventListener("change", function () {
+    row.querySelector(".bc-value").style.display = this.value === "exists" ? "none" : "";
+  });
+  if (cond.operator === "exists") row.querySelector(".bc-value").style.display = "none";
+  row.querySelector(".bc-remove").addEventListener("click", function () { row.remove(); });
+  $(containerId).appendChild(row);
+}
+
+function collectBodyConditions(containerId) {
+  var result = [];
+  $(containerId).querySelectorAll(".bc-row").forEach(function (row) {
+    var p = row.querySelector(".bc-path").value.trim();
+    var op = row.querySelector(".bc-op").value;
+    var v = row.querySelector(".bc-value").value.trim();
+    if (p) result.push({ path: p, operator: op, value: v });
+  });
+  return result;
+}
+
+function addTransformRow(containerId, t) {
+  var row = document.createElement("div");
+  row.className = "kv-row";
+  row.innerHTML = '<input type="text" class="kv-key" placeholder="Путь (напр. signal)" value="' + escapeAttr(t.path || "") + '">' +
+    '<input type="text" class="kv-value" placeholder="Новое значение" value="' + escapeAttr(t.value || "") + '">' +
+    '<button type="button" class="kv-remove">&times;</button>';
+  row.querySelector(".kv-remove").addEventListener("click", function () { row.remove(); });
+  $(containerId).appendChild(row);
+}
+
+function collectTransformRows(containerId) {
+  var result = [];
+  $(containerId).querySelectorAll(".kv-row").forEach(function (row) {
+    var p = row.querySelector(".kv-key").value.trim();
+    var v = row.querySelector(".kv-value").value.trim();
+    if (p) result.push({ path: p, value: v });
+  });
+  return result;
+}
+
 function toggleActionFields(type) {
   $("mockResponseFields").classList.toggle("hidden", type !== "mockResponse");
   $("modifyRequestFields").classList.toggle("hidden", type !== "modifyRequest");
   $("modifyResponseFields").classList.toggle("hidden", type !== "modifyResponse");
+  $("modifyBodyFields").classList.toggle("hidden", type !== "modifyBody");
 }
 
 function highlightJSON(str) {
@@ -477,6 +541,15 @@ function openEditor(ruleId) {
     Object.keys(rule.action.setResponseHeaders).forEach(function (k) { addKvRow("setRespHeadersEditor", k, rule.action.setResponseHeaders[k]); });
   }
 
+  $("bodyConditionsEditor").innerHTML = "";
+  if (rule.match.bodyConditions) {
+    rule.match.bodyConditions.forEach(function (c) { addBodyConditionRow("bodyConditionsEditor", c); });
+  }
+  $("transformsEditor").innerHTML = "";
+  if (rule.action.transforms) {
+    rule.action.transforms.forEach(function (t) { addTransformRow("transformsEditor", t); });
+  }
+
   toggleActionFields(rule.action.type);
   loadSeenUrls();
   $("editor").classList.remove("hidden");
@@ -496,6 +569,7 @@ function saveEditor() {
   rule.name = $("editName").value || "Без названия";
   rule.match.urlPattern = $("editUrlPattern").value;
   rule.match.method = $("editMethod").value;
+  rule.match.bodyConditions = collectBodyConditions("bodyConditionsEditor");
   rule.action.type = actionType;
   if (actionType === "mockResponse") {
     rule.action.status = parseInt($("editStatus").value, 10) || 200;
@@ -508,6 +582,8 @@ function saveEditor() {
   } else if (actionType === "modifyResponse") {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
+  } else if (actionType === "modifyBody") {
+    rule.action.transforms = collectTransformRows("transformsEditor");
   }
   var v = validateRule(rule);
   if (!v.valid) { showEditorError(v.error); return; }
@@ -579,11 +655,15 @@ function renderRuleItem(rule, counters, lastTime) {
     else statusColor = "badge-success";
   } else if (rule.action.type === "modifyResponse") {
     actionLabel = "ModResp";
+  } else if (rule.action.type === "modifyBody") {
+    actionLabel = "ModBody";
   } else {
     actionLabel = "Modify";
   }
   var badgeClass = rule.action.type === "mockResponse" ? "badge-mock"
-    : rule.action.type === "modifyResponse" ? "badge-modify-resp" : "badge-modify";
+    : rule.action.type === "modifyResponse" ? "badge-modify-resp"
+    : rule.action.type === "modifyBody" ? "badge-modify-body"
+    : "badge-modify";
   var disabledClass = rule.enabled ? "" : " disabled";
   var hits = counters[rule.id] || 0;
   var hitClass = hits > 0 ? "has-hits" : "";

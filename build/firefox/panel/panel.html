@@ -69,6 +69,11 @@
           <span class="preset-label">Убрать CORS</span>
           <span class="preset-desc">Удалить CORS-заголовки из ответа</span>
         </button>
+        <button class="preset-card preset-modify-body" data-preset="modifyBodyValue">
+          <span class="preset-code">MB</span>
+          <span class="preset-label">Заменить значение в теле</span>
+          <span class="preset-desc">Изменить поле в JSON-теле запроса</span>
+        </button>
       </div>
 
       <div class="sidebar-actions">
@@ -123,8 +128,17 @@
                   <option value="mockResponse">Подменить ответ (Mock)</option>
                   <option value="modifyRequest">Изменить запрос (Modify)</option>
                   <option value="modifyResponse">Изменить ответ (ModResp)</option>
+                  <option value="modifyBody">Изменить тело (ModBody)</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Условия на тело запроса <span class="hint">(опционально, JSON path)</span></h3>
+            <div class="form-group">
+              <div id="bodyConditionsEditor" class="bc-editor"></div>
+              <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
             </div>
           </div>
 
@@ -196,6 +210,15 @@
               <label>Заголовки ответа для установки</label>
               <div id="setRespHeadersEditor" class="key-value-editor"></div>
               <button id="btnAddSetRespHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
+            </div>
+          </div>
+
+          <div id="modifyBodyFields" class="form-section hidden">
+            <h3>Трансформации тела запроса</h3>
+            <div class="form-group">
+              <label>Путь → Новое значение <span class="hint">(поддержка dot notation: <code>signal</code>, <code>attrs.items[0].name</code>)</span></label>
+              <div id="transformsEditor" class="key-value-editor"></div>
+              <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
           </div>
         </div>
