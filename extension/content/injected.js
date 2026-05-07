@@ -80,7 +80,7 @@
   }
 
   function splitPath(path) {
-    return path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(function(p) { return p !== ""; });
+    return path.replace(/\[(\d+|\*)\]/g, ".$1").split(".").filter(function(p) { return p !== ""; });
   }
 
   function getByPath(obj, path) {
