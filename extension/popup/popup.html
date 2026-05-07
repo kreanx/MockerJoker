@@ -78,7 +78,7 @@
         </div>
       </div>
 
-      <label>Условия на тело <span class="hint">(Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></label>
+      <label>Условия на тело <span class="hint">(dot notation, напр. items[0].name. Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
@@ -135,7 +135,7 @@
       </div>
 
       <div id="modifyBodyFields" class="hidden">
-        <label>Трансформации тела <span class="hint">(путь → новое значение)</span></label>
+        <label>Трансформации тела <span class="hint">(dot notation, напр. items[0].name → новое значение)</span></label>
         <div id="transformsEditor" class="key-value-editor"></div>
         <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
       </div>

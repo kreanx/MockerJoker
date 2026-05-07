@@ -131,7 +131,7 @@
           </div>
 
           <div class="form-section">
-            <h3>Условия на тело <span class="hint">(Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></h3>
+            <h3>Условия на тело <span class="hint">(dot notation, напр. items[0].name. Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></h3>
             <div class="form-group">
               <div id="bodyConditionsEditor" class="bc-editor"></div>
               <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
@@ -210,7 +210,7 @@
           </div>
 
           <div id="modifyBodyFields" class="form-section hidden">
-            <h3>Трансформации тела запроса</h3>
+            <h3>Трансформации тела запроса <span class="hint">(dot notation, напр. items[0].name → новое значение)</span></h3>
             <div class="form-group">
               <label>Путь → Новое значение <span class="hint">(поддержка dot notation: <code>signal</code>, <code>attrs.items[0].name</code>)</span></label>
               <div id="transformsEditor" class="key-value-editor"></div>
