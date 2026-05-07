@@ -29,6 +29,7 @@
         <button class="preset-btn" data-preset="partialData">Частичные данные</button>
         <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
         <button class="preset-btn" data-preset="removeCookies">Убрать Cookie</button>
+        <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -71,6 +72,7 @@
           <select id="editActionType">
             <option value="mockResponse">Mock (подмена ответа)</option>
             <option value="modifyRequest">Modify (изменение запроса)</option>
+            <option value="modifyResponse">ModResp (изменение ответа)</option>
           </select>
         </div>
       </div>
@@ -94,6 +96,12 @@
           <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlight"></code></pre>
           <textarea id="editBody" rows="4" placeholder='{"error": "message"}' spellcheck="false"></textarea>
         </div>
+        <div class="json-search-row">
+          <input type="text" id="searchBody" class="json-search-input" placeholder="Поиск...">
+          <span id="searchBodyCount" class="json-search-count"></span>
+          <button type="button" id="searchBodyPrev" class="json-search-btn" title="Назад (Shift+Enter)">&#9650;</button>
+          <button type="button" id="searchBodyNext" class="json-search-btn" title="Вперёд (Enter)">&#9660;</button>
+        </div>
         <div class="json-editor-bar">
           <span id="jsonValidMsg" class="json-valid-msg"></span>
           <div class="json-editor-actions">
@@ -111,6 +119,15 @@
         <div id="setHeadersEditor" class="key-value-editor"></div>
         <button id="btnAddSetHeader" class="btn btn-small">+ Заголовок</button>
       </div>
+
+      <div id="modifyResponseFields" class="hidden">
+        <label>Удалить заголовки ответа</label>
+        <input type="text" id="inputRemoveRespHeader" placeholder="Имя заголовка, Enter">
+        <div id="removeRespHeadersTags" class="tags"></div>
+        <label>Установить заголовки ответа</label>
+        <div id="setRespHeadersEditor" class="key-value-editor"></div>
+        <button id="btnAddSetRespHeader" class="btn btn-small">+ Заголовок</button>
+      </div>
     </div>
     <div class="editor-footer">
       <button id="btnSave" class="btn btn-primary">Сохранить</button>
@@ -118,6 +135,7 @@
     </div>
   </div>
 
+  <script src="../shared/common.js"></script>
   <script src="popup.js"></script>
 
   <div id="bodyFullscreenModal" class="fullscreen-modal hidden">
@@ -132,10 +150,18 @@
       </div>
     </div>
     <div class="fullscreen-modal-footer">
-      <span id="jsonValidMsgFS" class="json-valid-msg"></span>
-      <div class="json-editor-actions">
-        <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
-        <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
+      <div class="json-search-row json-search-row-fs">
+        <input type="text" id="searchBodyFS" class="json-search-input json-search-input-fs" placeholder="Поиск...">
+        <span id="searchBodyCountFS" class="json-search-count json-search-count-fs"></span>
+        <button type="button" id="searchBodyPrevFS" class="json-search-btn json-search-btn-fs" title="Назад">&#9650;</button>
+        <button type="button" id="searchBodyNextFS" class="json-search-btn json-search-btn-fs" title="Вперёд">&#9660;</button>
+      </div>
+      <div class="fs-footer-bottom">
+        <span id="jsonValidMsgFS" class="json-valid-msg"></span>
+        <div class="json-editor-actions">
+          <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
+          <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
+        </div>
       </div>
     </div>
   </div>
@@ -158,6 +184,7 @@
         <p><b>204</b> — пустой ответ</p>
         <p><b>Частичные данные</b> — неполный JSON (отредактировать body)</p>
         <p><b>Убрать Auth/Cookie</b> — удалить заголовок из запроса</p>
+        <p><b>Убрать CORS</b> — удалить CORS-заголовки из ответа</p>
         <br>
         <p><b>Задержка (мс):</b></p>
         <p>Укажите в редакторе правила. <code>3000</code> = 3 сек, <code>30000</code> = 30 сек</p>

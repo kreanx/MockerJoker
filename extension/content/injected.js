@@ -9,6 +9,13 @@
   var origXhrOpen = OrigXHR.prototype.open;
   var origXhrSend = OrigXHR.prototype.send;
   var origXhrSetHeader = OrigXHR.prototype.setRequestHeader;
+  var origXhrGetHeader = OrigXHR.prototype.getResponseHeader;
+  var origXhrGetAllHeaders = OrigXHR.prototype.getAllResponseHeaders;
+
+  function resolveUrl(url) {
+    if (!url) return url;
+    try { return new URL(url, window.location.href).href; } catch(e) { return url; }
+  }
 
   function globToRegex(pattern) {
     var escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -81,7 +88,7 @@
   window.fetch = function (input, init) {
     var url, method;
     if (typeof input === "string") {
-      url = input;
+      url = resolveUrl(input);
     } else if (input instanceof Request) {
       url = input.url;
       method = input.method;
@@ -144,13 +151,43 @@
       return origFetch.call(this, new Request(input, init));
     }
 
+    if (rule && rule.action.type === "modifyResponse") {
+      reportHit(rule.id, url, method);
+      console.log(
+        "%c[MockerJoker]%c FETCH modifyResponse: " + method + " " + url,
+        "background:#9b59b6;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#9b59b6;font-weight:bold",
+        "\n  Rule:", rule.name,
+        "\n  Remove headers:", rule.action.removeResponseHeaders,
+        "\n  Set headers:", rule.action.setResponseHeaders
+      );
+      return origFetch.apply(this, arguments).then(function (response) {
+        var newHeaders = new Headers(response.headers);
+        if (rule.action.removeResponseHeaders) {
+          rule.action.removeResponseHeaders.forEach(function (h) {
+            newHeaders.delete(h);
+          });
+        }
+        if (rule.action.setResponseHeaders) {
+          Object.keys(rule.action.setResponseHeaders).forEach(function (k) {
+            newHeaders.set(k, rule.action.setResponseHeaders[k]);
+          });
+        }
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+      });
+    }
+
     return origFetch.apply(this, arguments);
   };
 
   // === XHR ===
 
   OrigXHR.prototype.open = function (method, url) {
-    this.__rm = { method: (method || "GET").toUpperCase(), url: url || "" };
+    this.__rm = { method: (method || "GET").toUpperCase(), url: resolveUrl(url || "") };
     return origXhrOpen.apply(this, arguments);
   };
 
@@ -203,6 +240,56 @@
           "\n  Set headers:", rule.action.setHeaders,
           "\n  Request headers:", self.__rmReqHeaders || {}
         );
+      }
+
+      if (rule && rule.action.type === "modifyResponse") {
+        reportHit(rule.id, self.__rm.url, self.__rm.method);
+        console.log(
+          "%c[MockerJoker]%c XHR modifyResponse: " + self.__rm.method + " " + self.__rm.url,
+          "background:#9b59b6;color:#fff;padding:2px 6px;border-radius:3px",
+          "color:#9b59b6;font-weight:bold",
+          "\n  Rule:", rule.name,
+          "\n  Remove headers:", rule.action.removeResponseHeaders,
+          "\n  Set headers:", rule.action.setResponseHeaders
+        );
+
+        var modRule = rule;
+        self.getResponseHeader = function (name) {
+          var val = origXhrGetHeader.call(self, name);
+          if (modRule.action.removeResponseHeaders) {
+            var lower = name.toLowerCase();
+            for (var i = 0; i < modRule.action.removeResponseHeaders.length; i++) {
+              if (modRule.action.removeResponseHeaders[i].toLowerCase() === lower) return null;
+            }
+          }
+          if (modRule.action.setResponseHeaders) {
+            var lower2 = name.toLowerCase();
+            for (var k in modRule.action.setResponseHeaders) {
+              if (k.toLowerCase() === lower2) return modRule.action.setResponseHeaders[k];
+            }
+          }
+          return val;
+        };
+
+        self.getAllResponseHeaders = function () {
+          var raw = origXhrGetAllHeaders.call(self);
+          if (!raw) return raw;
+          var result = raw;
+          if (modRule.action.removeResponseHeaders) {
+            modRule.action.removeResponseHeaders.forEach(function (h) {
+              var re = new RegExp(h.toLowerCase() + ": [^\\r]*\\r?\\n?", "gi");
+              result = result.replace(re, "");
+            });
+          }
+          if (modRule.action.setResponseHeaders) {
+            Object.keys(modRule.action.setResponseHeaders).forEach(function (k) {
+              var re = new RegExp(k.toLowerCase() + ": [^\\r]*\\r?\\n?", "gi");
+              result = result.replace(re, "");
+              result += k.toLowerCase() + ": " + modRule.action.setResponseHeaders[k] + "\r\n";
+            });
+          }
+          return result;
+        };
       }
     }
     return origXhrSend.apply(this, arguments);
