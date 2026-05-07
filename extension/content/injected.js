@@ -23,7 +23,7 @@
     return new RegExp("^" + escaped + "$", "i");
   }
 
-  function findRule(url, method, body) {
+  function findRule(url, method, reqBody) {
     if (!masterEnabled) return null;
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
@@ -32,7 +32,10 @@
       var regex = globToRegex(rule.match.urlPattern);
       if (!regex.test(url)) continue;
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
-      if (!matchBodyConditions(body, rule.match.bodyConditions)) continue;
+      var at = rule.action && rule.action.type;
+      if (at === "modifyBody" || at === "modifyRequest") {
+        if (!matchBodyConditions(reqBody, rule.match.bodyConditions)) continue;
+      }
       return rule;
     }
     return null;
@@ -180,6 +183,16 @@
     return null;
   }
 
+  function hasRespBC(rule) {
+    return rule.match.bodyConditions && rule.match.bodyConditions.length > 0 &&
+      (rule.action.type === "mockResponse" || rule.action.type === "modifyResponse");
+  }
+
+  function parseRespObj(text) {
+    if (!text) return null;
+    try { return JSON.parse(text); } catch(e) { return null; }
+  }
+
   function logAction(bg, label, method, url, rule, extra) {
     var obj = { rule: rule.name };
     if (extra) {
@@ -234,6 +247,27 @@
     var rule = findRule(url, method, reqBody);
 
     if (rule && rule.action.type === "mockResponse") {
+      if (hasRespBC(rule)) {
+        return origFetch.apply(this, arguments).then(function (response) {
+          var cloned = response.clone();
+          return response.text().then(function (responseText) {
+            var respObj = parseRespObj(responseText);
+            if (matchBodyConditions(respObj, rule.match.bodyConditions)) {
+              var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
+              reportHit(rule.id, url, method);
+              logAction("#e74c3c", "FETCH conditional mock \u2192 " + rule.action.status, method, url, rule, {
+                status: rule.action.status, headers: respHeaders, responseBody: tryParseBody(responseText)
+              });
+              return new Response(rule.action.body || "", {
+                status: rule.action.status || 200,
+                statusText: "",
+                headers: new Headers(respHeaders)
+              });
+            }
+            return cloned;
+          });
+        });
+      }
       var delay = rule.action.delay || 0;
       var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
       reportHit(rule.id, url, method);
@@ -295,6 +329,35 @@
     }
 
     if (rule && rule.action.type === "modifyResponse") {
+      if (hasRespBC(rule)) {
+        return origFetch.apply(this, arguments).then(function (response) {
+          var cloned = response.clone();
+          return response.text().then(function (responseText) {
+            var respObj = parseRespObj(responseText);
+            if (matchBodyConditions(respObj, rule.match.bodyConditions)) {
+              var newHeaders = new Headers(response.headers);
+              if (rule.action.removeResponseHeaders) {
+                rule.action.removeResponseHeaders.forEach(function (h) { newHeaders.delete(h); });
+              }
+              if (rule.action.setResponseHeaders) {
+                Object.keys(rule.action.setResponseHeaders).forEach(function (k) { newHeaders.set(k, rule.action.setResponseHeaders[k]); });
+              }
+              reportHit(rule.id, url, method);
+              logAction("#9b59b6", "FETCH conditional modifyResponse", method, url, rule, {
+                removeHeaders: rule.action.removeResponseHeaders,
+                setHeaders: rule.action.setResponseHeaders,
+                responseBody: tryParseBody(responseText)
+              });
+              return new Response(responseText, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+              });
+            }
+            return cloned;
+          });
+        });
+      }
       reportHit(rule.id, url, method);
       logAction("#9b59b6", "FETCH modifyResponse", method, url, rule, {
         removeHeaders: rule.action.removeResponseHeaders,
