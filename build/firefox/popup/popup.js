@@ -89,8 +89,8 @@ function bindEvents() {
   $("editBodyFS").addEventListener("input", function () { updateBodyHighlight("editBodyFS", "editBodyHighlightFS"); validateJSONBody("editBodyFS", "jsonValidMsgFS"); });
   $("editBodyFS").addEventListener("scroll", function () { syncBodyScroll("editBodyFS", "editBodyHighlightFS"); });
 
-  $("btnExport").addEventListener("click", function () { chrome.runtime.sendMessage({ type: "openPanel" }); });
-  $("btnImport").addEventListener("click", function () { chrome.runtime.sendMessage({ type: "openPanel" }); });
+  $("btnExport").addEventListener("click", exportRules);
+  $("btnImport").addEventListener("click", function () { $("importFile").click(); });
   $("importFile").addEventListener("change", importRules);
 
   setupBodyEditor("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS");
