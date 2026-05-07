@@ -119,7 +119,7 @@
                 </select>
               </div>
               <div class="form-group">
-                <label for="editActionType">Тип действия</label>
+                <label for="editActionType">Тип действия <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> — полностью заменить ответ (статус, тело, заголовки)<br><b>Заголовки запроса</b> — добавить/удалить заголовки исходящего запроса<br><b>Заголовки ответа</b> — добавить/удалить заголовки входящего ответа<br><b>Тело запроса</b> — изменить поля JSON-тела исходящего запроса</span></span></label>
                 <select id="editActionType">
                   <option value="mockResponse">Подмена ответа</option>
                   <option value="modifyRequest">Заголовки запроса</option>
@@ -131,7 +131,7 @@
           </div>
 
           <div class="form-section">
-            <h3>Условия на тело <span class="hint">(dot notation, напр. items[0].name. Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></h3>
+            <h3>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Заголовки ответа</b> → response body<br><b>Тело запроса / Заголовки запроса</b> → request body</span></span></h3>
             <div class="form-group">
               <div id="bodyConditionsEditor" class="bc-editor"></div>
               <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
@@ -210,9 +210,9 @@
           </div>
 
           <div id="modifyBodyFields" class="form-section hidden">
-            <h3>Трансформации тела запроса <span class="hint">(dot notation, напр. items[0].name → новое значение)</span></h3>
+            <h3>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></h3>
             <div class="form-group">
-              <label>Путь → Новое значение <span class="hint">(поддержка dot notation: <code>signal</code>, <code>attrs.items[0].name</code>)</span></label>
+              <label>Путь → Новое значение</label>
               <div id="transformsEditor" class="key-value-editor"></div>
               <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>

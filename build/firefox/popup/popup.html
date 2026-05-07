@@ -68,7 +68,7 @@
           </select>
         </div>
         <div class="col">
-          <label>Тип</label>
+          <label>Тип <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> — полностью заменить ответ (статус, тело, заголовки)<br><b>Заголовки запроса</b> — добавить/удалить заголовки исходящего запроса<br><b>Заголовки ответа</b> — добавить/удалить заголовки входящего ответа<br><b>Тело запроса</b> — изменить поля JSON-тела исходящего запроса</span></span></label>
           <select id="editActionType">
             <option value="mockResponse">Подмена ответа</option>
             <option value="modifyRequest">Заголовки запроса</option>
@@ -78,7 +78,7 @@
         </div>
       </div>
 
-      <label>Условия на тело <span class="hint">(dot notation, напр. items[0].name. Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></label>
+      <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Заголовки ответа</b> → response body<br><b>Тело запроса / Заголовки запроса</b> → request body</span></span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
@@ -135,7 +135,7 @@
       </div>
 
       <div id="modifyBodyFields" class="hidden">
-        <label>Трансформации тела <span class="hint">(dot notation, напр. items[0].name → новое значение)</span></label>
+        <label>Трансформации тела <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
         <div id="transformsEditor" class="key-value-editor"></div>
         <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
       </div>
