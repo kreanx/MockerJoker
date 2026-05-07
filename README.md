@@ -1,3 +1,7 @@
+<img width="1254" height="1254" alt="Mockerjoker" src="https://github.com/user-attachments/assets/f130db9f-0009-4ca3-af24-90e85182fd96" /><p align="center">
+  <img width="600" alt="Mockerjoker" src="https://github.com/user-attachments/assets/b72cbb80-e20d-42d1-854c-a493c79de236" />
+</p>
+
 <h1 align="center">MockerJoker</h1>
 
 <p align="center">
