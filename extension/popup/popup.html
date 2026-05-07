@@ -28,7 +28,6 @@
         <button class="preset-btn" data-preset="noContent204">204 No Content</button>
         <button class="preset-btn" data-preset="partialData">Частичные данные</button>
         <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
-        <button class="preset-btn" data-preset="removeCookies">Убрать Cookie</button>
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
         <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в теле</button>
       </div>
@@ -79,7 +78,7 @@
         </div>
       </div>
 
-      <label>Условия на тело запроса <span class="hint">(JSON path, опционально)</span></label>
+      <label>Условия на тело <span class="hint">(Mock/ModResp → response body, ModBody/ModReq → request body)</span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
@@ -195,7 +194,7 @@
         <p><b>401</b> — нет авторизации</p>
         <p><b>204</b> — пустой ответ</p>
         <p><b>Частичные данные</b> — неполный JSON (отредактировать body)</p>
-        <p><b>Убрать Auth/Cookie</b> — удалить заголовок из запроса</p>
+        <p><b>Убрать Auth</b> — удалить заголовок Authorization из запроса</p>
         <p><b>Убрать CORS</b> — удалить CORS-заголовки из ответа</p>
         <br>
         <p><b>Задержка (мс):</b></p>

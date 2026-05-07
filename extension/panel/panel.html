@@ -59,11 +59,7 @@
           <span class="preset-label">Убрать Authorization</span>
           <span class="preset-desc">Удалить заголовок Authorization</span>
         </button>
-        <button class="preset-card preset-modify" data-preset="removeCookies">
-          <span class="preset-code">MOD</span>
-          <span class="preset-label">Убрать Cookie</span>
-          <span class="preset-desc">Удалить заголовок Cookie</span>
-        </button>
+
         <button class="preset-card preset-modify-resp" data-preset="removeCors">
           <span class="preset-code">MR</span>
           <span class="preset-label">Убрать CORS</span>
@@ -135,7 +131,7 @@
           </div>
 
           <div class="form-section">
-            <h3>Условия на тело запроса <span class="hint">(опционально, JSON path)</span></h3>
+            <h3>Условия на тело <span class="hint">(Mock/ModResp → response body, ModBody/ModReq → request body)</span></h3>
             <div class="form-group">
               <div id="bodyConditionsEditor" class="bc-editor"></div>
               <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
@@ -253,7 +249,7 @@
           <tr><td><b>204</b></td><td>Пустой ответ</td></tr>
           <tr><td><b>Частичные данные</b></td><td>Неполный JSON (отредактировать body)</td></tr>
           <tr><td><b>Убрать Auth</b></td><td>Удалить заголовок Authorization</td></tr>
-          <tr><td><b>Убрать Cookie</b></td><td>Удалить заголовок Cookie</td></tr>
+
           <tr><td><b>Убрать CORS</b></td><td>Удалить CORS-заголовки из ответа</td></tr>
         </table>
 

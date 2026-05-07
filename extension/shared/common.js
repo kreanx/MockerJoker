@@ -83,11 +83,7 @@ var presetFactories = {
       match: { urlPattern: p, method: "ANY", resourceType: "" },
       action: { type: ACTION_TYPES.MODIFY_REQUEST, removeHeaders: ["Authorization"], setHeaders: {} } };
   },
-  removeCookies: function (p) {
-    return { id: generateId(), name: "Убрать Cookie", enabled: true,
-      match: { urlPattern: p, method: "ANY", resourceType: "" },
-      action: { type: ACTION_TYPES.MODIFY_REQUEST, removeHeaders: ["Cookie"], setHeaders: {} } };
-  },
+
   noContent204: function (p) {
     return { id: generateId(), name: "204 No Content", enabled: true,
       match: { urlPattern: p, method: "ANY", resourceType: "" },
