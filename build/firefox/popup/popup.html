@@ -70,15 +70,15 @@
         <div class="col">
           <label>Тип</label>
           <select id="editActionType">
-            <option value="mockResponse">Mock (подмена ответа)</option>
-            <option value="modifyRequest">Modify (изменение запроса)</option>
-            <option value="modifyResponse">ModResp (изменение ответа)</option>
-            <option value="modifyBody">ModBody (изменение тела)</option>
+            <option value="mockResponse">Подмена ответа</option>
+            <option value="modifyRequest">Заголовки запроса</option>
+            <option value="modifyResponse">Заголовки ответа</option>
+            <option value="modifyBody">Тело запроса</option>
           </select>
         </div>
       </div>
 
-      <label>Условия на тело <span class="hint">(Mock/ModResp → response body, ModBody/ModReq → request body)</span></label>
+      <label>Условия на тело <span class="hint">(Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 

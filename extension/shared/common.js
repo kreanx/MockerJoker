@@ -165,7 +165,7 @@ function collectRemoveHeaderTags(containerId) {
 function addBodyConditionRow(containerId, cond) {
   var row = document.createElement("div");
   row.className = "bc-row";
-  row.innerHTML = '<input type="text" class="bc-path" placeholder="Путь (напр. signal)" value="' + escapeAttr(cond.path || "") + '">' +
+  row.innerHTML = '<input type="text" class="bc-path" placeholder="items[0].name" value="' + escapeAttr(cond.path || "") + '">' +
     '<select class="bc-op">' +
     '<option value="equals"' + (cond.operator === "equals" ? " selected" : "") + '>равно</option>' +
     '<option value="notEquals"' + (cond.operator === "notEquals" ? " selected" : "") + '>не равно</option>' +
@@ -196,7 +196,7 @@ function collectBodyConditions(containerId) {
 function addTransformRow(containerId, t) {
   var row = document.createElement("div");
   row.className = "kv-row";
-  row.innerHTML = '<input type="text" class="kv-key" placeholder="Путь (напр. signal)" value="' + escapeAttr(t.path || "") + '">' +
+  row.innerHTML = '<input type="text" class="kv-key" placeholder="items[0].name" value="' + escapeAttr(t.path || "") + '">' +
     '<input type="text" class="kv-value" placeholder="Новое значение" value="' + escapeAttr(t.value || "") + '">' +
     '<button type="button" class="kv-remove">&times;</button>';
   row.querySelector(".kv-remove").addEventListener("click", function () { row.remove(); });
@@ -650,11 +650,11 @@ function renderRuleItem(rule, counters, lastTime) {
     else if (s >= 300) statusColor = "badge-redirect";
     else statusColor = "badge-success";
   } else if (rule.action.type === "modifyResponse") {
-    actionLabel = "ModResp";
+    actionLabel = "RespHdr";
   } else if (rule.action.type === "modifyBody") {
-    actionLabel = "ModBody";
+    actionLabel = "Body";
   } else {
-    actionLabel = "Modify";
+    actionLabel = "ReqHdr";
   }
   var badgeClass = rule.action.type === "mockResponse" ? "badge-mock"
     : rule.action.type === "modifyResponse" ? "badge-modify-resp"

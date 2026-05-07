@@ -121,17 +121,17 @@
               <div class="form-group">
                 <label for="editActionType">Тип действия</label>
                 <select id="editActionType">
-                  <option value="mockResponse">Подменить ответ (Mock)</option>
-                  <option value="modifyRequest">Изменить запрос (Modify)</option>
-                  <option value="modifyResponse">Изменить ответ (ModResp)</option>
-                  <option value="modifyBody">Изменить тело (ModBody)</option>
+                  <option value="mockResponse">Подмена ответа</option>
+                  <option value="modifyRequest">Заголовки запроса</option>
+                  <option value="modifyResponse">Заголовки ответа</option>
+                  <option value="modifyBody">Тело запроса</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div class="form-section">
-            <h3>Условия на тело <span class="hint">(Mock/ModResp → response body, ModBody/ModReq → request body)</span></h3>
+            <h3>Условия на тело <span class="hint">(Подмена/Загол.ответа → response body, Тело/Загол.запроса → request body)</span></h3>
             <div class="form-group">
               <div id="bodyConditionsEditor" class="bc-editor"></div>
               <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
