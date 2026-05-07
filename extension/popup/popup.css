@@ -398,6 +398,15 @@ body {
   border-top: 1px solid #eee;
 }
 
+.editor-error {
+  padding: 8px 14px;
+  background: #fde8e8;
+  color: #cf222e;
+  font-size: 12px;
+  font-weight: 600;
+  border-top: 1px solid #f8c7c7;
+}
+
 .help-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

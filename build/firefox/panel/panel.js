@@ -295,11 +295,21 @@ function toggleRule(id, enabled) {
 }
 
 function deleteRuleById(id) {
-  var rule = findRuleById(rules, id);
-  if (!confirm("Удалить правило \"" + (rule ? rule.name || "Без названия" : "") + "\"?")) return;
-  rules = rules.filter(function (r) { return r.id !== id; });
-  saveState();
-  renderRules();
+  var btn = document.querySelector('.btn-delete[data-id="' + id + '"]');
+  if (btn && btn.dataset.confirm === "1") {
+    rules = rules.filter(function (r) { return r.id !== id; });
+    saveState();
+    renderRules();
+    return;
+  }
+  if (btn) {
+    btn.dataset.confirm = "1";
+    btn.textContent = "?";
+    btn.title = "Нажмите ещё раз для удаления";
+    setTimeout(function () {
+      if (btn) { btn.dataset.confirm = ""; btn.textContent = "\u00d7"; btn.title = "Удалить"; }
+    }, 3000);
+  }
 }
 
 function openEditor(ruleId) {
@@ -403,7 +413,7 @@ function saveEditor() {
     rule.action.setHeaders = collectKvPairs("setHeadersEditor");
   }
   var v = validateRule(rule);
-  if (!v.valid) { alert("Ошибка: " + v.error); return; }
+  if (!v.valid) { showEditorError(v.error); return; }
   saveState();
   renderRules();
   closeEditor();
@@ -614,6 +624,16 @@ function closeBodyFullscreen() {
   updateBodyHighlight("editBody", "editBodyHighlight");
   validateJSONBody("editBody", "jsonValidMsg");
   $("bodyFullscreenModal").classList.add("hidden");
+}
+
+function showEditorError(msg) {
+  var existing = document.querySelector(".editor-error");
+  if (existing) existing.remove();
+  var div = document.createElement("div");
+  div.className = "editor-error";
+  div.textContent = msg;
+  $("editor").appendChild(div);
+  setTimeout(function () { if (div.parentNode) div.remove(); }, 4000);
 }
 
 document.addEventListener("DOMContentLoaded", init);
