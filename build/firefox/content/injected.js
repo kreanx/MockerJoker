@@ -79,24 +79,58 @@
     return str;
   }
 
+  function splitPath(path) {
+    return path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(function(p) { return p !== ""; });
+  }
+
   function getByPath(obj, path) {
-    var parts = path.replace(/\[(\d+)\]/g, ".$1").split(".");
-    var cur = obj;
-    for (var i = 0; i < parts.length; i++) {
-      if (cur == null) return undefined;
-      cur = cur[parts[i]];
+    var parts = splitPath(path);
+    return _getByParts(obj, parts);
+  }
+
+  function _getByParts(obj, parts) {
+    if (parts.length === 0) return obj;
+    var key = parts[0];
+    var rest = parts.slice(1);
+    if (key === "*") {
+      if (Array.isArray(obj)) {
+        var results = [];
+        for (var i = 0; i < obj.length; i++) {
+          var v = _getByParts(obj[i], rest);
+          if (v !== undefined) results.push(v);
+        }
+        return results.length ? results : undefined;
+      }
+      return undefined;
     }
-    return cur;
+    if (obj == null) return undefined;
+    return _getByParts(obj[key], rest);
   }
 
   function setByPath(obj, path, value) {
-    var parts = path.replace(/\[(\d+)\]/g, ".$1").split(".");
-    var cur = obj;
-    for (var i = 0; i < parts.length - 1; i++) {
-      if (cur == null) return;
-      cur = cur[parts[i]];
+    var parts = splitPath(path);
+    _setByParts(obj, parts, value);
+  }
+
+  function _setByParts(obj, parts, value) {
+    if (parts.length === 0) return;
+    var key = parts[0];
+    var rest = parts.slice(1);
+    if (key === "*") {
+      if (Array.isArray(obj)) {
+        for (var i = 0; i < obj.length; i++) {
+          _setByParts(obj[i], rest, value);
+        }
+      }
+      return;
     }
-    if (cur != null) cur[parts[parts.length - 1]] = value;
+    if (rest.length === 0) {
+      if (obj != null) obj[key] = value;
+      return;
+    }
+    if (obj != null && obj[key] != null) {
+      _setByParts(obj[key], rest, value);
+    }
   }
 
   function matchBodyConditions(body, conditions) {
@@ -105,23 +139,29 @@
     for (var i = 0; i < conditions.length; i++) {
       var c = conditions[i];
       var val = getByPath(body, c.path);
-      if (c.operator === "exists") {
-        if (val === undefined) return false;
-      } else if (c.operator === "equals") {
-        if (val !== parseValue(c.value)) return false;
-      } else if (c.operator === "notEquals") {
-        if (val === parseValue(c.value)) return false;
-      } else if (c.operator === "contains") {
-        if (typeof val === "string") {
-          if (val.indexOf(c.value) === -1) return false;
-        } else if (Array.isArray(val)) {
-          if (val.indexOf(parseValue(c.value)) === -1) return false;
-        } else {
-          return false;
+      if (Array.isArray(val)) {
+        var anyMatch = false;
+        for (var j = 0; j < val.length; j++) {
+          if (_checkOp(val[j], c)) { anyMatch = true; break; }
         }
+        if (!anyMatch) return false;
+      } else {
+        if (!_checkOp(val, c)) return false;
       }
     }
     return true;
+  }
+
+  function _checkOp(val, c) {
+    if (c.operator === "exists") return val !== undefined;
+    if (c.operator === "equals") return val === parseValue(c.value);
+    if (c.operator === "notEquals") return val !== parseValue(c.value);
+    if (c.operator === "contains") {
+      if (typeof val === "string") return val.indexOf(c.value) !== -1;
+      if (Array.isArray(val)) return val.indexOf(parseValue(c.value)) !== -1;
+      return false;
+    }
+    return false;
   }
 
   function applyBodyTransforms(body, transforms) {
