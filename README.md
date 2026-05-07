@@ -1,17 +1,30 @@
-# MockerJoker
+<h1 align="center">MockerJoker</h1>
 
-*fake it till you make it* — подмена HTTP-запросов прямо в браузере. Тестируйте ошибки сервера, задержки, отсутствие авторизации и любой сценарий — без доступа к бэкенду.
+<p align="center">
+  <em>fake it till you make it</em> — подмена HTTP-запросов прямо в браузере.<br>
+  Тестируйте ошибки сервера, задержки, отсутствие авторизации и любой сценарий — без доступа к бэкенду.
+</p>
 
-![Chrome](https://img.shields.io/badge/Chrome-MV3-green?logo=googlechrome) ![Firefox](https://img.shields.io/badge/Firefox-MV3-orange?logo=firefox) ![Version](https://img.shields.io/badge/version-4.0.0-blue) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-MV3-green?logo=googlechrome" alt="Chrome">
+  <img src="https://img.shields.io/badge/Firefox-MV3-orange?logo=firefox" alt="Firefox">
+  <img src="https://img.shields.io/badge/version-4.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
+</p>
 
-<img width="598" height="665" alt="Popup" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
-<em>Popup — быстрый доступ к правилам и пресетам</em>
+<hr>
 
-<img width="616" height="756" alt="Popup Editor" src="https://github.com/user-attachments/assets/4810aeb8-46b8-449e-a27c-fe4cafa77bab" />
-<em>Popup — редактирование правила</em>
+<p align="center">
+  <img width="280" alt="Popup" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
+  <img width="280" alt="Popup Editor" src="https://github.com/user-attachments/assets/4810aeb8-46b8-449e-a27c-fe4cafa77bab" />
+  <img width="560" alt="Panel" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
+</p>
 
-<img width="2245" height="1260" alt="Panel" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
-<em>Panel — полноэкранный интерфейс в отдельной вкладке</em>
+<p align="center">
+  <em>Popup · Редактор правила · Полноэкранная панель</em>
+</p>
+
+<hr>
 
 ## Быстрый старт
 
