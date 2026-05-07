@@ -5,16 +5,19 @@
 
 ## Возможности
 
-- Mock ответов (статус, заголовки, тело, задержка)
-- Modify запросов (удалить/установить заголовки)
-- 7 пресетов для типичных сценариев
-- JSON editor с подсветкой синтаксиса
+- **Подмена ответа** — полностью заменить ответ (статус, заголовки, тело, задержка)
+- **Заголовки запроса** — удалить/установить заголовки исходящего запроса
+- **Заголовки ответа** — удалить/установить заголовки входящего ответа
+- **Тело запроса** — трансформация JSON-тела запроса по dot notation
+- **Body conditions** — условное срабатывание правил по содержимому тела
+- 8 пресетов для типичных сценариев
+- JSON editor с подсветкой синтаксиса и поиском
 - Полноэкранный режим редактирования тела (тёмная тема)
 - Валидация JSON в реальном времени
 - Автоформатирование при вставке
 - Счётчик перехваченных запросов
 - Автодополнение URL из реальных запросов на странице
-- Экспорт/импорт правил
+- Экспорт/импорт правил (в popup и панели)
 - Chrome + Firefox поддержка
 
 ## Архитектура
@@ -34,6 +37,7 @@ extension/
 ├── content/injected.js       — fetch/XHR override (page context)
 ├── popup/popup.html|js|css   — compact popup UI
 ├── panel/panel.html|js|css   — full-page UI (new tab)
+├── shared/common.js          — общий код popup + panel
 └── icons/                    — иконки 16/48/128px
 manifest.firefox.json         — Firefox манифест (background.scripts)
 build-firefox.sh              — сборка Firefox билда
@@ -41,41 +45,55 @@ build-zip.sh                  — создание ZIP-архивов
 GUIDE.md                      — руководство пользователя
 ```
 
-## Разработка
-
-### Chrome (Load unpacked)
-
-1. Откройте `chrome://extensions`
-2. Включите Developer mode
-3. Load unpacked → выберите папку `extension/`
-
-### Firefox
-
-```bash
-./build-firefox.sh
-```
-
-Затем `about:debugging` → This Firefox → Load Temporary Add-on → `build/firefox/manifest.json`
-
-### Сборка ZIP
-
-```bash
-./build-zip.sh
-```
-
-Создаёт `dist/mock-extention-chrome.zip` и `dist/mock-extention-firefox.zip`.
-
 ## Типы действий
 
 | Тип | Описание |
 |---|---|
-| `mockResponse` | Подмена ответа: статус, заголовки, тело, задержка |
-| `modifyRequest` | Изменение запроса: удалить/установить заголовки |
+| `mockResponse` | **Подмена ответа** — полностью заменить ответ: статус, заголовки, тело, задержка |
+| `modifyRequest` | **Заголовки запроса** — удалить/установить заголовки исходящего запроса |
+| `modifyResponse` | **Заголовки ответа** — удалить/установить заголовки входящего ответа |
+| `modifyBody` | **Тело запроса** — трансформация JSON-тела запроса по dot notation |
+
+## Body Conditions
+
+Любое правило может содержать условия на тело. Правило сработает только если все условия выполняются.
+
+**Какое тело проверяется** зависит от типа действия:
+- `mockResponse` / `modifyResponse` → проверяется **response body** (после получения реального ответа)
+- `modifyBody` / `modifyRequest` → проверяется **request body** (исходящее тело запроса)
+
+| Оператор | Описание |
+|---|---|
+| `equals` | Значение по пути равно указанному |
+| `notEquals` | Значение не равно указанному |
+| `contains` | Строка содержит подстроку / массив содержит элемент |
+| `exists` | Путь существует в JSON |
+
+Путь поддерживает dot notation с индексами и wildcard: `signal`, `user.address.city`, `items[0].name`, `items[*].id`.
+
+Значения автотипизируются: `"true"` → `true`, `"123"` → `123`, `"null"` → `null`.
+
+## Modify Body
+
+Тип действия `modifyBody` трансформирует тело запроса перед отправкой. Таблица трансформаций: **путь** → **новое значение**.
+
+Поддерживает dot notation с индексами и wildcard: `items[0].name`, `items[*].status`.
+
+Пример: правило с URL `*` и body condition `signal equals "protect"` + transform `signal → "unprotect"` заменит значение поля `signal` в теле любого POST-запроса.
+
+## Последовательное применение правил
+
+Несколько правил могут применяться к одному запросу последовательно:
+
+1. **Фаза 1** — `modifyBody` + `modifyRequest` (модификация исходящего запроса)
+2. **Фаза 2** — `mockResponse` без body conditions → немедленная подмена
+3. **Фаза 3** — реальный запрос → `mockResponse` с body conditions (условная подмена) + `modifyResponse` (условная/безусловная модификация заголовков)
 
 ## Ограничения
 
 - Перехватываются только `fetch()` и `XMLHttpRequest`
 - Content script не перехватывает навигацию, `<script src>`, `<img>` и т.д.
+- ModifyBody работает только с JSON-телами (строковые body парсятся через `JSON.parse`)
 - Firefox: временное дополнение пропадает при перезапуске браузера (подписанное — нет)
 
 ### Запрещённые заголовки
@@ -106,17 +124,3 @@ GUIDE.md                      — руководство пользовател�
 | `Via` | Forbidden request header |
 | `Sec-*` | Все заголовки начинающиеся с `Sec-` |
 | `Proxy-*` | Все заголовки начинающиеся с `Proxy-` |
-
-## Установка
-
-### Chrome
-
-1. Скачайте `mock-extention-chrome.zip` из [Releases](https://github.com/kreanx/MockerJoker/releases)
-2. Распакуйте в папку
-3. `chrome://extensions` → Developer mode → Load unpacked → выберите папку
-
-### Firefox
-
-Ссылка для установки подписанного расширения: https://addons.mozilla.org/addon/deadb76029ef4f9b86b6/
-
-Или через `about:debugging` → Load Temporary Add-on → `build/firefox/manifest.json`

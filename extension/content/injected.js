@@ -9,15 +9,23 @@
   var origXhrOpen = OrigXHR.prototype.open;
   var origXhrSend = OrigXHR.prototype.send;
   var origXhrSetHeader = OrigXHR.prototype.setRequestHeader;
+  var origXhrGetHeader = OrigXHR.prototype.getResponseHeader;
+  var origXhrGetAllHeaders = OrigXHR.prototype.getAllResponseHeaders;
+
+  function resolveUrl(url) {
+    if (!url) return url;
+    try { return new URL(url, window.location.href).href; } catch(e) { return url; }
+  }
 
   function globToRegex(pattern) {
-    var escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    var escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
     escaped = escaped.replace(/\*/g, ".*");
     return new RegExp("^" + escaped + "$", "i");
   }
 
-  function findRule(url, method) {
-    if (!masterEnabled) return null;
+  function findAllRules(url, method, reqBody) {
+    var result = [];
+    if (!masterEnabled) return result;
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
       if (!rule.enabled) continue;
@@ -25,9 +33,13 @@
       var regex = globToRegex(rule.match.urlPattern);
       if (!regex.test(url)) continue;
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
-      return rule;
+      var at = rule.action && rule.action.type;
+      if (at === "modifyBody" || at === "modifyRequest") {
+        if (!matchBodyConditions(reqBody, rule.match.bodyConditions)) continue;
+      }
+      result.push(rule);
     }
-    return null;
+    return result;
   }
 
   function addSeenRequest(url, method) {
@@ -58,6 +70,148 @@
     }, "*");
   }
 
+  function tryParseBody(str) {
+    if (!str) return str;
+    try { return JSON.parse(str); } catch(e) { return str; }
+  }
+
+  function parseValue(str) {
+    if (str === "true") return true;
+    if (str === "false") return false;
+    if (str === "null") return null;
+    if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+    return str;
+  }
+
+  function splitPath(path) {
+    return path.replace(/\[(\d+|\*)\]/g, ".$1").split(".").filter(function(p) { return p !== ""; });
+  }
+
+  function getByPath(obj, path) {
+    var parts = splitPath(path);
+    return _getByParts(obj, parts);
+  }
+
+  function _getByParts(obj, parts) {
+    if (parts.length === 0) return obj;
+    var key = parts[0];
+    var rest = parts.slice(1);
+    if (key === "*") {
+      if (Array.isArray(obj)) {
+        var results = [];
+        for (var i = 0; i < obj.length; i++) {
+          var v = _getByParts(obj[i], rest);
+          if (v !== undefined) results.push(v);
+        }
+        return results.length ? results : undefined;
+      }
+      return undefined;
+    }
+    if (obj == null) return undefined;
+    return _getByParts(obj[key], rest);
+  }
+
+  function setByPath(obj, path, value) {
+    var parts = splitPath(path);
+    _setByParts(obj, parts, value);
+  }
+
+  function _setByParts(obj, parts, value) {
+    if (parts.length === 0) return;
+    var key = parts[0];
+    var rest = parts.slice(1);
+    if (key === "*") {
+      if (Array.isArray(obj)) {
+        for (var i = 0; i < obj.length; i++) {
+          _setByParts(obj[i], rest, value);
+        }
+      }
+      return;
+    }
+    if (rest.length === 0) {
+      if (obj != null) obj[key] = value;
+      return;
+    }
+    if (obj != null) {
+      if (obj[key] == null) {
+        obj[key] = /^\d+$/.test(rest[0]) ? [] : {};
+      }
+      _setByParts(obj[key], rest, value);
+    }
+  }
+
+  function matchBodyConditions(body, conditions) {
+    if (!conditions || !conditions.length) return true;
+    if (typeof body !== "object" || body === null) return false;
+    for (var i = 0; i < conditions.length; i++) {
+      var c = conditions[i];
+      var val = getByPath(body, c.path);
+      if (Array.isArray(val)) {
+        var anyMatch = false;
+        for (var j = 0; j < val.length; j++) {
+          if (_checkOp(val[j], c)) { anyMatch = true; break; }
+        }
+        if (!anyMatch) return false;
+      } else {
+        if (!_checkOp(val, c)) return false;
+      }
+    }
+    return true;
+  }
+
+  function _checkOp(val, c) {
+    if (c.operator === "exists") return val !== undefined;
+    if (c.operator === "equals") return val === parseValue(c.value);
+    if (c.operator === "notEquals") return val !== parseValue(c.value);
+    if (c.operator === "contains") {
+      if (typeof val === "string") return val.indexOf(c.value) !== -1;
+      if (Array.isArray(val)) return val.indexOf(parseValue(c.value)) !== -1;
+      return false;
+    }
+    return false;
+  }
+
+  function applyBodyTransforms(body, transforms) {
+    if (!transforms || !transforms.length) return body;
+    for (var i = 0; i < transforms.length; i++) {
+      var t = transforms[i];
+      setByPath(body, t.path, parseValue(t.value));
+    }
+    return body;
+  }
+
+  function parseReqBody(body) {
+    if (body && typeof body === "string") {
+      try { return JSON.parse(body); } catch(e) {}
+    }
+    return null;
+  }
+
+  function hasRespBC(rule) {
+    return rule.match.bodyConditions && rule.match.bodyConditions.length > 0 &&
+      (rule.action.type === "mockResponse" || rule.action.type === "modifyResponse");
+  }
+
+  function parseRespObj(text) {
+    if (!text) return null;
+    try { return JSON.parse(text); } catch(e) { return null; }
+  }
+
+  function logAction(bg, label, method, url, rule, extra) {
+    var obj = { rule: rule.name };
+    if (extra) {
+      var keys = Object.keys(extra);
+      for (var i = 0; i < keys.length; i++) obj[keys[i]] = extra[keys[i]];
+    }
+    if (rule.action.body !== undefined) obj.body = tryParseBody(rule.action.body);
+    console.log(
+      "%c[MockerJoker]%c " + label + ": " + method + " " + url,
+      "background:" + bg + ";color:#fff;padding:2px 6px;border-radius:3px",
+      "color:" + bg + ";font-weight:bold",
+      obj
+    );
+  }
+
   function applyRequestModifications(init, rule) {
     if (!init) init = {};
     var headers = new Headers(init.headers || {});
@@ -79,9 +233,9 @@
   // === FETCH ===
 
   window.fetch = function (input, init) {
-    var url, method;
+    var url, method, reqBody;
     if (typeof input === "string") {
-      url = input;
+      url = resolveUrl(input);
     } else if (input instanceof Request) {
       url = input.url;
       method = input.method;
@@ -89,68 +243,123 @@
       url = input.url || "";
     }
     method = ((init && init.method) || method || "GET").toUpperCase();
+    reqBody = parseReqBody(init && init.body);
 
     addSeenRequest(url, method);
     flushSeenRequests();
 
-    var rule = findRule(url, method);
+    var matched = findAllRules(url, method, reqBody);
+    if (matched.length === 0) return origFetch.apply(this, arguments);
 
-    if (rule && rule.action.type === "mockResponse") {
-      var delay = rule.action.delay || 0;
-      var respHeaders = rule.action.headers || { "Content-Type": "application/json" };
-      reportHit(rule.id, url, method);
-      console.log(
-        "%c[MockerJoker]%c FETCH intercepted: " + method + " " + url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
-        "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#e74c3c;font-weight:bold",
-        "\n  Rule:", rule.name,
-        "\n  Status:", rule.action.status,
-        "\n  Delay:", delay + "ms",
-        "\n  Headers:", respHeaders,
-        "\n  Body:", rule.action.body
-      );
+    // Phase 1: Request modifications (modifyBody + modifyRequest)
+    var reqRules = matched.filter(function (r) { return r.action.type === "modifyBody" || r.action.type === "modifyRequest"; });
+    var bodyObj = reqBody;
+    for (var ri = 0; ri < reqRules.length; ri++) {
+      var rr = reqRules[ri];
+      if (rr.action.type === "modifyBody") {
+        if (!bodyObj && init && init.body) bodyObj = parseReqBody(init.body);
+        if (bodyObj) {
+          bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
+          reportHit(rr.id, url, method);
+          logAction("#009688", "FETCH modifyBody", method, url, rr, { transforms: rr.action.transforms, resultBody: bodyObj });
+        }
+      } else if (rr.action.type === "modifyRequest") {
+        init = applyRequestModifications(init, rr);
+        var mh = {};
+        if (init && init.headers) init.headers.forEach(function (v, k) { mh[k] = v; });
+        reportHit(rr.id, url, method);
+        logAction("#f39c12", "FETCH modified", method, url, rr, { removeHeaders: rr.action.removeHeaders, setHeaders: rr.action.setHeaders, resultHeaders: mh });
+      }
+    }
+    if (bodyObj) { init = init || {}; init.body = JSON.stringify(bodyObj); }
+
+    // Phase 2: Response rules
+    var respRules = matched.filter(function (r) { return r.action.type === "mockResponse" || r.action.type === "modifyResponse"; });
+    var mockRule = null;
+    for (var mi = 0; mi < respRules.length; mi++) {
+      if (respRules[mi].action.type === "mockResponse") { mockRule = respRules[mi]; break; }
+    }
+    var modRespRules = respRules.filter(function (r) { return r.action.type === "modifyResponse"; });
+
+    // Immediate mock (no body conditions)
+    if (mockRule && !hasRespBC(mockRule)) {
+      var delay = mockRule.action.delay || 0;
+      var rh = mockRule.action.headers || { "Content-Type": "application/json" };
+      reportHit(mockRule.id, url, method);
+      logAction("#e74c3c", "FETCH intercepted \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, delay: delay + "ms", headers: rh });
       return new Promise(function (resolve) {
         setTimeout(function () {
-          resolve(
-            new Response(rule.action.body || "", {
-              status: rule.action.status || 200,
-              statusText: "",
-              headers: new Headers(respHeaders)
-            })
-          );
+          resolve(new Response(mockRule.action.body || "", { status: mockRule.action.status || 200, statusText: "", headers: new Headers(rh) }));
         }, delay || 5);
       });
     }
 
-    if (rule && rule.action.type === "modifyRequest") {
-      init = applyRequestModifications(init, rule);
-      var modifiedHeaders = {};
-      if (init && init.headers) {
-        init.headers.forEach(function (v, k) { modifiedHeaders[k] = v; });
-      }
-      reportHit(rule.id, url, method);
-      console.log(
-        "%c[MockerJoker]%c FETCH modified: " + method + " " + url,
-        "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#f39c12;font-weight:bold",
-        "\n  Rule:", rule.name,
-        "\n  Remove headers:", rule.action.removeHeaders,
-        "\n  Set headers:", rule.action.setHeaders,
-        "\n  Result headers:", modifiedHeaders
-      );
-      if (typeof input === "string") {
-        return origFetch.call(this, input, init);
-      }
-      return origFetch.call(this, new Request(input, init));
+    // Send real request
+    var fetchPromise = (typeof input === "string") ? origFetch.call(this, input, init) : origFetch.apply(this, arguments);
+
+    // Need to read body for conditions?
+    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r); });
+
+    if (needBody) {
+      fetchPromise = fetchPromise.then(function (response) {
+        var cloned = response.clone();
+        return response.text().then(function (responseText) {
+          var curText = responseText;
+          var curHeaders = new Headers(response.headers);
+          var curStatus = response.status;
+          var curStatusText = response.statusText;
+          var mocked = false;
+
+          // Conditional mock
+          if (mockRule && hasRespBC(mockRule) && matchBodyConditions(parseRespObj(curText), mockRule.match.bodyConditions)) {
+            var mrh = mockRule.action.headers || { "Content-Type": "application/json" };
+            reportHit(mockRule.id, url, method);
+            logAction("#e74c3c", "FETCH conditional mock \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, headers: mrh, responseBody: tryParseBody(curText) });
+            curText = mockRule.action.body || "";
+            curStatus = mockRule.action.status || 200;
+            curStatusText = "";
+            curHeaders = new Headers(mrh);
+            mocked = true;
+          }
+
+          // Conditional modifyResponse
+          if (!mocked) {
+            for (var di = 0; di < modRespRules.length; di++) {
+              var dr = modRespRules[di];
+              var apply = !hasRespBC(dr) || matchBodyConditions(parseRespObj(curText), dr.match.bodyConditions);
+              if (apply) {
+                if (dr.action.removeResponseHeaders) dr.action.removeResponseHeaders.forEach(function (h) { curHeaders.delete(h); });
+                if (dr.action.setResponseHeaders) Object.keys(dr.action.setResponseHeaders).forEach(function (k) { curHeaders.set(k, dr.action.setResponseHeaders[k]); });
+                reportHit(dr.id, url, method);
+                logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
+              }
+            }
+          }
+
+          return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
+        });
+      });
+    } else if (modRespRules.length > 0) {
+      fetchPromise = fetchPromise.then(function (response) {
+        var newHeaders = new Headers(response.headers);
+        for (var di = 0; di < modRespRules.length; di++) {
+          var dr = modRespRules[di];
+          if (dr.action.removeResponseHeaders) dr.action.removeResponseHeaders.forEach(function (h) { newHeaders.delete(h); });
+          if (dr.action.setResponseHeaders) Object.keys(dr.action.setResponseHeaders).forEach(function (k) { newHeaders.set(k, dr.action.setResponseHeaders[k]); });
+          reportHit(dr.id, url, method);
+          logAction("#9b59b6", "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
+        }
+        return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
+      });
     }
 
-    return origFetch.apply(this, arguments);
+    return fetchPromise;
   };
 
   // === XHR ===
 
   OrigXHR.prototype.open = function (method, url) {
-    this.__rm = { method: (method || "GET").toUpperCase(), url: url || "" };
+    this.__rm = { method: (method || "GET").toUpperCase(), url: resolveUrl(url || "") };
     return origXhrOpen.apply(this, arguments);
   };
 
@@ -164,48 +373,164 @@
 
   OrigXHR.prototype.send = function (body) {
     var self = this;
-    if (this.__rm) {
-      addSeenRequest(this.__rm.url, this.__rm.method);
-      flushSeenRequests();
+    if (!this.__rm) return origXhrSend.apply(this, arguments);
 
-      var rule = findRule(this.__rm.url, this.__rm.method);
+    addSeenRequest(this.__rm.url, this.__rm.method);
+    flushSeenRequests();
 
-      if (rule && rule.action.type === "mockResponse") {
-        var delay = rule.action.delay || 0;
-        reportHit(rule.id, self.__rm.url, self.__rm.method);
-        console.log(
-          "%c[MockerJoker]%c XHR intercepted: " + self.__rm.method + " " + self.__rm.url + " \u2192 " + rule.action.status + (delay ? " (delay " + delay + "ms)" : ""),
-          "background:#e74c3c;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#e74c3c;font-weight:bold",
-          "\n  Rule:", rule.name,
-          "\n  Status:", rule.action.status,
-          "\n  Delay:", delay + "ms",
-          "\n  Headers:", rule.action.headers || {},
-          "\n  Body:", rule.action.body
-        );
-        mockXhrResponse(self, rule, delay);
-        return;
-      }
+    var reqBody = parseReqBody(body);
+    var matched = findAllRules(this.__rm.url, this.__rm.method, reqBody);
+    if (matched.length === 0) return origXhrSend.apply(this, arguments);
 
-      if (rule && rule.action.type === "modifyRequest") {
-        if (rule.action.setHeaders) {
-          Object.keys(rule.action.setHeaders).forEach(function (k) {
-            origXhrSetHeader.call(self, k, rule.action.setHeaders[k]);
+    // Phase 1: Request modifications (modifyBody + modifyRequest)
+    var reqRules = matched.filter(function (r) { return r.action.type === "modifyBody" || r.action.type === "modifyRequest"; });
+    var bodyObj = reqBody;
+    var sendBody = body;
+    for (var ri = 0; ri < reqRules.length; ri++) {
+      var rr = reqRules[ri];
+      if (rr.action.type === "modifyBody") {
+        if (!bodyObj && body) bodyObj = parseReqBody(body);
+        if (bodyObj) {
+          bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
+          reportHit(rr.id, self.__rm.url, self.__rm.method);
+          logAction("#009688", "XHR modifyBody", self.__rm.method, self.__rm.url, rr, { transforms: rr.action.transforms, resultBody: bodyObj });
+          sendBody = JSON.stringify(bodyObj);
+        }
+      } else if (rr.action.type === "modifyRequest") {
+        if (rr.action.setHeaders) {
+          Object.keys(rr.action.setHeaders).forEach(function (k) {
+            origXhrSetHeader.call(self, k, rr.action.setHeaders[k]);
           });
         }
-        reportHit(rule.id, self.__rm.url, self.__rm.method);
-        console.log(
-          "%c[MockerJoker]%c XHR modified: " + self.__rm.method + " " + self.__rm.url,
-          "background:#f39c12;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#f39c12;font-weight:bold",
-          "\n  Rule:", rule.name,
-          "\n  Remove headers:", rule.action.removeHeaders,
-          "\n  Set headers:", rule.action.setHeaders,
-          "\n  Request headers:", self.__rmReqHeaders || {}
-        );
+        reportHit(rr.id, self.__rm.url, self.__rm.method);
+        logAction("#f39c12", "XHR modified", self.__rm.method, self.__rm.url, rr, {
+          removeHeaders: rr.action.removeHeaders,
+          setHeaders: rr.action.setHeaders,
+          requestHeaders: self.__rmReqHeaders || {}
+        });
       }
     }
-    return origXhrSend.apply(this, arguments);
+
+    // Phase 2: Response rules
+    var respRules = matched.filter(function (r) { return r.action.type === "mockResponse" || r.action.type === "modifyResponse"; });
+    if (respRules.length === 0) {
+      return origXhrSend.call(self, sendBody);
+    }
+
+    var mockRule = null;
+    for (var mi = 0; mi < respRules.length; mi++) {
+      if (respRules[mi].action.type === "mockResponse") { mockRule = respRules[mi]; break; }
+    }
+    var modRespRules = respRules.filter(function (r) { return r.action.type === "modifyResponse"; });
+
+    // Immediate mock (no body conditions)
+    if (mockRule && !hasRespBC(mockRule)) {
+      var delay = mockRule.action.delay || 0;
+      reportHit(mockRule.id, self.__rm.url, self.__rm.method);
+      logAction("#e74c3c", "XHR intercepted \u2192 " + mockRule.action.status, self.__rm.method, self.__rm.url, mockRule, {
+        status: mockRule.action.status,
+        delay: delay + "ms",
+        headers: mockRule.action.headers || {}
+      });
+      mockXhrResponse(self, mockRule, delay);
+      return;
+    }
+
+    // Intercept response for conditional mock + modifyResponse
+    var origORSC = self.onreadystatechange;
+    var origOnLoad = self.onload;
+    var origOnLoadEnd = self.onloadend;
+    var respHandled = false;
+    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r); });
+
+    function handleResponseMods() {
+      if (respHandled) return;
+      respHandled = true;
+      var respObj = needBody ? parseRespObj(self.responseText) : null;
+      var mocked = false;
+
+      // Conditional mock
+      if (mockRule && hasRespBC(mockRule) && matchBodyConditions(respObj, mockRule.match.bodyConditions)) {
+        var ms = mockRule.action.status || 200;
+        var mb = mockRule.action.body || "";
+        var mh = mockRule.action.headers || {};
+        try { Object.defineProperty(self, 'status', { value: ms, configurable: true, writable: true }); } catch(e) {}
+        try { Object.defineProperty(self, 'statusText', { value: '', configurable: true, writable: true }); } catch(e) {}
+        try { Object.defineProperty(self, 'responseText', { value: mb, configurable: true, writable: true }); } catch(e) {}
+        try { Object.defineProperty(self, 'response', { value: mb, configurable: true, writable: true }); } catch(e) {}
+        self.getResponseHeader = function(name) {
+          var lower = name.toLowerCase();
+          for (var k in mh) { if (k.toLowerCase() === lower) return mh[k]; }
+          return null;
+        };
+        self.getAllResponseHeaders = function() {
+          return Object.keys(mh).map(function(k) { return k.toLowerCase() + ": " + mh[k]; }).join("\r\n");
+        };
+        reportHit(mockRule.id, self.__rm.url, self.__rm.method);
+        logAction("#e74c3c", "XHR conditional mock \u2192 " + ms, self.__rm.method, self.__rm.url, mockRule, { status: ms, headers: mh, responseBody: tryParseBody(self.responseText) });
+        mocked = true;
+      }
+
+      // Conditional/unconditional modifyResponse (combined)
+      if (!mocked && modRespRules.length > 0) {
+        var origGH = self.getResponseHeader;
+        var origGAH = self.getAllResponseHeaders;
+        var allRemove = [];
+        var allSet = {};
+        for (var di = 0; di < modRespRules.length; di++) {
+          var dr = modRespRules[di];
+          var apply = !hasRespBC(dr) || matchBodyConditions(respObj, dr.match.bodyConditions);
+          if (apply) {
+            if (dr.action.removeResponseHeaders) allRemove = allRemove.concat(dr.action.removeResponseHeaders);
+            if (dr.action.setResponseHeaders) {
+              for (var k in dr.action.setResponseHeaders) allSet[k.toLowerCase()] = dr.action.setResponseHeaders[k];
+            }
+            reportHit(dr.id, self.__rm.url, self.__rm.method);
+            logAction("#9b59b6", hasRespBC(dr) ? "XHR conditional modifyResponse" : "XHR modifyResponse", self.__rm.method, self.__rm.url, dr, {
+              removeHeaders: dr.action.removeResponseHeaders,
+              setHeaders: dr.action.setResponseHeaders
+            });
+          }
+        }
+        if (allRemove.length > 0 || Object.keys(allSet).length > 0) {
+          self.getResponseHeader = function(name) {
+            var lower = name.toLowerCase();
+            if (allRemove.some(function(h) { return h.toLowerCase() === lower; })) return null;
+            if (allSet[lower] !== undefined) return allSet[lower];
+            return origGH.call(self, name);
+          };
+          self.getAllResponseHeaders = function() {
+            var raw = origGAH.call(self);
+            if (!raw) return raw;
+            var result = raw;
+            allRemove.forEach(function(h) {
+              var re = new RegExp(h.toLowerCase() + ": [^\\r]*\\r?\\n?", "gi");
+              result = result.replace(re, "");
+            });
+            for (var k in allSet) {
+              var re2 = new RegExp(k + ": [^\\r]*\\r?\\n?", "gi");
+              result = result.replace(re2, "");
+              result += k + ": " + allSet[k] + "\r\n";
+            }
+            return result;
+          };
+        }
+      }
+    }
+
+    self.onreadystatechange = function(evt) {
+      if (self.readyState === 4) handleResponseMods();
+      if (origORSC) origORSC.call(self, evt);
+    };
+    self.onload = function(evt) {
+      handleResponseMods();
+      if (origOnLoad) origOnLoad.call(self, evt);
+    };
+    self.onloadend = function(evt) {
+      if (origOnLoadEnd) origOnLoadEnd.call(self, evt);
+    };
+
+    return origXhrSend.call(self, sendBody);
   };
 
   function mockXhrResponse(xhr, rule, delay) {

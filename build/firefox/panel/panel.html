@@ -59,16 +59,22 @@
           <span class="preset-label">Убрать Authorization</span>
           <span class="preset-desc">Удалить заголовок Authorization</span>
         </button>
-        <button class="preset-card preset-modify" data-preset="removeCookies">
-          <span class="preset-code">MOD</span>
-          <span class="preset-label">Убрать Cookie</span>
-          <span class="preset-desc">Удалить заголовок Cookie</span>
+
+        <button class="preset-card preset-modify-resp" data-preset="removeCors">
+          <span class="preset-code">MR</span>
+          <span class="preset-label">Убрать CORS</span>
+          <span class="preset-desc">Удалить CORS-заголовки из ответа</span>
+        </button>
+        <button class="preset-card preset-modify-body" data-preset="modifyBodyValue">
+          <span class="preset-code">MB</span>
+          <span class="preset-label">Заменить значение в теле</span>
+          <span class="preset-desc">Изменить поле в JSON-теле запроса</span>
         </button>
       </div>
 
       <div class="sidebar-actions">
-        <button id="btnExport" class="btn-export">Экспорт правил</button>
-        <button id="btnImport" class="btn-export">Импорт правил</button>
+        <button id="btnExport" class="btn-export">Экспорт правил ↗</button>
+        <button id="btnImport" class="btn-export">Импорт правил ⬇</button>
         <input type="file" id="importFile" accept=".json" class="hidden">
       </div>
     </aside>
@@ -113,12 +119,22 @@
                 </select>
               </div>
               <div class="form-group">
-                <label for="editActionType">Тип действия</label>
+                <label for="editActionType">Тип действия <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> — полностью заменить ответ (статус, тело, заголовки)<br><b>Заголовки запроса</b> — добавить/удалить заголовки исходящего запроса<br><b>Заголовки ответа</b> — добавить/удалить заголовки входящего ответа<br><b>Тело запроса</b> — изменить поля JSON-тела исходящего запроса</span></span></label>
                 <select id="editActionType">
-                  <option value="mockResponse">Подменить ответ (Mock)</option>
-                  <option value="modifyRequest">Изменить запрос (Modify)</option>
+                  <option value="mockResponse">Подмена ответа</option>
+                  <option value="modifyRequest">Заголовки запроса</option>
+                  <option value="modifyResponse">Заголовки ответа</option>
+                  <option value="modifyBody">Тело запроса</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Заголовки ответа</b> → response body<br><b>Тело запроса / Заголовки запроса</b> → request body</span></span></h3>
+            <div class="form-group">
+              <div id="bodyConditionsEditor" class="bc-editor"></div>
+              <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
             </div>
           </div>
 
@@ -145,6 +161,12 @@
                 <pre class="json-highlight" aria-hidden="true"><code id="editBodyHighlight"></code></pre>
                 <textarea id="editBody" rows="8" placeholder='{"error": "message"}' spellcheck="false"></textarea>
               </div>
+              <div class="json-search-row">
+                <input type="text" id="searchBody" class="json-search-input" placeholder="Поиск...">
+                <span id="searchBodyCount" class="json-search-count"></span>
+                <button type="button" id="searchBodyPrev" class="json-search-btn" title="Назад (Shift+Enter)">&#9650;</button>
+                <button type="button" id="searchBodyNext" class="json-search-btn" title="Вперёд (Enter)">&#9660;</button>
+              </div>
               <div class="json-editor-bar">
                 <span id="jsonValidMsg" class="json-valid-msg"></span>
                 <div class="json-editor-actions">
@@ -170,6 +192,31 @@
               <button id="btnAddSetHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
             </div>
           </div>
+
+          <div id="modifyResponseFields" class="form-section hidden">
+            <h3>Изменение ответа</h3>
+            <div class="form-group">
+              <label>Заголовки ответа для удаления</label>
+              <div class="tag-editor">
+                <input type="text" id="inputRemoveRespHeader" placeholder="Например: Access-Control-Allow-Origin, нажмите Enter">
+              </div>
+              <div id="removeRespHeadersTags" class="tags"></div>
+            </div>
+            <div class="form-group">
+              <label>Заголовки ответа для установки</label>
+              <div id="setRespHeadersEditor" class="key-value-editor"></div>
+              <button id="btnAddSetRespHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
+            </div>
+          </div>
+
+          <div id="modifyBodyFields" class="form-section hidden">
+            <h3>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></h3>
+            <div class="form-group">
+              <label>Путь → Новое значение</label>
+              <div id="transformsEditor" class="key-value-editor"></div>
+              <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
+            </div>
+          </div>
         </div>
         <div class="editor-footer">
           <button id="btnSave" class="btn btn-primary">Сохранить</button>
@@ -179,6 +226,7 @@
     </section>
   </main>
 
+  <script src="../shared/common.js"></script>
   <script src="panel.js"></script>
 
   <div id="helpModal" class="help-modal hidden">
@@ -201,7 +249,8 @@
           <tr><td><b>204</b></td><td>Пустой ответ</td></tr>
           <tr><td><b>Частичные данные</b></td><td>Неполный JSON (отредактировать body)</td></tr>
           <tr><td><b>Убрать Auth</b></td><td>Удалить заголовок Authorization</td></tr>
-          <tr><td><b>Убрать Cookie</b></td><td>Удалить заголовок Cookie</td></tr>
+
+          <tr><td><b>Убрать CORS</b></td><td>Удалить CORS-заголовки из ответа</td></tr>
         </table>
 
         <h4>Задержка (мс)</h4>
@@ -231,10 +280,18 @@
       </div>
     </div>
     <div class="fullscreen-modal-footer">
-      <span id="jsonValidMsgFS" class="json-valid-msg"></span>
-      <div class="json-editor-actions">
-        <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
-        <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
+      <div class="json-search-row json-search-row-fs">
+        <input type="text" id="searchBodyFS" class="json-search-input json-search-input-fs" placeholder="Поиск...">
+        <span id="searchBodyCountFS" class="json-search-count json-search-count-fs"></span>
+        <button type="button" id="searchBodyPrevFS" class="json-search-btn json-search-btn-fs" title="Назад">&#9650;</button>
+        <button type="button" id="searchBodyNextFS" class="json-search-btn json-search-btn-fs" title="Вперёд">&#9660;</button>
+      </div>
+      <div class="fs-footer-bottom">
+        <span id="jsonValidMsgFS" class="json-valid-msg"></span>
+        <div class="json-editor-actions">
+          <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
+          <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
+        </div>
       </div>
     </div>
   </div>
