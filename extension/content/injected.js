@@ -18,7 +18,7 @@
   }
 
   function globToRegex(pattern) {
-    var escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    var escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
     escaped = escaped.replace(/\*/g, ".*");
     return new RegExp("^" + escaped + "$", "i");
   }
