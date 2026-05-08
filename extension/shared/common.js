@@ -215,9 +215,10 @@ function collectTransformRows(containerId) {
 
 function toggleActionFields(type) {
   $("mockResponseFields").classList.toggle("hidden", type !== "mockResponse");
-  $("modifyRequestFields").classList.toggle("hidden", type !== "modifyRequest");
+  $("modifyRequestFields").classList.toggle("hidden", type !== "modifyRequest" && type !== "modifyBody");
   $("modifyResponseFields").classList.toggle("hidden", type !== "modifyResponse");
-  $("modifyBodyFields").classList.toggle("hidden", type !== "modifyBody");
+  var mbFields = $("modifyBodyFields");
+  if (mbFields) mbFields.classList.add("hidden");
 }
 
 function highlightJSON(str) {
@@ -511,7 +512,7 @@ function openEditor(ruleId) {
   $("editName").value = rule.name;
   $("editUrlPattern").value = rule.match.urlPattern;
   $("editMethod").value = rule.match.method || "ANY";
-  $("editActionType").value = rule.action.type;
+  $("editActionType").value = rule.action.type === "modifyBody" ? "modifyRequest" : rule.action.type;
   $("editStatus").value = rule.action.status || 200;
   $("editDelay").value = rule.action.delay || 0;
   $("editBody").value = rule.action.body || "{}";
@@ -542,7 +543,7 @@ function openEditor(ruleId) {
     rule.match.bodyConditions.forEach(function (c) { addBodyConditionRow("bodyConditionsEditor", c); });
   }
   $("transformsEditor").innerHTML = "";
-  if (rule.action.transforms) {
+  if (rule.action.transforms && (rule.action.type === "modifyBody" || rule.action.type === "modifyRequest")) {
     rule.action.transforms.forEach(function (t) { addTransformRow("transformsEditor", t); });
   }
 
@@ -583,12 +584,11 @@ function saveEditor() {
   } else if (actionType === "modifyRequest") {
     rule.action.removeHeaders = collectRemoveHeaderTags();
     rule.action.setHeaders = collectKvPairs("setHeadersEditor");
+    rule.action.transforms = collectTransformRows("transformsEditor");
   } else if (actionType === "modifyResponse") {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
     rule.action.transforms = $("respTransformsEditor") ? collectTransformRows("respTransformsEditor") : [];
-  } else if (actionType === "modifyBody") {
-    rule.action.transforms = collectTransformRows("transformsEditor");
   }
   var v = validateRule(rule);
   if (!v.valid) { showEditorError(v.error); return; }
@@ -659,15 +659,12 @@ function renderRuleItem(rule, counters, lastTime) {
     else if (s >= 300) statusColor = "badge-redirect";
     else statusColor = "badge-success";
   } else if (rule.action.type === "modifyResponse") {
-    actionLabel = "RespHdr";
-  } else if (rule.action.type === "modifyBody") {
-    actionLabel = "Body";
-  } else {
-    actionLabel = "ReqHdr";
+    actionLabel = "ModResp";
+  } else if (rule.action.type === "modifyBody" || rule.action.type === "modifyRequest") {
+    actionLabel = "ModReq";
   }
   var badgeClass = rule.action.type === "mockResponse" ? "badge-mock"
     : rule.action.type === "modifyResponse" ? "badge-modify-resp"
-    : rule.action.type === "modifyBody" ? "badge-modify-body"
     : "badge-modify";
   var disabledClass = rule.enabled ? "" : " disabled";
   var hits = counters[rule.id] || 0;

@@ -265,10 +265,17 @@
         }
       } else if (rr.action.type === "modifyRequest") {
         init = applyRequestModifications(init, rr);
+        if (rr.action.transforms && rr.action.transforms.length > 0) {
+          if (!bodyObj && init && init.body) bodyObj = parseReqBody(init.body);
+          if (bodyObj) {
+            bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
+            logAction("#009688", "FETCH modifyRequest transforms", method, url, rr, { transforms: rr.action.transforms, resultBody: bodyObj });
+          }
+        }
         var mh = {};
         if (init && init.headers) init.headers.forEach(function (v, k) { mh[k] = v; });
         reportHit(rr.id, url, method);
-        logAction("#f39c12", "FETCH modified", method, url, rr, { removeHeaders: rr.action.removeHeaders, setHeaders: rr.action.setHeaders, resultHeaders: mh });
+        logAction("#f39c12", "FETCH modifyRequest", method, url, rr, { removeHeaders: rr.action.removeHeaders, setHeaders: rr.action.setHeaders, transforms: rr.action.transforms, resultHeaders: mh });
       }
     }
     if (bodyObj) { init = init || {}; init.body = JSON.stringify(bodyObj); }
@@ -407,10 +414,18 @@
             origXhrSetHeader.call(self, k, rr.action.setHeaders[k]);
           });
         }
+        if (rr.action.transforms && rr.action.transforms.length > 0) {
+          if (!bodyObj && body) bodyObj = parseReqBody(body);
+          if (bodyObj) {
+            bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
+            sendBody = JSON.stringify(bodyObj);
+          }
+        }
         reportHit(rr.id, self.__rm.url, self.__rm.method);
-        logAction("#f39c12", "XHR modified", self.__rm.method, self.__rm.url, rr, {
+        logAction("#f39c12", "XHR modifyRequest", self.__rm.method, self.__rm.url, rr, {
           removeHeaders: rr.action.removeHeaders,
           setHeaders: rr.action.setHeaders,
+          transforms: rr.action.transforms,
           requestHeaders: self.__rmReqHeaders || {}
         });
       }
@@ -498,7 +513,8 @@
             reportHit(dr.id, self.__rm.url, self.__rm.method);
             logAction("#9b59b6", hasRespBC(dr) ? "XHR conditional modifyResponse" : "XHR modifyResponse", self.__rm.method, self.__rm.url, dr, {
               removeHeaders: dr.action.removeResponseHeaders,
-              setHeaders: dr.action.setResponseHeaders
+              setHeaders: dr.action.setResponseHeaders,
+              transforms: dr.action.transforms
             });
           }
         }
