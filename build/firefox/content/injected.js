@@ -298,7 +298,7 @@
     var fetchPromise = (typeof input === "string") ? origFetch.call(this, input, init) : origFetch.apply(this, arguments);
 
     // Need to read body for conditions?
-    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r); });
+    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r) || (r.action.transforms && r.action.transforms.length > 0); });
 
     if (needBody) {
       fetchPromise = fetchPromise.then(function (response) {
@@ -310,7 +310,6 @@
           var curStatusText = response.statusText;
           var mocked = false;
 
-          // Conditional mock
           if (mockRule && hasRespBC(mockRule) && matchBodyConditions(parseRespObj(curText), mockRule.match.bodyConditions)) {
             var mrh = mockRule.action.headers || { "Content-Type": "application/json" };
             reportHit(mockRule.id, url, method);
@@ -322,7 +321,6 @@
             mocked = true;
           }
 
-          // Conditional modifyResponse
           if (!mocked) {
             for (var di = 0; di < modRespRules.length; di++) {
               var dr = modRespRules[di];
@@ -330,8 +328,15 @@
               if (apply) {
                 if (dr.action.removeResponseHeaders) dr.action.removeResponseHeaders.forEach(function (h) { curHeaders.delete(h); });
                 if (dr.action.setResponseHeaders) Object.keys(dr.action.setResponseHeaders).forEach(function (k) { curHeaders.set(k, dr.action.setResponseHeaders[k]); });
+                if (dr.action.transforms && dr.action.transforms.length > 0) {
+                  var respObj = parseRespObj(curText);
+                  if (respObj) {
+                    respObj = applyBodyTransforms(respObj, dr.action.transforms);
+                    curText = JSON.stringify(respObj);
+                  }
+                }
                 reportHit(dr.id, url, method);
-                logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
+                logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders, transforms: dr.action.transforms });
               }
             }
           }
@@ -441,12 +446,13 @@
     var origOnLoad = self.onload;
     var origOnLoadEnd = self.onloadend;
     var respHandled = false;
-    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r); });
+    var needBody = (mockRule && hasRespBC(mockRule)) || modRespRules.some(function (r) { return hasRespBC(r) || (r.action.transforms && r.action.transforms.length > 0); });
 
     function handleResponseMods() {
       if (respHandled) return;
       respHandled = true;
       var respObj = needBody ? parseRespObj(self.responseText) : null;
+      var curText = self.responseText;
       var mocked = false;
 
       // Conditional mock
@@ -485,6 +491,10 @@
             if (dr.action.setResponseHeaders) {
               for (var k in dr.action.setResponseHeaders) allSet[k.toLowerCase()] = dr.action.setResponseHeaders[k];
             }
+            if (dr.action.transforms && dr.action.transforms.length > 0 && respObj) {
+              respObj = applyBodyTransforms(respObj, dr.action.transforms);
+              curText = JSON.stringify(respObj);
+            }
             reportHit(dr.id, self.__rm.url, self.__rm.method);
             logAction("#9b59b6", hasRespBC(dr) ? "XHR conditional modifyResponse" : "XHR modifyResponse", self.__rm.method, self.__rm.url, dr, {
               removeHeaders: dr.action.removeResponseHeaders,
@@ -514,6 +524,10 @@
             }
             return result;
           };
+        }
+        if (curText !== self.responseText) {
+          try { Object.defineProperty(self, 'responseText', { value: curText, configurable: true, writable: true }); } catch(e) {}
+          try { Object.defineProperty(self, 'response', { value: curText, configurable: true, writable: true }); } catch(e) {}
         }
       }
     }

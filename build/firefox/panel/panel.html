@@ -67,8 +67,8 @@
         </button>
         <button class="preset-card preset-modify-body" data-preset="modifyBodyValue">
           <span class="preset-code">MB</span>
-          <span class="preset-label">Заменить значение в теле</span>
-          <span class="preset-desc">Изменить поле в JSON-теле запроса</span>
+          <span class="preset-label">Заменить значение в ответе</span>
+          <span class="preset-desc">Изменить поле в JSON-теле ответа</span>
         </button>
       </div>
 
@@ -206,6 +206,11 @@
               <label>Заголовки ответа для установки</label>
               <div id="setRespHeadersEditor" class="key-value-editor"></div>
               <button id="btnAddSetRespHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
+            </div>
+            <div class="form-group">
+              <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
+              <div id="respTransformsEditor" class="key-value-editor"></div>
+              <button id="btnAddRespTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
           </div>
 

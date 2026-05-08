@@ -97,13 +97,13 @@ var presetFactories = {
         setResponseHeaders: {} } };
   },
   modifyBodyValue: function (p) {
-    return { id: generateId(), name: "Заменить значение в теле", enabled: true,
-      match: { urlPattern: p, method: "POST", resourceType: "", bodyConditions: [
-        { path: "signal", operator: "equals", value: "protect" }
-      ] },
-      action: { type: ACTION_TYPES.MODIFY_BODY,
+    return { id: generateId(), name: "Заменить значение в ответе", enabled: true,
+      match: { urlPattern: p, method: "ANY", resourceType: "", bodyConditions: [] },
+      action: { type: ACTION_TYPES.MODIFY_RESPONSE,
+        removeResponseHeaders: [],
+        setResponseHeaders: {},
         transforms: [
-          { path: "signal", value: "unprotect" }
+          { path: "id", value: "999" }
         ] } };
   }
 };
@@ -546,6 +546,14 @@ function openEditor(ruleId) {
     rule.action.transforms.forEach(function (t) { addTransformRow("transformsEditor", t); });
   }
 
+  var respTransEl = $("respTransformsEditor");
+  if (respTransEl) {
+    respTransEl.innerHTML = "";
+    if (rule.action.transforms) {
+      rule.action.transforms.forEach(function (t) { addTransformRow("respTransformsEditor", t); });
+    }
+  }
+
   toggleActionFields(rule.action.type);
   loadSeenUrls();
   $("editor").classList.remove("hidden");
@@ -578,6 +586,7 @@ function saveEditor() {
   } else if (actionType === "modifyResponse") {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
+    rule.action.transforms = $("respTransformsEditor") ? collectTransformRows("respTransformsEditor") : [];
   } else if (actionType === "modifyBody") {
     rule.action.transforms = collectTransformRows("transformsEditor");
   }

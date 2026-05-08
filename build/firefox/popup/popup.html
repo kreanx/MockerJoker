@@ -29,7 +29,7 @@
         <button class="preset-btn" data-preset="partialData">Частичные данные</button>
         <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
-        <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в теле</button>
+        <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в ответе</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -132,6 +132,9 @@
         <label>Установить заголовки ответа</label>
         <div id="setRespHeadersEditor" class="key-value-editor"></div>
         <button id="btnAddSetRespHeader" class="btn btn-small">+ Заголовок</button>
+        <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
+        <div id="respTransformsEditor" class="key-value-editor"></div>
+        <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
       </div>
 
       <div id="modifyBodyFields" class="hidden">

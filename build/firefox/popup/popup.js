@@ -70,6 +70,7 @@ function bindEvents() {
   $("btnAddHeader").addEventListener("click", function () { addKvRow("headersEditor", "", ""); });
   $("btnAddSetHeader").addEventListener("click", function () { addKvRow("setHeadersEditor", "", ""); });
   $("btnAddSetRespHeader").addEventListener("click", function () { addKvRow("setRespHeadersEditor", "", ""); });
+  $("btnAddRespTransform").addEventListener("click", function () { addTransformRow("respTransformsEditor", { path: "", value: "" }); });
 
   $("btnAddBc").addEventListener("click", function () { addBodyConditionRow("bodyConditionsEditor", { path: "", operator: "equals", value: "" }); });
   $("btnAddTransform").addEventListener("click", function () { addTransformRow("transformsEditor", { path: "", value: "" }); });
