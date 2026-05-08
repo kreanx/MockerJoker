@@ -31,7 +31,8 @@ function createDefaultRule() {
       method: "",
       removeQueryParams: [],
       setQueryParams: {}
-    };
+    }
+  };
 }
 
 function validateRule(rule) {
