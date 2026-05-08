@@ -1,9 +1,4 @@
-var ACTION_TYPES = {
-  MOCK_RESPONSE: "mockResponse",
-  MODIFY_REQUEST: "modifyRequest",
-  MODIFY_RESPONSE: "modifyResponse",
-  MODIFY_BODY: "modifyBody"
-};
+var ACTION_TYPES = CONST.ACTION_TYPES;
 
 var $ = function (id) { return document.getElementById(id); };
 
@@ -19,9 +14,9 @@ function createDefaultRule() {
     match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "", graphqlUrl: "", varConditions: [] },
     action: {
       type: ACTION_TYPES.MOCK_RESPONSE,
-      status: 200,
+      status: CONST.DEFAULT_STATUS,
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: CONST.DEFAULT_BODY,
       delay: 0,
       removeHeaders: [],
       setHeaders: {},
@@ -78,7 +73,7 @@ var presetFactories = {
   partialData: function (p) {
     return { id: generateId(), name: "Частичные данные", enabled: true,
       match: { urlPattern: p, method: "GET", resourceType: "" },
-      action: { type: ACTION_TYPES.MOCK_RESPONSE, status: 200,
+      action: { type: ACTION_TYPES.MOCK_RESPONSE, status: CONST.DEFAULT_STATUS,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: 1, name: "John Doe" }, null, 2) + "\n\n// Удалите поля для теста: email, phone, address" } };
   },
@@ -112,8 +107,8 @@ var presetFactories = {
   },
   graphqlMock: function (p) {
     return { id: generateId(), name: "GraphQL Mock", enabled: true,
-      match: { urlPattern: p || "*graphql*", method: "POST", resourceType: "", bodyConditions: [], graphqlOperation: "*" },
-      action: { type: ACTION_TYPES.MOCK_RESPONSE, status: 200,
+      match: { urlPattern: p || "*graphql*", method: CONST.METHOD_POST, resourceType: "", bodyConditions: [], graphqlOperation: "*" },
+      action: { type: ACTION_TYPES.MOCK_RESPONSE, status: CONST.GRAPHQL_STATUS,
         headers: { "Content-Type": "application/json" },
         body: '{"data": {}}' } };
   },
@@ -225,6 +220,7 @@ function collectTransformRows(containerId) {
 }
 
 function addSaveVarRow(containerId, sv) {
+  var varVal = (sv.var || "").replace(/^\$/, "");
   var row = document.createElement("div");
   row.className = "sv-row";
   row.innerHTML = '<select class="sv-source">' +
@@ -233,7 +229,7 @@ function addSaveVarRow(containerId, sv) {
     '<option value="status"' + (sv.source === "status" ? " selected" : "") + '>Status</option>' +
     '</select>' +
     '<input type="text" class="sv-path" placeholder="data.user.id" value="' + escapeAttr(sv.path || "") + '">' +
-    '<input type="text" class="sv-var" placeholder="$varName" value="' + escapeAttr(sv.var || "$") + '">' +
+    '<div class="sv-var-wrap"><span class="sv-var-prefix">$</span><input type="text" class="sv-var" placeholder="varName" value="' + escapeAttr(varVal) + '"></div>' +
     '<button type="button" class="sv-remove">&times;</button>';
   var pathInput = row.querySelector(".sv-path");
   var sourceSelect = row.querySelector(".sv-source");
@@ -251,15 +247,16 @@ function collectSaveVars(containerId) {
     var source = row.querySelector(".sv-source").value;
     var path = row.querySelector(".sv-path").value.trim();
     var v = row.querySelector(".sv-var").value.trim();
-    if (v) result.push({ source: source, path: path, var: v });
+    if (v) result.push({ source: source, path: path, var: "$" + v });
   });
   return result;
 }
 
 function addVarConditionRow(containerId, vc) {
+  var varVal = (vc.var || "").replace(/^\$/, "");
   var row = document.createElement("div");
   row.className = "vc-row";
-  row.innerHTML = '<input type="text" class="vc-var" placeholder="$varName" value="' + escapeAttr(vc.var || "") + '">' +
+  row.innerHTML = '<div class="vc-var-wrap"><span class="vc-var-prefix">$</span><input type="text" class="vc-var" placeholder="varName" value="' + escapeAttr(varVal) + '"></div>' +
     '<select class="vc-op">' +
     '<option value="equals"' + (vc.operator === "equals" ? " selected" : "") + '>равно</option>' +
     '<option value="notEquals"' + (vc.operator === "notEquals" ? " selected" : "") + '>не равно</option>' +
@@ -282,15 +279,15 @@ function collectVarConditions(containerId) {
     var v = row.querySelector(".vc-var").value.trim();
     var op = row.querySelector(".vc-op").value;
     var val = row.querySelector(".vc-value").value.trim();
-    if (v) result.push({ var: v, operator: op, value: val });
+    if (v) result.push({ var: "$" + v, operator: op, value: val });
   });
   return result;
 }
 
 function toggleActionFields(type) {
-  $("mockResponseFields").classList.toggle("hidden", type !== "mockResponse");
-  $("modifyRequestFields").classList.toggle("hidden", type !== "modifyRequest" && type !== "modifyBody");
-  $("modifyResponseFields").classList.toggle("hidden", type !== "modifyResponse");
+  $("mockResponseFields").classList.toggle("hidden", type !== ACTION_TYPES.MOCK_RESPONSE);
+  $("modifyRequestFields").classList.toggle("hidden", type !== ACTION_TYPES.MODIFY_REQUEST && type !== ACTION_TYPES.MODIFY_BODY);
+  $("modifyResponseFields").classList.toggle("hidden", type !== ACTION_TYPES.MODIFY_RESPONSE);
   var mbFields = $("modifyBodyFields");
   if (mbFields) mbFields.classList.add("hidden");
   updateGraphqlStatusHint();
@@ -311,7 +308,7 @@ function switchProtoTab(tab) {
     var methodEl = $("editMethod");
     if (methodEl && methodEl.value === "ANY") methodEl.value = "POST";
     var statusEl = $("editStatus");
-    if (statusEl) statusEl.value = 200;
+    if (statusEl) statusEl.value = CONST.GRAPHQL_STATUS;
   } else {
     tabGraphql.classList.remove("active");
     tabRest.classList.add("active");
@@ -326,11 +323,11 @@ function updateGraphqlStatusHint() {
   var statusInput = $("editStatus");
   if (!hint || !statusInput) return;
   var isGraphql = $("tabGraphql") && $("tabGraphql").classList.contains("active");
-  var isMock = $("editActionType") && $("editActionType").value === "mockResponse";
+  var isMock = $("editActionType") && $("editActionType").value === ACTION_TYPES.MOCK_RESPONSE;
   if (isGraphql && isMock) {
     hint.classList.remove("hidden");
     statusInput.disabled = true;
-    statusInput.value = 200;
+    statusInput.value = CONST.GRAPHQL_STATUS;
   } else {
     hint.classList.add("hidden");
     statusInput.disabled = false;
@@ -597,7 +594,7 @@ function showEditorError(msg) {
 
 function saveState() {
   chrome.storage.local.set({ rules: rules, masterEnabled: masterEnabled });
-  chrome.runtime.sendMessage({ type: "saveRules", rules: rules, masterEnabled: masterEnabled });
+  chrome.runtime.sendMessage({ type: CONST.MSG_SAVE_RULES, rules: rules, masterEnabled: masterEnabled });
 }
 
 function toggleRule(id, enabled) {
@@ -633,8 +630,8 @@ function openEditor(ruleId) {
   $("editName").value = rule.name;
   $("editUrlPattern").value = rule.match.urlPattern;
   $("editMethod").value = rule.match.method || "ANY";
-  $("editActionType").value = rule.action.type === "modifyBody" ? "modifyRequest" : rule.action.type;
-  $("editStatus").value = rule.action.status || 200;
+  $("editActionType").value = rule.action.type === ACTION_TYPES.MODIFY_BODY ? ACTION_TYPES.MODIFY_REQUEST : rule.action.type;
+  $("editStatus").value = rule.action.status || CONST.DEFAULT_STATUS;
   $("editDelay").value = rule.action.delay || 0;
   $("editBody").value = rule.action.body || "{}";
 
@@ -677,7 +674,7 @@ function openEditor(ruleId) {
     rule.match.bodyConditions.forEach(function (c) { addBodyConditionRow("bodyConditionsEditor", c); });
   }
   $("transformsEditor").innerHTML = "";
-  if (rule.action.transforms && (rule.action.type === "modifyBody" || rule.action.type === "modifyRequest")) {
+  if (rule.action.transforms && (rule.action.type === ACTION_TYPES.MODIFY_BODY || rule.action.type === ACTION_TYPES.MODIFY_REQUEST)) {
     rule.action.transforms.forEach(function (t) { addTransformRow("transformsEditor", t); });
   }
 
@@ -763,12 +760,12 @@ function saveEditor() {
     rule.match.graphqlUrl = "";
   }
   rule.action.type = actionType;
-  if (actionType === "mockResponse") {
-    rule.action.status = parseInt($("editStatus").value, 10) || 200;
+  if (actionType === ACTION_TYPES.MOCK_RESPONSE) {
+    rule.action.status = parseInt($("editStatus").value, 10) || CONST.DEFAULT_STATUS;
     rule.action.headers = collectKvPairs("headersEditor");
     rule.action.body = $("editBody").value;
-    rule.action.delay = parseInt($("editDelay").value, 10) || 0;
-  } else if (actionType === "modifyRequest") {
+    rule.action.delay = parseInt($("editDelay").value, 10) || CONST.DEFAULT_DELAY;
+  } else if (actionType === ACTION_TYPES.MODIFY_REQUEST) {
     rule.action.removeHeaders = collectRemoveHeaderTags();
     rule.action.setHeaders = collectKvPairs("setHeadersEditor");
     rule.action.transforms = collectTransformRows("transformsEditor");
@@ -778,7 +775,7 @@ function saveEditor() {
     if (removeParamsEl) rule.action.removeQueryParams = collectRemoveHeaderTags("removeQueryParamsTags");
     var setParamsEl = $("setQueryParamsEditor");
     if (setParamsEl) rule.action.setQueryParams = collectKvPairs("setQueryParamsEditor");
-  } else if (actionType === "modifyResponse") {
+  } else if (actionType === ACTION_TYPES.MODIFY_RESPONSE) {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
     rule.action.transforms = $("respTransformsEditor") ? collectTransformRows("respTransformsEditor") : [];
@@ -797,7 +794,7 @@ var seenUrls = [];
 function loadSeenUrls() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     var tabId = tabs && tabs[0] ? tabs[0].id : null;
-    chrome.runtime.sendMessage({ type: "getSeenRequests", tabId: tabId }, function (res) {
+      chrome.runtime.sendMessage({ type: CONST.MSG_GET_SEEN_REQUESTS, tabId: tabId }, function (res) {
       seenUrls = [];
       var seen = {};
       if (res && res.requests) {
@@ -857,19 +854,19 @@ function exportRules() {
 
 function renderRuleItem(rule, counters, lastTime) {
   var actionLabel, statusColor = "";
-  if (rule.action.type === "mockResponse") {
+  if (rule.action.type === ACTION_TYPES.MOCK_RESPONSE) {
     actionLabel = "Mock " + rule.action.status;
     var s = rule.action.status;
     if (s >= 400) statusColor = "badge-error";
     else if (s >= 300) statusColor = "badge-redirect";
     else statusColor = "badge-success";
-  } else if (rule.action.type === "modifyResponse") {
+  } else if (rule.action.type === ACTION_TYPES.MODIFY_RESPONSE) {
     actionLabel = "ModResp";
-  } else if (rule.action.type === "modifyBody" || rule.action.type === "modifyRequest") {
+  } else if (rule.action.type === ACTION_TYPES.MODIFY_BODY || rule.action.type === ACTION_TYPES.MODIFY_REQUEST) {
     actionLabel = "ModReq";
   }
-  var badgeClass = rule.action.type === "mockResponse" ? "badge-mock"
-    : rule.action.type === "modifyResponse" ? "badge-modify-resp"
+  var badgeClass = rule.action.type === ACTION_TYPES.MOCK_RESPONSE ? "badge-mock"
+    : rule.action.type === ACTION_TYPES.MODIFY_RESPONSE ? "badge-modify-resp"
     : "badge-modify";
   var disabledClass = rule.enabled ? "" : " disabled";
   var hits = counters[rule.id] || 0;

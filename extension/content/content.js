@@ -1,4 +1,18 @@
 (function () {
+  var MSG = {
+    GET_RULES: "getRules",
+    SAVE_RULES: "saveRules",
+    RULES_UPDATED: "rulesUpdated",
+    HIT_COUNT: "hitCount",
+    SEEN_REQUESTS: "seenRequests"
+  };
+  var PAGE = {
+    RULES: "REQUEST_MOCKER_RULES",
+    INIT: "REQUEST_MOCKER_INIT",
+    HIT: "REQUEST_MOCKER_HIT",
+    SEEN: "REQUEST_MOCKER_SEEN"
+  };
+
   var script = document.createElement("script");
   script.src = chrome.runtime.getURL("content/injected.js");
   script.onload = function () {
@@ -14,7 +28,7 @@
     retryTimer = setTimeout(function () {
       retryTimer = null;
       try {
-        chrome.runtime.sendMessage({ type: "getRules" }, function (res) {
+        chrome.runtime.sendMessage({ type: MSG.GET_RULES }, function (res) {
           if (chrome.runtime.lastError) {
             contextValid = false;
             tryRecover();
@@ -48,10 +62,10 @@
   }
 
   function sendRulesToPage() {
-    safeSendMessage({ type: "getRules" }, function (res) {
+    safeSendMessage({ type: MSG.GET_RULES }, function (res) {
       if (res) {
         window.postMessage(
-          { type: "REQUEST_MOCKER_RULES", rules: res.rules, masterEnabled: res.masterEnabled },
+          { type: PAGE.RULES, rules: res.rules, masterEnabled: res.masterEnabled },
           "*"
         );
       }
@@ -63,13 +77,13 @@
     var data = event.data;
     if (!data) return;
 
-    if (data.type === "REQUEST_MOCKER_INIT") {
+    if (data.type === PAGE.INIT) {
       sendRulesToPage();
     }
 
-    if (data.type === "REQUEST_MOCKER_HIT") {
+    if (data.type === PAGE.HIT) {
       safeSendMessage({
-        type: "hitCount",
+        type: MSG.HIT_COUNT,
         ruleId: data.ruleId,
         url: data.url,
         method: data.method,
@@ -77,16 +91,16 @@
       });
     }
 
-    if (data.type === "REQUEST_MOCKER_SEEN") {
+    if (data.type === PAGE.SEEN) {
       safeSendMessage({
-        type: "seenRequests",
+        type: MSG.SEEN_REQUESTS,
         requests: data.requests
       });
     }
   });
 
   chrome.runtime.onMessage.addListener(function (msg) {
-    if (msg.type === "rulesUpdated") {
+    if (msg.type === MSG.RULES_UPDATED) {
       sendRulesToPage();
     }
   });

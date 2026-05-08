@@ -1161,7 +1161,31 @@ body {
   border-radius: 4px;
   font-size: 12px;
 }
-.sv-row .sv-var { max-width: 150px; }
+.sv-row .sv-path { flex: 2; }
+.sv-row .sv-var-wrap, .vc-row .vc-var-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  max-width: 160px;
+}
+.sv-var-prefix, .vc-var-prefix {
+  font-weight: 600;
+  color: #e67e22;
+  font-size: 13px;
+  padding: 6px 0 6px 10px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  flex-shrink: 0;
+}
+.sv-var-wrap input, .vc-var-wrap input {
+  border-radius: 0 4px 4px 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+.sv-row .sv-var { flex: 1; max-width: 150px; }
 .sv-row button {
   background: none;
   border: none;
