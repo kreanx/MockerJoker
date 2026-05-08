@@ -649,6 +649,9 @@ body {
 
 .preset-modify-body .preset-code { background: #e0f2f1; color: #00796b; }
 
+.tag-input-row { display: flex; gap: 6px; }
+.tag-input-row input { flex: 1; }
+
 .tags {
   display: flex;
   flex-wrap: wrap;

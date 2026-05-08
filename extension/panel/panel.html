@@ -180,8 +180,9 @@
             <h3>Изменение запроса</h3>
             <div class="form-group">
               <label>Заголовки для удаления</label>
-              <div class="tag-editor">
-                <input type="text" id="inputRemoveHeader" placeholder="Например: Authorization, нажмите Enter">
+              <div class="tag-input-row">
+                <input type="text" id="inputRemoveHeader" placeholder="Например: Authorization">
+                <button id="btnAddRemoveHeader" class="btn btn-outline btn-sm">+</button>
               </div>
               <div id="removeHeadersTags" class="tags"></div>
             </div>
@@ -201,8 +202,9 @@
             <h3>Изменение ответа</h3>
             <div class="form-group">
               <label>Заголовки ответа для удаления</label>
-              <div class="tag-editor">
-                <input type="text" id="inputRemoveRespHeader" placeholder="Например: Access-Control-Allow-Origin, нажмите Enter">
+              <div class="tag-input-row">
+                <input type="text" id="inputRemoveRespHeader" placeholder="Например: Access-Control-Allow-Origin">
+                <button id="btnAddRemoveRespHeader" class="btn btn-outline btn-sm">+</button>
               </div>
               <div id="removeRespHeadersTags" class="tags"></div>
             </div>

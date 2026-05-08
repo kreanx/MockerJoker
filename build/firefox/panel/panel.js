@@ -84,9 +84,11 @@ function bindEvents() {
   $("inputRemoveHeader").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v); this.value = ""; } }
   });
+  $("btnAddRemoveHeader").addEventListener("click", function () { var v = $("inputRemoveHeader").value.trim(); if (v) { addRemoveHeaderTag(v); $("inputRemoveHeader").value = ""; } });
   $("inputRemoveRespHeader").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); this.value = ""; } }
   });
+  $("btnAddRemoveRespHeader").addEventListener("click", function () { var v = $("inputRemoveRespHeader").value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); $("inputRemoveRespHeader").value = ""; } });
 
   $("btnFormatBody").addEventListener("click", function () { formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg"); });
   $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);

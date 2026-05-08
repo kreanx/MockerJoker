@@ -440,6 +440,8 @@ body {
   padding: 0 4px;
 }
 
+.tag-input-row { display: flex; gap: 4px; }
+.tag-input-row input { flex: 1; }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 
 .tag {

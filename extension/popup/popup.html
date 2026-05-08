@@ -117,7 +117,10 @@
 
       <div id="modifyRequestFields" class="hidden">
         <label>Удалить заголовки</label>
-        <input type="text" id="inputRemoveHeader" placeholder="Имя заголовка, Enter">
+        <div class="tag-input-row">
+          <input type="text" id="inputRemoveHeader" placeholder="Имя заголовка">
+          <button id="btnAddRemoveHeader" class="btn btn-small">+</button>
+        </div>
         <div id="removeHeadersTags" class="tags"></div>
         <label>Установить заголовки</label>
         <div id="setHeadersEditor" class="key-value-editor"></div>
@@ -129,7 +132,10 @@
 
       <div id="modifyResponseFields" class="hidden">
         <label>Удалить заголовки ответа</label>
-        <input type="text" id="inputRemoveRespHeader" placeholder="Имя заголовка, Enter">
+        <div class="tag-input-row">
+          <input type="text" id="inputRemoveRespHeader" placeholder="Имя заголовка">
+          <button id="btnAddRemoveRespHeader" class="btn btn-small">+</button>
+        </div>
         <div id="removeRespHeadersTags" class="tags"></div>
         <label>Установить заголовки ответа</label>
         <div id="setRespHeadersEditor" class="key-value-editor"></div>
