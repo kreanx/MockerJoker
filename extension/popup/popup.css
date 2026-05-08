@@ -874,3 +874,56 @@ body {
   margin-top: 2px;
   font-weight: 400;
 }
+
+.sv-editor, .vc-editor { display: flex; flex-direction: column; gap: 4px; }
+.sv-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.sv-row select {
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 11px;
+  min-width: 70px;
+}
+.sv-row input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.sv-row .sv-var { max-width: 120px; }
+.sv-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e74c3c;
+  font-size: 14px;
+  padding: 0 4px;
+}
+.vc-editor { display: flex; flex-direction: column; gap: 4px; }
+.vc-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.vc-row input, .vc-row select {
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.vc-row .vc-var { flex: 1; min-width: 80px; }
+.vc-row .vc-op { flex: 1; min-width: 70px; }
+.vc-row .vc-value { flex: 2; }
+.vc-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e74c3c;
+  font-size: 14px;
+  padding: 0 4px;
+}

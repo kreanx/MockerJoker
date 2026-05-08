@@ -97,6 +97,10 @@
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
+      <label>Условия на переменные <span class="help-tip">?<span class="help-tip-text">Проверка значений переменных, сохранённых другими правилами.<br>Переменные живут в рамках одной вкладки и сбрасываются при F5.<br><br>Имена с префиксом <code>$</code>: <code>$userId</code>, <code>$status</code></span></span></label>
+      <div id="varConditionsEditor" class="vc-editor"></div>
+      <button id="btnAddVc" class="btn btn-small">+ Условие на переменную</button>
+
       <div id="mockResponseFields">
         <div class="row">
           <div class="col">
@@ -179,6 +183,10 @@
         <div id="respTransformsEditor" class="key-value-editor"></div>
         <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
       </div>
+
+      <label>Сохранить переменные <span class="help-tip">?<span class="help-tip-text">Извлечь значения при срабатывании правила для использования в других правилах.<br><br><b>Body</b> — path по dot notation из тела ответа/запроса<br><b>Header</b> — имя заголовка ответа<br><b>Status</b> — HTTP статус-код<br><br>Имена с <code>$</code>: <code>$userId</code>, <code>$token</code></span></span></label>
+      <div id="saveVarsEditor" class="sv-editor"></div>
+      <button id="btnAddSaveVar" class="btn btn-small">+ Переменная</button>
     </div>
     <div class="editor-footer">
       <button id="btnSave" class="btn btn-primary">Сохранить</button>

@@ -162,6 +162,14 @@
             </div>
           </div>
 
+          <div class="form-section">
+            <h3>Условия на переменные <span class="help-tip">?<span class="help-tip-text">Проверка значений переменных, сохранённых другими правилами.<br>Переменные живут в рамках одной вкладки и сбрасываются при F5.<br><br>Имена с префиксом <code>$</code>: <code>$userId</code>, <code>$status</code></span></span></h3>
+            <div class="form-group">
+              <div id="varConditionsEditor" class="vc-editor"></div>
+              <button id="btnAddVc" class="btn btn-outline btn-sm">+ Условие на переменную</button>
+            </div>
+          </div>
+
           <div id="mockResponseFields" class="form-section">
             <h3>Ответ сервера (Mock)</h3>
             <div class="form-row">
@@ -268,6 +276,14 @@
               <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
               <div id="respTransformsEditor" class="key-value-editor"></div>
               <button id="btnAddRespTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Сохранить переменные <span class="help-tip">?<span class="help-tip-text">Извлечь значения при срабатывании правила для использования в других правилах.<br><br><b>Body</b> — path по dot notation из тела ответа/запроса<br><b>Header</b> — имя заголовка ответа<br><b>Status</b> — HTTP статус-код<br><br>Имена с <code>$</code>: <code>$userId</code>, <code>$token</code></span></span></h3>
+            <div class="form-group">
+              <div id="saveVarsEditor" class="sv-editor"></div>
+              <button id="btnAddSaveVar" class="btn btn-outline btn-sm">+ Переменная</button>
             </div>
           </div>
         </div>

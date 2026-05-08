@@ -83,6 +83,7 @@ function bindEvents() {
   $("btnAddRespTransform").addEventListener("click", function () { addTransformRow("respTransformsEditor", { path: "", value: "" }); });
 
   $("btnAddBc").addEventListener("click", function () { addBodyConditionRow("bodyConditionsEditor", { path: "", operator: "equals", value: "" }); });
+  $("btnAddVc").addEventListener("click", function () { addVarConditionRow("varConditionsEditor", { var: "", operator: "equals", value: "" }); });
   $("btnAddTransform").addEventListener("click", function () { addTransformRow("transformsEditor", { path: "", value: "" }); });
 
   $("inputRemoveHeader").addEventListener("keydown", function (e) {
@@ -99,6 +100,7 @@ function bindEvents() {
   });
   $("btnAddRemoveQueryParam").addEventListener("click", function () { var v = $("inputRemoveQueryParam").value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); $("inputRemoveQueryParam").value = ""; } });
   $("btnAddSetQueryParam").addEventListener("click", function () { addKvRow("setQueryParamsEditor", "", ""); });
+  $("btnAddSaveVar").addEventListener("click", function () { addSaveVarRow("saveVarsEditor", { source: "body", path: "", var: "$" }); });
 
   $("btnFormatBody").addEventListener("click", function () { formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg"); });
   $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);

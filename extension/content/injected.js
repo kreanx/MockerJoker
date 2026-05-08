@@ -3,6 +3,7 @@
   var masterEnabled = true;
   var seenRequests = [];
   var SEEN_MAX = 100;
+  var tabVars = {};
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
   var origXhrOpen = OrigXHR.prototype.open;
@@ -47,6 +48,7 @@
         var opRegex = globToRegex(rule.match.graphqlOperation);
         if (!opRegex.test(gql.operationName)) continue;
       }
+      if (!matchVarConditions(rule.match.varConditions)) continue;
       var at = rule.action && rule.action.type;
       if (at === "modifyBody" || at === "modifyRequest") {
         if (!matchBodyConditions(reqBody, rule.match.bodyConditions)) continue;
@@ -211,6 +213,48 @@
     try { return JSON.parse(text); } catch(e) { return null; }
   }
 
+  function matchVarConditions(varConditions) {
+    if (!varConditions || !varConditions.length) return true;
+    for (var i = 0; i < varConditions.length; i++) {
+      var vc = varConditions[i];
+      var val = tabVars[vc.var];
+      if (vc.operator === "exists") {
+        if (val === undefined) return false;
+      } else if (vc.operator === "equals") {
+        if (val === undefined || val !== parseValue(vc.value)) return false;
+      } else if (vc.operator === "notEquals") {
+        if (val !== undefined && val === parseValue(vc.value)) return false;
+      } else if (vc.operator === "contains") {
+        if (val === undefined) return false;
+        if (typeof val === "string" && val.indexOf(vc.value) === -1) return false;
+        if (typeof val === "number" && String(val).indexOf(vc.value) === -1) return false;
+      }
+    }
+    return true;
+  }
+
+  function saveVariables(saveVars, sourceObj, headers, statusCode) {
+    if (!saveVars || !saveVars.length) return;
+    for (var i = 0; i < saveVars.length; i++) {
+      var sv = saveVars[i];
+      var val;
+      if (sv.source === "status") {
+        val = statusCode;
+      } else if (sv.source === "header") {
+        val = headers ? headers[sv.path] || headers[sv.path.toLowerCase()] : undefined;
+      } else {
+        if (sourceObj && typeof sourceObj === "object") {
+          val = getByPath(sourceObj, sv.path);
+        } else {
+          val = undefined;
+        }
+      }
+      if (val !== undefined) {
+        tabVars[sv.var] = val;
+      }
+    }
+  }
+
   function logAction(bg, label, method, url, rule, extra) {
     var obj = { rule: rule.name };
     if (extra) {
@@ -334,6 +378,11 @@
     if (mockRule && !hasRespBC(mockRule)) {
       reportHit(mockRule.id, url, method);
       logAction("#e74c3c", "FETCH intercepted \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, delay: mockRule.action.delay + "ms", headers: mockRule.action.headers });
+      if (mockRule.action.saveVars) {
+        var mockBody = tryParseBody(mockRule.action.body || "{}");
+        var mockHeaders = mockRule.action.headers || {};
+        saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || 200);
+      }
       return new Promise(function (resolve) {
         setTimeout(function () {
           resolve(new Response(mockRule.action.body || "", { status: mockRule.action.status || 200, statusText: "", headers: new Headers(mockRule.action.headers || { "Content-Type": "application/json" }) }));
@@ -363,6 +412,9 @@
             curStatus = mockRule.action.status || 200;
             curStatusText = "";
             curHeaders = new Headers(mockRule.action.headers || { "Content-Type": "application/json" });
+            if (mockRule.action.saveVars) {
+              saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || "{}"), mockRule.action.headers || {}, mockRule.action.status || 200);
+            }
             mocked = true;
           }
 
@@ -383,6 +435,11 @@
                 }
                 reportHit(dr.id, url, method);
                 logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders, transforms: respTrans });
+                if (dr.action.saveVars) {
+                  var respHeaderObj = {};
+                  curHeaders.forEach(function(v, k) { respHeaderObj[k] = v; });
+                  saveVariables(dr.action.saveVars, parseRespObj(curText), respHeaderObj, curStatus);
+                }
               }
             }
           }
@@ -513,6 +570,9 @@
         delay: mockRule.action.delay + "ms",
         headers: mockRule.action.headers
       });
+      if (mockRule.action.saveVars) {
+        saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || "{}"), mockRule.action.headers || {}, mockRule.action.status || 200);
+      }
       mockXhrResponse(self, mockRule, mockRule.action.delay || 0);
       return;
     }
@@ -549,6 +609,9 @@
         };
         reportHit(mockRule.id, self.__rm.url, self.__rm.method);
         logAction("#e74c3c", "XHR conditional mock \u2192 " + ms, self.__rm.method, self.__rm.url, mockRule, { status: ms, headers: mh, responseBody: tryParseBody(self.responseText) });
+        if (mockRule.action.saveVars) {
+          saveVariables(mockRule.action.saveVars, tryParseBody(mb), mh, ms);
+        }
         mocked = true;
       }
 
@@ -575,6 +638,11 @@
               setHeaders: dr.action.setResponseHeaders,
               transforms: dr.action.transforms
             });
+            if (dr.action.saveVars) {
+              var xhHeaders = {};
+              if (allSet) Object.keys(allSet).forEach(function(k) { xhHeaders[k] = allSet[k]; });
+              saveVariables(dr.action.saveVars, parseRespObj(curText), xhHeaders, self.status);
+            }
           }
         }
         if (allRemove.length > 0 || Object.keys(allSet).length > 0) {
@@ -684,6 +752,7 @@
     if (event.data && event.data.type === "REQUEST_MOCKER_RULES") {
       rules = event.data.rules || [];
       masterEnabled = event.data.masterEnabled !== false;
+      tabVars = {};
     }
   });
 

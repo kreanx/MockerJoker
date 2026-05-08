@@ -16,7 +16,7 @@ function createDefaultRule() {
     id: generateId(),
     name: "",
     enabled: true,
-    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "", graphqlUrl: "" },
+    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "", graphqlUrl: "", varConditions: [] },
     action: {
       type: ACTION_TYPES.MOCK_RESPONSE,
       status: 200,
@@ -30,7 +30,8 @@ function createDefaultRule() {
       transforms: [],
       method: "",
       removeQueryParams: [],
-      setQueryParams: {}
+      setQueryParams: {},
+      saveVars: []
     }
   };
 }
@@ -219,6 +220,69 @@ function collectTransformRows(containerId) {
     var p = row.querySelector(".kv-key").value.trim();
     var v = row.querySelector(".kv-value").value.trim();
     if (p) result.push({ path: p, value: v });
+  });
+  return result;
+}
+
+function addSaveVarRow(containerId, sv) {
+  var row = document.createElement("div");
+  row.className = "sv-row";
+  row.innerHTML = '<select class="sv-source">' +
+    '<option value="body"' + (sv.source === "body" ? " selected" : "") + '>Body</option>' +
+    '<option value="header"' + (sv.source === "header" ? " selected" : "") + '>Header</option>' +
+    '<option value="status"' + (sv.source === "status" ? " selected" : "") + '>Status</option>' +
+    '</select>' +
+    '<input type="text" class="sv-path" placeholder="data.user.id" value="' + escapeAttr(sv.path || "") + '">' +
+    '<input type="text" class="sv-var" placeholder="$varName" value="' + escapeAttr(sv.var || "$") + '">' +
+    '<button type="button" class="sv-remove">&times;</button>';
+  var pathInput = row.querySelector(".sv-path");
+  var sourceSelect = row.querySelector(".sv-source");
+  sourceSelect.addEventListener("change", function () {
+    pathInput.style.display = this.value === "status" ? "none" : "";
+  });
+  if (sv.source === "status") pathInput.style.display = "none";
+  row.querySelector(".sv-remove").addEventListener("click", function () { row.remove(); });
+  $(containerId).appendChild(row);
+}
+
+function collectSaveVars(containerId) {
+  var result = [];
+  $(containerId).querySelectorAll(".sv-row").forEach(function (row) {
+    var source = row.querySelector(".sv-source").value;
+    var path = row.querySelector(".sv-path").value.trim();
+    var v = row.querySelector(".sv-var").value.trim();
+    if (v) result.push({ source: source, path: path, var: v });
+  });
+  return result;
+}
+
+function addVarConditionRow(containerId, vc) {
+  var row = document.createElement("div");
+  row.className = "vc-row";
+  row.innerHTML = '<input type="text" class="vc-var" placeholder="$varName" value="' + escapeAttr(vc.var || "") + '">' +
+    '<select class="vc-op">' +
+    '<option value="equals"' + (vc.operator === "equals" ? " selected" : "") + '>равно</option>' +
+    '<option value="notEquals"' + (vc.operator === "notEquals" ? " selected" : "") + '>не равно</option>' +
+    '<option value="contains"' + (vc.operator === "contains" ? " selected" : "") + '>содержит</option>' +
+    '<option value="exists"' + (vc.operator === "exists" ? " selected" : "") + '>существует</option>' +
+    '</select>' +
+    '<input type="text" class="vc-value" placeholder="Значение" value="' + escapeAttr(vc.value || "") + '">' +
+    '<button type="button" class="vc-remove">&times;</button>';
+  row.querySelector(".vc-op").addEventListener("change", function () {
+    row.querySelector(".vc-value").style.display = this.value === "exists" ? "none" : "";
+  });
+  if (vc.operator === "exists") row.querySelector(".vc-value").style.display = "none";
+  row.querySelector(".vc-remove").addEventListener("click", function () { row.remove(); });
+  $(containerId).appendChild(row);
+}
+
+function collectVarConditions(containerId) {
+  var result = [];
+  $(containerId).querySelectorAll(".vc-row").forEach(function (row) {
+    var v = row.querySelector(".vc-var").value.trim();
+    var op = row.querySelector(".vc-op").value;
+    var val = row.querySelector(".vc-value").value.trim();
+    if (v) result.push({ var: v, operator: op, value: val });
   });
   return result;
 }
@@ -645,6 +709,22 @@ function openEditor(ruleId) {
 
   toggleActionFields(rule.action.type);
   updateGraphqlStatusHint();
+
+  var saveVarsEl = $("saveVarsEditor");
+  if (saveVarsEl) {
+    saveVarsEl.innerHTML = "";
+    if (rule.action.saveVars) {
+      rule.action.saveVars.forEach(function (sv) { addSaveVarRow("saveVarsEditor", sv); });
+    }
+  }
+  var varCondEl = $("varConditionsEditor");
+  if (varCondEl) {
+    varCondEl.innerHTML = "";
+    if (rule.match.varConditions) {
+      rule.match.varConditions.forEach(function (vc) { addVarConditionRow("varConditionsEditor", vc); });
+    }
+  }
+
   loadSeenUrls();
   $("editor").classList.remove("hidden");
   setupBodyEditor("editBody", "editBodyHighlight", "jsonValidMsg");
@@ -671,6 +751,8 @@ function saveEditor() {
   }
   rule.match.method = $("editMethod").value;
   rule.match.bodyConditions = collectBodyConditions("bodyConditionsEditor");
+  var varCondEl = $("varConditionsEditor");
+  if (varCondEl) rule.match.varConditions = collectVarConditions("varConditionsEditor");
   var graphqlEl = $("editGraphqlOperation");
   if (graphqlActive && graphqlEl) {
     rule.match.graphqlOperation = graphqlEl.value.trim();
@@ -701,6 +783,8 @@ function saveEditor() {
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
     rule.action.transforms = $("respTransformsEditor") ? collectTransformRows("respTransformsEditor") : [];
   }
+  var saveVarsEl = $("saveVarsEditor");
+  if (saveVarsEl) rule.action.saveVars = collectSaveVars("saveVarsEditor");
   var v = validateRule(rule);
   if (!v.valid) { showEditorError(v.error); return; }
   saveState();
