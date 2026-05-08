@@ -686,7 +686,7 @@ function renderRuleItem(rule, counters, lastTime) {
 }
 
 document.addEventListener("mouseenter", function (e) {
-  if (!e.target || typeof e.target.closest !== "function") return;
+  if (!e.target || !(e.target instanceof Element)) return;
   var tip = e.target.closest(".help-tip");
   if (!tip) return;
   var text = tip.querySelector(".help-tip-text");
@@ -704,7 +704,7 @@ document.addEventListener("mouseenter", function (e) {
 }, true);
 
 document.addEventListener("mouseleave", function (e) {
-  if (!e.target || typeof e.target.closest !== "function") return;
+  if (!e.target || !(e.target instanceof Element)) return;
   var tip = e.target.closest(".help-tip");
   if (tip) tip.classList.remove("active");
 }, true);
