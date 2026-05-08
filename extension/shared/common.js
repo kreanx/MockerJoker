@@ -16,7 +16,7 @@ function createDefaultRule() {
     id: generateId(),
     name: "",
     enabled: true,
-    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "" },
+    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "", graphqlUrl: "" },
     action: {
       type: ACTION_TYPES.MOCK_RESPONSE,
       status: 200,
@@ -245,6 +245,53 @@ function toggleActionFields(type) {
   $("modifyResponseFields").classList.toggle("hidden", type !== "modifyResponse");
   var mbFields = $("modifyBodyFields");
   if (mbFields) mbFields.classList.add("hidden");
+  updateGraphqlStatusHint();
+}
+
+function switchProtoTab(tab) {
+  var tabRest = $("tabRest");
+  var tabGraphql = $("tabGraphql");
+  var restFields = $("restFields");
+  var graphqlFields = $("graphqlFields");
+  if (!tabRest || !tabGraphql || !restFields || !graphqlFields) return;
+
+  if (tab === "graphql") {
+    tabRest.classList.remove("active");
+    tabGraphql.classList.add("active");
+    restFields.classList.add("hidden");
+    graphqlFields.classList.remove("hidden");
+    var methodEl = $("editMethod");
+    if (methodEl && methodEl.value === "ANY") methodEl.value = "POST";
+    var statusEl = $("editStatus");
+    if (statusEl) statusEl.value = 200;
+  } else {
+    tabGraphql.classList.remove("active");
+    tabRest.classList.add("active");
+    graphqlFields.classList.add("hidden");
+    restFields.classList.remove("hidden");
+  }
+  updateGraphqlStatusHint();
+}
+
+function updateGraphqlStatusHint() {
+  var hint = $("graphqlStatusHint");
+  var statusInput = $("editStatus");
+  if (!hint || !statusInput) return;
+  var isGraphql = $("tabGraphql") && $("tabGraphql").classList.contains("active");
+  var isMock = $("editActionType") && $("editActionType").value === "mockResponse";
+  if (isGraphql && isMock) {
+    hint.classList.remove("hidden");
+    statusInput.disabled = true;
+    statusInput.value = 200;
+  } else {
+    hint.classList.add("hidden");
+    statusInput.disabled = false;
+  }
+}
+
+function isGraphqlTabActive() {
+  var tabGraphql = $("tabGraphql");
+  return tabGraphql && tabGraphql.classList.contains("active");
 }
 
 function highlightJSON(str) {
@@ -546,6 +593,16 @@ function openEditor(ruleId) {
   var graphqlEl = $("editGraphqlOperation");
   if (graphqlEl) graphqlEl.value = rule.match.graphqlOperation || "";
 
+  var graphqlUrlEl = $("editGraphqlUrl");
+  if (graphqlUrlEl) graphqlUrlEl.value = rule.match.graphqlUrl || rule.match.urlPattern || "";
+
+  var hasGraphql = !!(rule.match.graphqlOperation || rule.match.graphqlUrl);
+  if (hasGraphql && $("tabGraphql")) {
+    switchProtoTab("graphql");
+  } else if ($("tabRest")) {
+    switchProtoTab("rest");
+  }
+
   $("headersEditor").innerHTML = "";
   if (rule.action.headers) {
     Object.keys(rule.action.headers).forEach(function (k) { addKvRow("headersEditor", k, rule.action.headers[k]); });
@@ -607,6 +664,7 @@ function openEditor(ruleId) {
   loadSteps(rule);
 
   toggleActionFields(rule.action.type);
+  updateGraphqlStatusHint();
   loadSeenUrls();
   $("editor").classList.remove("hidden");
   setupBodyEditor("editBody", "editBodyHighlight", "jsonValidMsg");
@@ -623,11 +681,25 @@ function saveEditor() {
   var rule = editingRuleId ? findRuleById(rules, editingRuleId) : createDefaultRule();
   if (!editingRuleId) rules.push(rule);
   rule.name = $("editName").value || "Без названия";
-  rule.match.urlPattern = $("editUrlPattern").value;
+
+  var graphqlActive = isGraphqlTabActive();
+  if (graphqlActive) {
+    var graphqlUrlEl = $("editGraphqlUrl");
+    rule.match.urlPattern = graphqlUrlEl ? graphqlUrlEl.value : $("editUrlPattern").value;
+  } else {
+    rule.match.urlPattern = $("editUrlPattern").value;
+  }
   rule.match.method = $("editMethod").value;
   rule.match.bodyConditions = collectBodyConditions("bodyConditionsEditor");
   var graphqlEl = $("editGraphqlOperation");
-  if (graphqlEl) rule.match.graphqlOperation = graphqlEl.value.trim();
+  if (graphqlActive && graphqlEl) {
+    rule.match.graphqlOperation = graphqlEl.value.trim();
+    var gUrlEl = $("editGraphqlUrl");
+    rule.match.graphqlUrl = gUrlEl ? gUrlEl.value : "";
+  } else {
+    rule.match.graphqlOperation = "";
+    rule.match.graphqlUrl = "";
+  }
   rule.action.type = actionType;
   if (actionType === "mockResponse") {
     rule.action.status = parseInt($("editStatus").value, 10) || 200;
@@ -741,6 +813,16 @@ function collectSteps() {
 function showUrlDropdown(filter) {
   var dd = $("urlDropdown");
   if (!dd) return;
+  _fillUrlDropdown(dd, filter, "editUrlPattern");
+}
+
+function showGraphqlUrlDropdown(filter) {
+  var dd = $("graphqlUrlDropdown");
+  if (!dd) return;
+  _fillUrlDropdown(dd, filter, "editGraphqlUrl");
+}
+
+function _fillUrlDropdown(dd, filter, targetId) {
   dd.innerHTML = "";
   var items = seenUrls;
   if (filter) {
@@ -754,7 +836,7 @@ function showUrlDropdown(filter) {
     div.innerHTML = (item.method ? '<span class="ac-method">' + escapeHtml(item.method) + '</span>' : '') + escapeHtml(item.url);
     div.addEventListener("mousedown", function (e) {
       e.preventDefault();
-      $("editUrlPattern").value = item.url;
+      $(targetId).value = item.url;
       dd.classList.add("hidden");
     });
     dd.appendChild(div);

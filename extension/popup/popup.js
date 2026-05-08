@@ -67,6 +67,16 @@ function bindEvents() {
   $("editUrlPattern").addEventListener("blur", function () { $("urlDropdown").classList.add("hidden"); });
   $("editActionType").addEventListener("change", function () { toggleActionFields(this.value); });
 
+  $("tabRest").addEventListener("click", function () { switchProtoTab("rest"); });
+  $("tabGraphql").addEventListener("click", function () { switchProtoTab("graphql"); });
+
+  var graphqlUrlEl = $("editGraphqlUrl");
+  if (graphqlUrlEl) {
+    graphqlUrlEl.addEventListener("input", function () { showGraphqlUrlDropdown(this.value); });
+    graphqlUrlEl.addEventListener("focus", function () { showGraphqlUrlDropdown(this.value); });
+    graphqlUrlEl.addEventListener("blur", function () { var dd = $("graphqlUrlDropdown"); if (dd) dd.classList.add("hidden"); });
+  }
+
   $("btnAddHeader").addEventListener("click", function () { addKvRow("headersEditor", "", ""); });
   $("btnAddSetHeader").addEventListener("click", function () { addKvRow("setHeadersEditor", "", ""); });
   $("btnAddSetRespHeader").addEventListener("click", function () { addKvRow("setRespHeadersEditor", "", ""); });

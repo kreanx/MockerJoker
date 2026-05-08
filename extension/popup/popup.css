@@ -842,6 +842,39 @@ body {
 .fullscreen-modal-footer .json-valid-msg.valid { color: #a6e3a1; }
 .fullscreen-modal-footer .json-valid-msg.invalid { color: #f38ba8; }
 
+.proto-tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.proto-tab {
+  flex: 1;
+  padding: 6px 14px;
+  border: none;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #7f8c8d;
+  transition: all 0.15s;
+}
+.proto-tab:first-child { border-right: 1px solid #ddd; }
+.proto-tab:hover { background: #ecf0f1; }
+.proto-tab.active {
+  background: #3498db;
+  color: #fff;
+}
+.graphql-status-hint {
+  font-size: 11px;
+  color: #e67e22;
+  margin-top: 2px;
+  font-weight: 400;
+}
+
 .steps-container { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
 .step-card { border: 1px solid #45475a; border-radius: 6px; background: #1e1e2e; padding: 8px; }
 .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }

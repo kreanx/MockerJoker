@@ -109,13 +109,6 @@
               <label for="editName">Название правила</label>
               <input type="text" id="editName" placeholder="Например: Мок для /api/users">
             </div>
-            <div class="form-group">
-              <label for="editUrlPattern">URL-паттерн <span class="hint">(поддерживает * как маску)</span></label>
-              <div class="autocomplete-wrap">
-                <input type="text" id="editUrlPattern" placeholder="*/api/users*" autocomplete="off">
-                <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
-              </div>
-            </div>
             <div class="form-row">
               <div class="form-group">
                 <label for="editMethod">HTTP-метод</label>
@@ -137,6 +130,33 @@
                 </select>
               </div>
             </div>
+
+            <div class="proto-tabs">
+              <button id="tabRest" class="proto-tab active">REST</button>
+              <button id="tabGraphql" class="proto-tab">GraphQL</button>
+            </div>
+            <div id="restFields">
+              <div class="form-group">
+                <label for="editUrlPattern">URL-паттерн <span class="hint">(поддерживает * как маску)</span></label>
+                <div class="autocomplete-wrap">
+                  <input type="text" id="editUrlPattern" placeholder="*/api/users*" autocomplete="off">
+                  <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
+                </div>
+              </div>
+            </div>
+            <div id="graphqlFields" class="hidden">
+              <div class="form-group">
+                <label for="editGraphqlUrl">URL-паттерн <span class="hint">(GraphQL endpoint)</span></label>
+                <div class="autocomplete-wrap">
+                  <input type="text" id="editGraphqlUrl" placeholder="*graphql*" autocomplete="off">
+                  <div id="graphqlUrlDropdown" class="autocomplete-dropdown hidden"></div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="editGraphqlOperation">Operation Name</label>
+                <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
+              </div>
+            </div>
           </div>
 
           <div class="form-section">
@@ -147,20 +167,13 @@
             </div>
           </div>
 
-          <div class="form-section">
-            <h3>GraphQL <span class="hint">(опционально)</span></h3>
-            <div class="form-group">
-              <label for="editGraphqlOperation">Operation Name</label>
-              <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
-            </div>
-          </div>
-
           <div id="mockResponseFields" class="form-section">
             <h3>Ответ сервера (Mock)</h3>
             <div class="form-row">
               <div class="form-group">
                 <label for="editStatus">Статус-код</label>
                 <input type="number" id="editStatus" value="200" min="100" max="599">
+                <div id="graphqlStatusHint" class="graphql-status-hint hidden">GraphQL всегда 200, ошибки — в теле (errors[])</div>
               </div>
               <div class="form-group">
                 <label for="editDelay">Задержка (мс)</label>

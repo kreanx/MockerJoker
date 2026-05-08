@@ -51,12 +51,6 @@
       <label>Название</label>
       <input type="text" id="editName" placeholder="Например: Мок для /api/users">
 
-      <label>URL-паттерн <span class="hint">(* = маска)</span></label>
-      <div class="autocomplete-wrap">
-        <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
-        <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
-      </div>
-
       <div class="row">
         <div class="col">
           <label>Метод</label>
@@ -79,8 +73,26 @@
         </div>
       </div>
 
-      <label>GraphQL Operation <span class="hint">(опционально)</span></label>
-      <input type="text" id="editGraphqlOperation" placeholder="GetUsers или * для любых">
+      <div class="proto-tabs">
+        <button id="tabRest" class="proto-tab active">REST</button>
+        <button id="tabGraphql" class="proto-tab">GraphQL</button>
+      </div>
+      <div id="restFields">
+        <label>URL-паттерн <span class="hint">(* = маска)</span></label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
+          <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+      </div>
+      <div id="graphqlFields" class="hidden">
+        <label>URL-паттерн <span class="hint">(GraphQL endpoint)</span></label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="editGraphqlUrl" placeholder="*graphql*" autocomplete="off">
+          <div id="graphqlUrlDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+        <label>Operation Name</label>
+        <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
+      </div>
 
       <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
@@ -91,6 +103,7 @@
           <div class="col">
             <label>Статус-код</label>
             <input type="number" id="editStatus" value="200" min="100" max="599">
+            <div id="graphqlStatusHint" class="graphql-status-hint hidden">GraphQL всегда 200, ошибки — в теле (errors[])</div>
           </div>
           <div class="col">
             <label>Задержка (мс)</label>
