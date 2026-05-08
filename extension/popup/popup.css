@@ -841,3 +841,16 @@ body {
 .fullscreen-modal-footer .json-valid-msg { color: #6c7086; }
 .fullscreen-modal-footer .json-valid-msg.valid { color: #a6e3a1; }
 .fullscreen-modal-footer .json-valid-msg.invalid { color: #f38ba8; }
+
+.steps-container { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.step-card { border: 1px solid #45475a; border-radius: 6px; background: #1e1e2e; padding: 8px; }
+.step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.step-num { font-weight: bold; color: #cdd6f4; font-size: 12px; }
+.step-remove { background: none; border: none; color: #f38ba8; cursor: pointer; font-size: 16px; padding: 0 4px; }
+.step-fields { display: flex; flex-direction: column; gap: 4px; }
+.step-row { display: flex; align-items: center; gap: 6px; }
+.step-row label { font-size: 11px; color: #a6adc8; min-width: 50px; }
+.step-row input, .step-row textarea { flex: 1; }
+.step-row textarea { font-family: monospace; font-size: 12px; resize: vertical; }
+.steps-bar { display: flex; gap: 6px; align-items: center; }
+.steps-mode { font-size: 11px; }

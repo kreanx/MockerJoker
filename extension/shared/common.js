@@ -16,7 +16,7 @@ function createDefaultRule() {
     id: generateId(),
     name: "",
     enabled: true,
-    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [] },
+    match: { urlPattern: "", method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "" },
     action: {
       type: ACTION_TYPES.MOCK_RESPONSE,
       status: 200,
@@ -27,7 +27,12 @@ function createDefaultRule() {
       setHeaders: {},
       removeResponseHeaders: [],
       setResponseHeaders: {},
-      transforms: []
+      transforms: [],
+      method: "",
+      removeQueryParams: [],
+      setQueryParams: {},
+      steps: [],
+      stepsMode: "repeat"
     }
   };
 }
@@ -98,13 +103,34 @@ var presetFactories = {
   },
   modifyBodyValue: function (p) {
     return { id: generateId(), name: "Заменить значение в ответе", enabled: true,
-      match: { urlPattern: p, method: "ANY", resourceType: "", bodyConditions: [] },
+      match: { urlPattern: p, method: "ANY", resourceType: "", bodyConditions: [], graphqlOperation: "" },
       action: { type: ACTION_TYPES.MODIFY_RESPONSE,
         removeResponseHeaders: [],
         setResponseHeaders: {},
         transforms: [
           { path: "id", value: "999" }
         ] } };
+  },
+  graphqlMock: function (p) {
+    return { id: generateId(), name: "GraphQL Mock", enabled: true,
+      match: { urlPattern: p || "*graphql*", method: "POST", resourceType: "", bodyConditions: [], graphqlOperation: "*" },
+      action: { type: ACTION_TYPES.MOCK_RESPONSE, status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: '{"data": {}}' } };
+  },
+  chainPolling: function (p) {
+    return { id: generateId(), name: "Polling (3 шага)", enabled: true,
+      match: { urlPattern: p, method: "GET", resourceType: "", bodyConditions: [], graphqlOperation: "" },
+      action: { type: ACTION_TYPES.MOCK_RESPONSE,
+        steps: [
+          { status: 200, body: '{"status":"pending","progress":0}', headers: { "Content-Type": "application/json" } },
+          { status: 200, body: '{"status":"pending","progress":50}', headers: { "Content-Type": "application/json" } },
+          { status: 200, body: '{"status":"completed","progress":100,"result":"done"}', headers: { "Content-Type": "application/json" } }
+        ],
+        stepsMode: "last",
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: "{}" } };
   }
 };
 
@@ -517,6 +543,9 @@ function openEditor(ruleId) {
   $("editDelay").value = rule.action.delay || 0;
   $("editBody").value = rule.action.body || "{}";
 
+  var graphqlEl = $("editGraphqlOperation");
+  if (graphqlEl) graphqlEl.value = rule.match.graphqlOperation || "";
+
   $("headersEditor").innerHTML = "";
   if (rule.action.headers) {
     Object.keys(rule.action.headers).forEach(function (k) { addKvRow("headersEditor", k, rule.action.headers[k]); });
@@ -555,6 +584,28 @@ function openEditor(ruleId) {
     }
   }
 
+  var methodEl = $("editRequestMethod");
+  if (methodEl) methodEl.value = rule.action.method || "";
+
+  var removeParamsEl = $("removeQueryParamsTags");
+  if (removeParamsEl) {
+    removeParamsEl.innerHTML = "";
+    if (rule.action.removeQueryParams) {
+      rule.action.removeQueryParams.forEach(function (p) { addRemoveHeaderTag(p, "removeQueryParamsTags"); });
+    }
+  }
+  var setParamsEl = $("setQueryParamsEditor");
+  if (setParamsEl) {
+    setParamsEl.innerHTML = "";
+    if (rule.action.setQueryParams) {
+      Object.keys(rule.action.setQueryParams).forEach(function (k) { addKvRow("setQueryParamsEditor", k, rule.action.setQueryParams[k]); });
+    }
+  }
+
+  var stepsModeEl = $("editStepsMode");
+  if (stepsModeEl) stepsModeEl.value = rule.action.stepsMode || "repeat";
+  loadSteps(rule);
+
   toggleActionFields(rule.action.type);
   loadSeenUrls();
   $("editor").classList.remove("hidden");
@@ -575,16 +626,27 @@ function saveEditor() {
   rule.match.urlPattern = $("editUrlPattern").value;
   rule.match.method = $("editMethod").value;
   rule.match.bodyConditions = collectBodyConditions("bodyConditionsEditor");
+  var graphqlEl = $("editGraphqlOperation");
+  if (graphqlEl) rule.match.graphqlOperation = graphqlEl.value.trim();
   rule.action.type = actionType;
   if (actionType === "mockResponse") {
     rule.action.status = parseInt($("editStatus").value, 10) || 200;
     rule.action.headers = collectKvPairs("headersEditor");
     rule.action.body = $("editBody").value;
     rule.action.delay = parseInt($("editDelay").value, 10) || 0;
+    rule.action.steps = collectSteps();
+    var stepsModeEl = $("editStepsMode");
+    if (stepsModeEl) rule.action.stepsMode = stepsModeEl.value;
   } else if (actionType === "modifyRequest") {
     rule.action.removeHeaders = collectRemoveHeaderTags();
     rule.action.setHeaders = collectKvPairs("setHeadersEditor");
     rule.action.transforms = collectTransformRows("transformsEditor");
+    var methodEl = $("editRequestMethod");
+    if (methodEl) rule.action.method = methodEl.value;
+    var removeParamsEl = $("removeQueryParamsTags");
+    if (removeParamsEl) rule.action.removeQueryParams = collectRemoveHeaderTags("removeQueryParamsTags");
+    var setParamsEl = $("setQueryParamsEditor");
+    if (setParamsEl) rule.action.setQueryParams = collectKvPairs("setQueryParamsEditor");
   } else if (actionType === "modifyResponse") {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
@@ -616,6 +678,64 @@ function loadSeenUrls() {
       });
     });
   });
+}
+
+function loadSteps(rule) {
+  var container = $("stepsContainer");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!rule.action.steps || rule.action.steps.length === 0) return;
+  rule.action.steps.forEach(function (step, idx) {
+    addStepCard(idx, step);
+  });
+}
+
+function addStepCard(idx, step) {
+  var container = $("stepsContainer");
+  if (!container) return;
+  var card = document.createElement("div");
+  card.className = "step-card";
+  card.dataset.stepIdx = idx;
+  card.innerHTML = '<div class="step-header"><span class="step-num">Шаг ' + (idx + 1) + '</span><button type="button" class="step-remove">&times;</button></div>' +
+    '<div class="step-fields">' +
+    '<div class="step-row"><label>Статус</label><input type="number" class="step-status" value="' + (step.status || 200) + '" min="100" max="599"></div>' +
+    '<div class="step-row"><label>Тело</label><textarea class="step-body" rows="2" placeholder=\'{"status":"pending"}\'>' + escapeHtml(step.body || "") + '</textarea></div>' +
+    '<div class="step-row"><label>Задержка</label><input type="number" class="step-delay" value="' + (step.delay || 0) + '" min="0"></div>' +
+    '</div>';
+  card.querySelector(".step-remove").addEventListener("click", function () { card.remove(); renumberSteps(); });
+  container.appendChild(card);
+}
+
+function renumberSteps() {
+  var container = $("stepsContainer");
+  if (!container) return;
+  var cards = container.querySelectorAll(".step-card");
+  cards.forEach(function (card, idx) {
+    card.dataset.stepIdx = idx;
+    card.querySelector(".step-num").textContent = "Шаг " + (idx + 1);
+  });
+}
+
+function addNewStep() {
+  var container = $("stepsContainer");
+  if (!container) return;
+  var idx = container.querySelectorAll(".step-card").length;
+  addStepCard(idx, { status: 200, body: "", delay: 0 });
+}
+
+function collectSteps() {
+  var container = $("stepsContainer");
+  if (!container) return [];
+  var steps = [];
+  container.querySelectorAll(".step-card").forEach(function (card) {
+    steps.push({
+      status: parseInt(card.querySelector(".step-status").value, 10) || 200,
+      body: card.querySelector(".step-body").value,
+      delay: parseInt(card.querySelector(".step-delay").value, 10) || 0,
+      headers: { "Content-Type": "application/json" }
+    });
+  });
+  return steps;
 }
 
 function showUrlDropdown(filter) {
@@ -653,7 +773,8 @@ function exportRules() {
 function renderRuleItem(rule, counters, lastTime) {
   var actionLabel, statusColor = "";
   if (rule.action.type === "mockResponse") {
-    actionLabel = "Mock " + rule.action.status;
+    var hasSteps = rule.action.steps && rule.action.steps.length > 1;
+    actionLabel = hasSteps ? "Chain " + rule.action.steps.length : "Mock " + rule.action.status;
     var s = rule.action.status;
     if (s >= 400) statusColor = "badge-error";
     else if (s >= 300) statusColor = "badge-redirect";

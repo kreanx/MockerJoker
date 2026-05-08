@@ -84,6 +84,13 @@ function bindEvents() {
   });
   $("btnAddRemoveRespHeader").addEventListener("click", function () { var v = $("inputRemoveRespHeader").value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); $("inputRemoveRespHeader").value = ""; } });
 
+  $("btnAddStep").addEventListener("click", addNewStep);
+  $("inputRemoveQueryParam").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); this.value = ""; } }
+  });
+  $("btnAddRemoveQueryParam").addEventListener("click", function () { var v = $("inputRemoveQueryParam").value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); $("inputRemoveQueryParam").value = ""; } });
+  $("btnAddSetQueryParam").addEventListener("click", function () { addKvRow("setQueryParamsEditor", "", ""); });
+
   $("btnFormatBody").addEventListener("click", function () { formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg"); });
   $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);
   $("btnFormatBodyFS").addEventListener("click", function () { formatBodyIn("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS"); });

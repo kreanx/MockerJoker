@@ -70,6 +70,16 @@
           <span class="preset-label">Заменить значение в ответе</span>
           <span class="preset-desc">Изменить поле в JSON-теле ответа</span>
         </button>
+        <button class="preset-card preset-modify-body" data-preset="graphqlMock">
+          <span class="preset-code">GQL</span>
+          <span class="preset-label">GraphQL Mock</span>
+          <span class="preset-desc">Мокировать GraphQL-запросы по operationName</span>
+        </button>
+        <button class="preset-card preset-mock" data-preset="chainPolling">
+          <span class="preset-code">CH</span>
+          <span class="preset-label">Polling (3 шага)</span>
+          <span class="preset-desc">Последовательные ответы pending/ pending/ completed</span>
+        </button>
       </div>
 
       <div class="sidebar-actions">
@@ -127,10 +137,11 @@
                 </select>
               </div>
             </div>
-          </div>
-
-          <div class="form-section">
-            <h3>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></h3>
+            <div class="form-group">
+              <label for="editGraphqlOperation">GraphQL Operation <span class="hint">(опционально)</span></label>
+              <input type="text" id="editGraphqlOperation" placeholder="GetUsers или * для любых">
+            </div>
+          </div> <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></h3>
             <div class="form-group">
               <div id="bodyConditionsEditor" class="bc-editor"></div>
               <button id="btnAddBc" class="btn btn-outline btn-sm">+ Условие</button>
@@ -174,10 +185,32 @@
                 </div>
               </div>
             </div>
+            <div class="form-group">
+              <label>Цепочка шагов <span class="help-tip">?<span class="help-tip-text">Последовательные ответы: при каждом запросе выдаётся следующий шаг. Если шагов нет - используется один ответ выше.</span></span></label>
+              <div id="stepsContainer" class="steps-container"></div>
+              <div class="steps-bar">
+                <button id="btnAddStep" class="btn btn-outline btn-sm">+ Шаг</button>
+                <select id="editStepsMode" class="steps-mode">
+                  <option value="repeat">Повторять сначала</option>
+                  <option value="last">Оставить последний</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div id="modifyRequestFields" class="form-section hidden">
             <h3>Изменение запроса</h3>
+            <div class="form-group">
+              <label>Изменить метод</label>
+              <select id="editRequestMethod">
+                <option value="">Не менять</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
             <div class="form-group">
               <label>Заголовки для удаления</label>
               <div class="tag-input-row">
@@ -195,6 +228,19 @@
               <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
               <div id="transformsEditor" class="key-value-editor"></div>
               <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
+            </div>
+            <div class="form-group">
+              <label>Удалить URL-параметры</label>
+              <div class="tag-input-row">
+                <input type="text" id="inputRemoveQueryParam" placeholder="Имя параметра">
+                <button id="btnAddRemoveQueryParam" class="btn btn-outline btn-sm">+</button>
+              </div>
+              <div id="removeQueryParamsTags" class="tags"></div>
+            </div>
+            <div class="form-group">
+              <label>Установить URL-параметры</label>
+              <div id="setQueryParamsEditor" class="key-value-editor"></div>
+              <button id="btnAddSetQueryParam" class="btn btn-outline btn-sm">+ Параметр</button>
             </div>
           </div>
 

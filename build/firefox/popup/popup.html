@@ -30,6 +30,8 @@
         <button class="preset-btn" data-preset="removeAuth">Убрать Authorization</button>
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
         <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в ответе</button>
+        <button class="preset-btn" data-preset="graphqlMock">GraphQL Mock</button>
+        <button class="preset-btn" data-preset="chainPolling">Polling (3 шага)</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -68,7 +70,7 @@
           </select>
         </div>
         <div class="col">
-          <label>Тип <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> — полностью заменить ответ (статус, тело, заголовки)<br><b>Модификация ответа</b> — изменить заголовки и/или поля JSON-тела входящего ответа<br><b>Модификация запроса</b> — изменить заголовки и/или поля JSON-тела исходящего запроса</span></span></label>
+          <label>Тип <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> - полностью заменить ответ (статус, тело, заголовки)<br><b>Модификация ответа</b> - изменить заголовки и/или поля JSON-тела входящего ответа<br><b>Модификация запроса</b> - изменить метод, заголовки, URL-параметры и/или тело исходящего запроса</span></span></label>
           <select id="editActionType">
             <option value="mockResponse">Подмена ответа</option>
             <option value="modifyResponse">Модификация ответа</option>
@@ -76,6 +78,9 @@
           </select>
         </div>
       </div>
+
+      <label>GraphQL Operation <span class="hint">(опционально)</span></label>
+      <input type="text" id="editGraphqlOperation" placeholder="GetUsers или * для любых">
 
       <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
@@ -113,9 +118,27 @@
             <button id="btnFullscreenBody" class="json-btn" title="Развернуть">&#x26F6;</button>
           </div>
         </div>
+        <label>Цепочка шагов <span class="help-tip">?<span class="help-tip-text">Последовательные ответы: при каждом запросе выдаётся следующий шаг. Если шагов нет - используется один ответ выше.</span></span></label>
+        <div id="stepsContainer" class="steps-container"></div>
+        <div class="steps-bar">
+          <button id="btnAddStep" class="btn btn-small">+ Шаг</button>
+          <select id="editStepsMode" class="steps-mode">
+            <option value="repeat">Повторять сначала</option>
+            <option value="last">Оставить последний</option>
+          </select>
+        </div>
       </div>
 
       <div id="modifyRequestFields" class="hidden">
+        <label>Изменить метод</label>
+        <select id="editRequestMethod">
+          <option value="">Не менять</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+        </select>
         <label>Удалить заголовки</label>
         <div class="tag-input-row">
           <input type="text" id="inputRemoveHeader" placeholder="Имя заголовка">
@@ -128,6 +151,15 @@
         <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
         <div id="transformsEditor" class="key-value-editor"></div>
         <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
+        <label>Удалить URL-параметры</label>
+        <div class="tag-input-row">
+          <input type="text" id="inputRemoveQueryParam" placeholder="Имя параметра">
+          <button id="btnAddRemoveQueryParam" class="btn btn-small">+</button>
+        </div>
+        <div id="removeQueryParamsTags" class="tags"></div>
+        <label>Установить URL-параметры</label>
+        <div id="setQueryParamsEditor" class="key-value-editor"></div>
+        <button id="btnAddSetQueryParam" class="btn btn-small">+ Параметр</button>
       </div>
 
       <div id="modifyResponseFields" class="hidden">
