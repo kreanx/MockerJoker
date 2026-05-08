@@ -424,16 +424,50 @@ function setupBodyEditor(textareaId, highlightId, msgId) {
   if (!ta || ta.dataset.editorInit) return;
   ta.dataset.editorInit = "1";
   var wrap = ta.closest(".json-editor-wrap");
+  var lineNums = null;
+  if (wrap) {
+    lineNums = document.createElement("div");
+    lineNums.className = "line-numbers";
+    wrap.insertBefore(lineNums, wrap.firstChild);
+  }
+
+  function updateLineNumbers() {
+    if (!lineNums) return;
+    var lines = ta.value.split("\n").length;
+    var html = "";
+    for (var i = 1; i <= lines; i++) {
+      html += "<span>" + i + "</span>";
+    }
+    lineNums.innerHTML = html;
+  }
 
   function update() {
     updateBodyHighlight(textareaId, highlightId);
     validateJSONBody(textareaId, msgId);
+    syncEditorHeight();
+    updateLineNumbers();
+  }
+
+  function syncEditorHeight() {
+    var code = $(highlightId);
+    if (!code) return;
+    code.style.height = ta.offsetHeight + "px";
+    if (lineNums) lineNums.style.height = ta.offsetHeight + "px";
   }
 
   ta.addEventListener("input", update);
-  ta.addEventListener("scroll", function () { syncBodyScroll(textareaId, highlightId); });
+  ta.addEventListener("scroll", function () {
+    syncBodyScroll(textareaId, highlightId);
+    if (lineNums) lineNums.scrollTop = ta.scrollTop;
+  });
   ta.addEventListener("focus", function () { if (wrap) wrap.classList.add("focused"); });
   ta.addEventListener("blur", function () { if (wrap) wrap.classList.remove("focused"); });
+
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(syncEditorHeight).observe(ta);
+  } else {
+    ta.addEventListener("mouseup", syncEditorHeight);
+  }
 
   ta.addEventListener("paste", function (e) {
     var pasted = (e.clipboardData || window.clipboardData).getData("text");

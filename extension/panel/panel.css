@@ -788,13 +788,39 @@ body {
   border-radius: 6px;
   background: #f6f8fa;
   min-height: 160px;
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .json-editor-wrap.focused {
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52,152,219,0.12);
+}
+
+.line-numbers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+  padding: 10px 0;
+  background: #f0f0f0;
+  border-right: 1px solid #e0e0e0;
+  border-radius: 6px 0 0 6px;
+  user-select: none;
+  text-align: right;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #adb5bd;
+}
+
+.line-numbers span {
+  display: block;
+  padding: 0 6px;
 }
 
 .json-highlight {
@@ -805,7 +831,7 @@ body {
   height: 100%;
   pointer-events: none;
   margin: 0;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 44px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 12px;
   line-height: 1.6;
@@ -841,7 +867,7 @@ body {
   display: block;
   width: 100%;
   min-height: 160px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 44px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 12px;
   line-height: 1.6;
@@ -850,17 +876,25 @@ body {
   caret-color: #24292f;
   border: none;
   outline: none;
-  resize: none;
+  resize: vertical;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow: auto;
   z-index: 2;
   tab-size: 2;
-  scrollbar-width: none;
 }
 
 .json-editor-wrap textarea::-webkit-scrollbar {
-  display: none;
+  width: 8px;
+}
+
+.json-editor-wrap textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.json-editor-wrap textarea::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
 }
 
 .json-key { color: #0550ae; }
