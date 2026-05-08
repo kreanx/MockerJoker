@@ -31,7 +31,6 @@
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
         <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в ответе</button>
         <button class="preset-btn" data-preset="graphqlMock">GraphQL Mock</button>
-        <button class="preset-btn" data-preset="chainPolling">Polling (3 шага)</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -130,15 +129,6 @@
             <button id="btnFormatBody" class="json-btn">Форматировать</button>
             <button id="btnFullscreenBody" class="json-btn" title="Развернуть">&#x26F6;</button>
           </div>
-        </div>
-        <label>Цепочка шагов <span class="help-tip">?<span class="help-tip-text">Последовательные ответы: при каждом запросе выдаётся следующий шаг. Если шагов нет - используется один ответ выше.</span></span></label>
-        <div id="stepsContainer" class="steps-container"></div>
-        <div class="steps-bar">
-          <button id="btnAddStep" class="btn btn-small">+ Шаг</button>
-          <select id="editStepsMode" class="steps-mode">
-            <option value="repeat">Повторять сначала</option>
-            <option value="last">Оставить последний</option>
-          </select>
         </div>
       </div>
 

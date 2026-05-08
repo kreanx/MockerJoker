@@ -94,7 +94,6 @@ function bindEvents() {
   });
   $("btnAddRemoveRespHeader").addEventListener("click", function () { var v = $("inputRemoveRespHeader").value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); $("inputRemoveRespHeader").value = ""; } });
 
-  $("btnAddStep").addEventListener("click", addNewStep);
   $("inputRemoveQueryParam").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); this.value = ""; } }
   });

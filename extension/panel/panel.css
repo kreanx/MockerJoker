@@ -1140,17 +1140,3 @@ body {
   margin-top: 3px;
   font-weight: 400;
 }
-
-.steps-container { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
-.step-card { border: 1px solid #45475a; border-radius: 6px; background: #1e1e2e; padding: 12px; }
-.step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.step-num { font-weight: bold; color: #cdd6f4; font-size: 13px; }
-.step-remove { background: none; border: none; color: #f38ba8; cursor: pointer; font-size: 18px; padding: 0 4px; }
-.step-remove:hover { color: #eba0ac; }
-.step-fields { display: flex; flex-direction: column; gap: 8px; }
-.step-row { display: flex; align-items: center; gap: 8px; }
-.step-row label { font-size: 12px; color: #a6adc8; min-width: 60px; }
-.step-row input, .step-row textarea { flex: 1; }
-.step-row textarea { font-family: monospace; font-size: 13px; resize: vertical; min-height: 40px; }
-.steps-bar { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
-.steps-mode { font-size: 12px; padding: 4px 8px; }

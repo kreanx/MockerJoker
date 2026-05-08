@@ -75,11 +75,6 @@
           <span class="preset-label">GraphQL Mock</span>
           <span class="preset-desc">Мокировать GraphQL-запросы по operationName</span>
         </button>
-        <button class="preset-card preset-mock" data-preset="chainPolling">
-          <span class="preset-code">CH</span>
-          <span class="preset-label">Polling (3 шага)</span>
-          <span class="preset-desc">Последовательные ответы pending/ pending/ completed</span>
-        </button>
       </div>
 
       <div class="sidebar-actions">
@@ -205,16 +200,6 @@
                 </div>
               </div>
             </div>
-            <div class="form-group">
-              <label>Цепочка шагов <span class="help-tip">?<span class="help-tip-text">Последовательные ответы: при каждом запросе выдаётся следующий шаг. Если шагов нет - используется один ответ выше.</span></span></label>
-              <div id="stepsContainer" class="steps-container"></div>
-              <div class="steps-bar">
-                <button id="btnAddStep" class="btn btn-outline btn-sm">+ Шаг</button>
-                <select id="editStepsMode" class="steps-mode">
-                  <option value="repeat">Повторять сначала</option>
-                  <option value="last">Оставить последний</option>
-                </select>
-              </div>
             </div>
           </div>
 

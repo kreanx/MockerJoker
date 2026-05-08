@@ -30,11 +30,8 @@ function createDefaultRule() {
       transforms: [],
       method: "",
       removeQueryParams: [],
-      setQueryParams: {},
-      steps: [],
-      stepsMode: "repeat"
-    }
-  };
+      setQueryParams: {}
+    };
 }
 
 function validateRule(rule) {
@@ -118,20 +115,6 @@ var presetFactories = {
         headers: { "Content-Type": "application/json" },
         body: '{"data": {}}' } };
   },
-  chainPolling: function (p) {
-    return { id: generateId(), name: "Polling (3 шага)", enabled: true,
-      match: { urlPattern: p, method: "GET", resourceType: "", bodyConditions: [], graphqlOperation: "" },
-      action: { type: ACTION_TYPES.MOCK_RESPONSE,
-        steps: [
-          { status: 200, body: '{"status":"pending","progress":0}', headers: { "Content-Type": "application/json" } },
-          { status: 200, body: '{"status":"pending","progress":50}', headers: { "Content-Type": "application/json" } },
-          { status: 200, body: '{"status":"completed","progress":100,"result":"done"}', headers: { "Content-Type": "application/json" } }
-        ],
-        stepsMode: "last",
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-        body: "{}" } };
-  }
 };
 
 function formatTime(ts) {
@@ -659,10 +642,6 @@ function openEditor(ruleId) {
     }
   }
 
-  var stepsModeEl = $("editStepsMode");
-  if (stepsModeEl) stepsModeEl.value = rule.action.stepsMode || "repeat";
-  loadSteps(rule);
-
   toggleActionFields(rule.action.type);
   updateGraphqlStatusHint();
   loadSeenUrls();
@@ -706,9 +685,6 @@ function saveEditor() {
     rule.action.headers = collectKvPairs("headersEditor");
     rule.action.body = $("editBody").value;
     rule.action.delay = parseInt($("editDelay").value, 10) || 0;
-    rule.action.steps = collectSteps();
-    var stepsModeEl = $("editStepsMode");
-    if (stepsModeEl) rule.action.stepsMode = stepsModeEl.value;
   } else if (actionType === "modifyRequest") {
     rule.action.removeHeaders = collectRemoveHeaderTags();
     rule.action.setHeaders = collectKvPairs("setHeadersEditor");
@@ -750,64 +726,6 @@ function loadSeenUrls() {
       });
     });
   });
-}
-
-function loadSteps(rule) {
-  var container = $("stepsContainer");
-  if (!container) return;
-  container.innerHTML = "";
-  if (!rule.action.steps || rule.action.steps.length === 0) return;
-  rule.action.steps.forEach(function (step, idx) {
-    addStepCard(idx, step);
-  });
-}
-
-function addStepCard(idx, step) {
-  var container = $("stepsContainer");
-  if (!container) return;
-  var card = document.createElement("div");
-  card.className = "step-card";
-  card.dataset.stepIdx = idx;
-  card.innerHTML = '<div class="step-header"><span class="step-num">Шаг ' + (idx + 1) + '</span><button type="button" class="step-remove">&times;</button></div>' +
-    '<div class="step-fields">' +
-    '<div class="step-row"><label>Статус</label><input type="number" class="step-status" value="' + (step.status || 200) + '" min="100" max="599"></div>' +
-    '<div class="step-row"><label>Тело</label><textarea class="step-body" rows="2" placeholder=\'{"status":"pending"}\'>' + escapeHtml(step.body || "") + '</textarea></div>' +
-    '<div class="step-row"><label>Задержка</label><input type="number" class="step-delay" value="' + (step.delay || 0) + '" min="0"></div>' +
-    '</div>';
-  card.querySelector(".step-remove").addEventListener("click", function () { card.remove(); renumberSteps(); });
-  container.appendChild(card);
-}
-
-function renumberSteps() {
-  var container = $("stepsContainer");
-  if (!container) return;
-  var cards = container.querySelectorAll(".step-card");
-  cards.forEach(function (card, idx) {
-    card.dataset.stepIdx = idx;
-    card.querySelector(".step-num").textContent = "Шаг " + (idx + 1);
-  });
-}
-
-function addNewStep() {
-  var container = $("stepsContainer");
-  if (!container) return;
-  var idx = container.querySelectorAll(".step-card").length;
-  addStepCard(idx, { status: 200, body: "", delay: 0 });
-}
-
-function collectSteps() {
-  var container = $("stepsContainer");
-  if (!container) return [];
-  var steps = [];
-  container.querySelectorAll(".step-card").forEach(function (card) {
-    steps.push({
-      status: parseInt(card.querySelector(".step-status").value, 10) || 200,
-      body: card.querySelector(".step-body").value,
-      delay: parseInt(card.querySelector(".step-delay").value, 10) || 0,
-      headers: { "Content-Type": "application/json" }
-    });
-  });
-  return steps;
 }
 
 function showUrlDropdown(filter) {
@@ -855,8 +773,7 @@ function exportRules() {
 function renderRuleItem(rule, counters, lastTime) {
   var actionLabel, statusColor = "";
   if (rule.action.type === "mockResponse") {
-    var hasSteps = rule.action.steps && rule.action.steps.length > 1;
-    actionLabel = hasSteps ? "Chain " + rule.action.steps.length : "Mock " + rule.action.status;
+    actionLabel = "Mock " + rule.action.status;
     var s = rule.action.status;
     if (s >= 400) statusColor = "badge-error";
     else if (s >= 300) statusColor = "badge-redirect";
