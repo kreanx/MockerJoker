@@ -487,8 +487,8 @@ body {
   min-height: 0;
   border: 1px solid var(--ctp-surface1);
   background: var(--ctp-base);
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
 }
 
 .fullscreen-editor .json-highlight {
@@ -497,8 +497,8 @@ body {
 }
 
 .fullscreen-editor textarea {
-  flex: 1;
   min-height: 100%;
+  box-sizing: border-box;
   padding: 12px 12px 12px 44px;
   caret-color: var(--text-primary);
 }
@@ -981,6 +981,7 @@ body {
   z-index: 1;
   tab-size: 2;
   scrollbar-width: none;
+  box-sizing: border-box;
 }
 
 .json-editor-wrap textarea {
@@ -1003,6 +1004,7 @@ body {
   overflow: auto;
   z-index: 2;
   tab-size: 2;
+  box-sizing: border-box;
 }
 
 .json-editor-bar {
@@ -1098,7 +1100,7 @@ body {
 }
 
 .json-search-input-fs {
-  background: var(--bg-input);
+  background: var(--bg-primary);
   border-color: var(--ctp-surface1);
   color: var(--text-primary);
   width: var(--jsif-w);
@@ -1108,8 +1110,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   z-index: 2000;
   background: var(--ctp-base);
   display: flex;
