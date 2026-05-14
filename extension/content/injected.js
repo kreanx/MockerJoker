@@ -254,6 +254,11 @@
     for (var i = 0; i < varConditions.length; i++) {
       var vc = varConditions[i];
       var val = tabVars[vc.var];
+      console.log(
+        "%c[MockerJoker]%c varCondition: " + vc.var + " " + vc.operator + " " + vc.value + " | actual=" + JSON.stringify(val) + " (type: " + typeof val + ") | parseValue(vc.value)=" + JSON.stringify(parseValue(vc.value)) + " (type: " + typeof parseValue(vc.value) + ") | tabVars=" + JSON.stringify(tabVars),
+        "background:#e67e22;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#e67e22;font-weight:bold"
+      );
       if (vc.operator === "exists") {
         if (val === undefined) return false;
       } else if (vc.operator === "equals") {
