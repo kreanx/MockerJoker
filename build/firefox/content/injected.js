@@ -872,6 +872,12 @@
       rules = event.data.rules || [];
       varSavers = event.data.varSavers || [];
       masterEnabled = event.data.masterEnabled !== false;
+      console.log(
+        "%c[MockerJoker]%c rules updated: " + rules.length + " rules, " + varSavers.length + " varSavers, tabVars keys: [" + Object.keys(tabVars).join(", ") + "]",
+        "background:#2ecc71;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#2ecc71;font-weight:bold",
+        { varSavers: varSavers, tabVars: tabVars }
+      );
     }
   });
 
