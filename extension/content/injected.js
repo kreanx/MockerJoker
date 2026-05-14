@@ -443,11 +443,19 @@
         saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
       }
       processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
+      var mockRespBody = mockRule.action.body || "";
+      if (mockRule.action.transforms && mockRule.action.transforms.length > 0) {
+        var mockObj = parseRespObj(mockRespBody);
+        if (mockObj) {
+          mockObj = applyBodyTransforms(mockObj, mockRule.action.transforms);
+          mockRespBody = JSON.stringify(mockObj);
+        }
+      }
       return new Promise(function (resolve) {
         setTimeout(function () {
           var defHeaders = {};
           defHeaders[CT_HEADER] = CT_JSON;
-          resolve(new Response(mockRule.action.body || "", { status: mockRule.action.status || DEFAULT_STATUS, statusText: "", headers: new Headers(mockRule.action.headers || defHeaders) }));
+          resolve(new Response(mockRespBody, { status: mockRule.action.status || DEFAULT_STATUS, statusText: "", headers: new Headers(mockRule.action.headers || defHeaders) }));
         }, mockRule.action.delay || DEFAULT_DELAY);
       });
     }
@@ -783,6 +791,13 @@
     var action = rule.action;
     var status = action.status || DEFAULT_STATUS;
     var body = action.body || "";
+    if (action.transforms && action.transforms.length > 0) {
+      var obj = parseRespObj(body);
+      if (obj) {
+        obj = applyBodyTransforms(obj, action.transforms);
+        body = JSON.stringify(obj);
+      }
+    }
     var headers = action.headers || {};
 
     setTimeout(function () {
