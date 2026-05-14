@@ -40,6 +40,18 @@
     <input type="file" id="importFile" accept=".json" class="hidden">
   </div>
 
+  <div class="vars-section">
+    <div class="vars-header" id="varsHeader">
+      <span>Переменные <span class="hint">(используйте $varName в трансформациях)</span></span>
+      <span id="varsToggle">&#9656;</span>
+    </div>
+    <div id="varsBody" class="vars-body collapsed">
+      <div id="varSaversList"></div>
+      <button id="btnAddVarSaver" class="btn btn-small">+ Сохранить переменную</button>
+      <div id="varValues" class="var-values"></div>
+    </div>
+  </div>
+
   <div id="rulesList" class="rules-list"></div>
 
   <div id="editor" class="editor hidden">
@@ -156,16 +168,16 @@
         <label>Установить заголовки</label>
         <div id="setHeadersEditor" class="key-value-editor"></div>
         <button id="btnAddSetHeader" class="btn btn-small">+ Заголовок</button>
-        <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
+              <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
         <div id="transformsEditor" class="key-value-editor"></div>
         <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
-        <label>Удалить URL-параметры</label>
+        <label>Удалить query-параметры</label>
         <div class="tag-input-row">
           <input type="text" id="inputRemoveQueryParam" placeholder="Имя параметра">
           <button id="btnAddRemoveQueryParam" class="btn btn-small">+</button>
         </div>
         <div id="removeQueryParamsTags" class="tags"></div>
-        <label>Установить URL-параметры</label>
+        <label>Установить query-параметры</label>
         <div id="setQueryParamsEditor" class="key-value-editor"></div>
         <button id="btnAddSetQueryParam" class="btn btn-small">+ Параметр</button>
       </div>
@@ -180,14 +192,10 @@
         <label>Установить заголовки ответа</label>
         <div id="setRespHeadersEditor" class="key-value-editor"></div>
         <button id="btnAddSetRespHeader" class="btn btn-small">+ Заголовок</button>
-        <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null</span></span></label>
+              <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
         <div id="respTransformsEditor" class="key-value-editor"></div>
         <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
       </div>
-
-      <label>Сохранить переменные <span class="help-tip">?<span class="help-tip-text">Извлечь значения при срабатывании правила для использования в других правилах.<br><br><b>Body</b> — path по dot notation из тела ответа/запроса<br><b>Header</b> — имя заголовка ответа<br><b>Status</b> — HTTP статус-код<br><br>Имена с <code>$</code>: <code>$userId</code>, <code>$token</code></span></span></label>
-      <div id="saveVarsEditor" class="sv-editor"></div>
-      <button id="btnAddSaveVar" class="btn btn-small">+ Переменная</button>
     </div>
     <div class="editor-footer">
       <button id="btnSave" class="btn btn-primary">Сохранить</button>
@@ -227,6 +235,33 @@
           <button id="btnFormatBodyFS" class="json-btn-fs">Форматировать</button>
           <button id="btnApplyFullscreen" class="btn btn-primary">Применить</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="varSaverModal" class="vs-modal hidden">
+    <div class="vs-modal-content">
+      <div class="vs-modal-header">
+        <span>Сохранить переменную</span>
+        <button id="btnCancelVs" class="btn-close">&times;</button>
+      </div>
+      <div class="vs-modal-body">
+        <label>URL-паттерн <span class="hint">(* = маска)</span></label>
+        <input type="text" id="editVsUrl" placeholder="*/api/login*">
+        <label>Источник</label>
+        <select id="editVsSource">
+          <option value="body">Body (из тела ответа)</option>
+          <option value="header">Header (из заголовка ответа)</option>
+          <option value="status">Status (HTTP статус-код)</option>
+        </select>
+        <label id="editVsPathLabel">Path <span class="hint">(dot notation)</span></label>
+        <input type="text" id="editVsPath" placeholder="data.user.id">
+        <label>Имя переменной</label>
+        <div class="vs-var-name-wrap"><span class="vs-var-prefix">$</span><input type="text" id="editVsVarName" placeholder="userId"></div>
+      </div>
+      <div class="vs-modal-footer">
+        <button id="btnSaveVs" class="btn btn-primary">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeVarSaverEditor()">Отмена</button>
       </div>
     </div>
   </div>

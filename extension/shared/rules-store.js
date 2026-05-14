@@ -1,4 +1,5 @@
 var ACTION_TYPES = CONST.ACTION_TYPES;
+var varSavers = [];
 
 function createDefaultRule() {
   return {
@@ -109,8 +110,17 @@ var presetFactories = {
 };
 
 function saveState() {
-  chrome.storage.local.set({ rules: rules, masterEnabled: masterEnabled });
+  chrome.storage.local.set({ rules: rules, masterEnabled: masterEnabled, varSavers: varSavers });
   chrome.runtime.sendMessage({ type: CONST.MSG_SAVE_RULES, rules: rules, masterEnabled: masterEnabled });
+}
+
+function saveVarSaversState() {
+  chrome.storage.local.set({ varSavers: varSavers });
+  chrome.runtime.sendMessage({ type: "saveVarSavers", varSavers: varSavers });
+}
+
+function createDefaultVarSaver() {
+  return { id: generateId(), urlPattern: "", source: "body", path: "", varName: "$", enabled: true };
 }
 
 function toggleRule(id, enabled) {

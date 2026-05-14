@@ -65,7 +65,7 @@
     safeSendMessage({ type: MSG.GET_RULES }, function (res) {
       if (res) {
         window.postMessage(
-          { type: PAGE.RULES, rules: res.rules, masterEnabled: res.masterEnabled },
+          { type: PAGE.RULES, rules: res.rules, varSavers: res.varSavers || [], masterEnabled: res.masterEnabled },
           "*"
         );
       }

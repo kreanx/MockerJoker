@@ -11,12 +11,14 @@ function init() {
 }
 
 function loadState() {
-  chrome.storage.local.get({ rules: [], masterEnabled: true }, function (data) {
+  chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true }, function (data) {
     rules = data.rules || [];
+    varSavers = data.varSavers || [];
     masterEnabled = data.masterEnabled !== false;
     $("masterToggle").checked = masterEnabled;
     updateToggleStatus();
     renderRules();
+    renderVarSavers();
   });
 }
 
@@ -65,6 +67,7 @@ function bindEvents() {
   });
 
   bindEditorEvents();
+  bindVarSaversEvents();
 }
 
 document.addEventListener("DOMContentLoaded", init);

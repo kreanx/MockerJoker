@@ -11,6 +11,7 @@ var MSG = {
 };
 
 var currentRules = [];
+var varSavers = [];
 var masterEnabled = true;
 var rulesLoaded = false;
 var loadCallbacks = [];
@@ -20,8 +21,9 @@ var lastHitTime = {};
 var tabSeenRequests = {};
 
 function loadRules() {
-  chrome.storage.local.get({ rules: [], masterEnabled: true }, function (data) {
+  chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true }, function (data) {
     currentRules = data.rules || [];
+    varSavers = data.varSavers || [];
     masterEnabled = data.masterEnabled !== false;
     rulesLoaded = true;
     pushToAllTabs();
@@ -45,12 +47,19 @@ function saveRules(rules, master) {
   pushToAllTabs();
 }
 
+function saveVarSavers(newVarSavers) {
+  varSavers = newVarSavers;
+  chrome.storage.local.set({ varSavers: varSavers });
+  pushToAllTabs();
+}
+
 function pushToAllTabs() {
   chrome.tabs.query({}, function (tabs) {
     tabs.forEach(function (tab) {
       chrome.tabs.sendMessage(tab.id, {
         type: MSG.RULES_UPDATED,
         rules: currentRules,
+        varSavers: varSavers,
         masterEnabled: masterEnabled
       }, function () {
         if (chrome.runtime.lastError) {}
@@ -62,7 +71,7 @@ function pushToAllTabs() {
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === MSG.GET_RULES) {
     waitForRules(function () {
-      sendResponse({ rules: currentRules, masterEnabled: masterEnabled });
+      sendResponse({ rules: currentRules, varSavers: varSavers, masterEnabled: masterEnabled });
     });
     return true;
   }
@@ -70,6 +79,11 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     hitCounters = {};
     lastHitTime = {};
     saveRules(msg.rules, msg.masterEnabled);
+    sendResponse({ success: true });
+    return true;
+  }
+  if (msg.type === "saveVarSavers") {
+    saveVarSavers(msg.varSavers);
     sendResponse({ success: true });
     return true;
   }

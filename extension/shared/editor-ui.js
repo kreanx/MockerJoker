@@ -303,13 +303,6 @@ function openEditor(ruleId) {
   toggleActionFields(rule.action.type);
   updateGraphqlStatusHint();
 
-  var saveVarsEl = $("saveVarsEditor");
-  if (saveVarsEl) {
-    saveVarsEl.innerHTML = "";
-    if (rule.action.saveVars) {
-      rule.action.saveVars.forEach(function (sv) { addSaveVarRow("saveVarsEditor", sv); });
-    }
-  }
   var varCondEl = $("varConditionsEditor");
   if (varCondEl) {
     varCondEl.innerHTML = "";
@@ -376,8 +369,6 @@ function saveEditor() {
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
     rule.action.transforms = $("respTransformsEditor") ? collectTransformRows("respTransformsEditor") : [];
   }
-  var saveVarsEl = $("saveVarsEditor");
-  if (saveVarsEl) rule.action.saveVars = collectSaveVars("saveVarsEditor");
   var v = validateRule(rule);
   if (!v.valid) { showEditorError(v.error); return; }
   saveState();
@@ -428,7 +419,6 @@ function bindEditorEvents() {
   });
   $("btnAddRemoveQueryParam").addEventListener("click", function () { var v = $("inputRemoveQueryParam").value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); $("inputRemoveQueryParam").value = ""; } });
   $("btnAddSetQueryParam").addEventListener("click", function () { addKvRow("setQueryParamsEditor", "", ""); });
-  $("btnAddSaveVar").addEventListener("click", function () { addSaveVarRow("saveVarsEditor", { source: "body", path: "", var: "$" }); });
 
   $("btnFormatBody").addEventListener("click", function () { formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg"); });
   $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);
@@ -470,3 +460,127 @@ document.addEventListener("mouseleave", function (e) {
   var tip = e.target.closest(".help-tip");
   if (tip) tip.classList.remove("active");
 }, true);
+
+function renderVarSavers() {
+  var list = $("varSaversList");
+  if (!list) return;
+  if (varSavers.length === 0) {
+    list.innerHTML = '<div class="var-savers-empty">Нет сохранённых переменных</div>';
+    return;
+  }
+  var html = "";
+  varSavers.forEach(function (vs) {
+    var disabledClass = vs.enabled ? "" : " disabled";
+    var sourceLabel = vs.source === "body" ? "Body" : vs.source === "header" ? "Header" : "Status";
+    html += '<div class="var-saver-item' + disabledClass + '" data-id="' + vs.id + '">';
+    html += '<input type="checkbox" class="vs-toggle" data-id="' + vs.id + '"' + (vs.enabled ? " checked" : "") + '>';
+    html += '<div class="vs-info">';
+    html += '<span class="vs-name">' + escapeHtml(vs.varName) + '</span>';
+    html += '<span class="vs-detail">' + escapeHtml(vs.urlPattern || "*") + ' &middot; ' + sourceLabel + (vs.path ? ': ' + escapeHtml(vs.path) : '') + '</span>';
+    html += '</div>';
+    html += '<div class="vs-actions">';
+    html += '<button class="vs-edit" data-id="' + vs.id + '" title="Редактировать">&#9998;</button>';
+    html += '<button class="vs-delete" data-id="' + vs.id + '" title="Удалить">&times;</button>';
+    html += '</div></div>';
+  });
+  list.innerHTML = html;
+}
+
+function openVarSaverEditor(id) {
+  var vs = id ? varSavers.filter(function (v) { return v.id === id; })[0] : createDefaultVarSaver();
+  if (!vs) return;
+  var modal = $("varSaverModal");
+  if (!modal) return;
+  $("editVsUrl").value = vs.urlPattern || "";
+  $("editVsSource").value = vs.source || "body";
+  $("editVsPath").value = vs.path || "";
+  $("editVsVarName").value = (vs.varName || "").replace(/^\$/, "");
+  $("editVsPath").style.display = vs.source === "status" ? "none" : "";
+  modal.dataset.editId = id || "";
+  modal.classList.remove("hidden");
+}
+
+function closeVarSaverEditor() {
+  var modal = $("varSaverModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function saveVarSaver() {
+  var modal = $("varSaverModal");
+  var id = modal.dataset.editId;
+  var vs = id ? varSavers.filter(function (v) { return v.id === id; })[0] : createDefaultVarSaver();
+  if (!vs) return;
+  vs.urlPattern = $("editVsUrl").value.trim();
+  vs.source = $("editVsSource").value;
+  vs.path = $("editVsPath").value.trim();
+  vs.varName = "$" + $("editVsVarName").value.trim().replace(/^\$/, "");
+  if (!vs.varName || vs.varName === "$") {
+    alert("Укажите имя переменной");
+    return;
+  }
+  if (!vs.urlPattern) {
+    alert("Укажите URL-паттерн");
+    return;
+  }
+  if (!id) varSavers.push(vs);
+  saveVarSaversState();
+  renderVarSavers();
+  closeVarSaverEditor();
+}
+
+function deleteVarSaver(id) {
+  varSavers = varSavers.filter(function (v) { return v.id !== id; });
+  saveVarSaversState();
+  renderVarSavers();
+}
+
+function toggleVarSaver(id, enabled) {
+  for (var i = 0; i < varSavers.length; i++) {
+    if (varSavers[i].id === id) { varSavers[i].enabled = enabled; break; }
+  }
+  saveVarSaversState();
+  renderVarSavers();
+}
+
+function bindVarSaversEvents() {
+  var varsHeader = $("varsHeader");
+  if (varsHeader) {
+    varsHeader.addEventListener("click", function () {
+      var body = $("varsBody");
+      var toggle = $("varsToggle");
+      if (body.classList.contains("collapsed")) {
+        body.classList.remove("collapsed");
+        toggle.innerHTML = "&#9662;";
+      } else {
+        body.classList.add("collapsed");
+        toggle.innerHTML = "&#9656;";
+      }
+    });
+  }
+
+  var btnAdd = $("btnAddVarSaver");
+  if (btnAdd) btnAdd.addEventListener("click", function () { openVarSaverEditor(null); });
+
+  var list = $("varSaversList");
+  if (list) {
+    list.addEventListener("click", function (e) {
+      var t = e.target;
+      if (t.classList.contains("vs-toggle")) { toggleVarSaver(t.getAttribute("data-id"), t.checked); return; }
+      if (t.classList.contains("vs-edit")) { openVarSaverEditor(t.getAttribute("data-id")); return; }
+      if (t.classList.contains("vs-delete")) { deleteVarSaver(t.getAttribute("data-id")); return; }
+    });
+  }
+
+  var btnSaveVs = $("btnSaveVs");
+  if (btnSaveVs) btnSaveVs.addEventListener("click", saveVarSaver);
+
+  var btnCancelVs = $("btnCancelVs");
+  if (btnCancelVs) btnCancelVs.addEventListener("click", closeVarSaverEditor);
+
+  var editVsSource = $("editVsSource");
+  if (editVsSource) {
+    editVsSource.addEventListener("change", function () {
+      $("editVsPath").style.display = this.value === "status" ? "none" : "";
+    });
+  }
+}

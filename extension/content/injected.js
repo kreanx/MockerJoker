@@ -19,6 +19,7 @@
   };
 
   var rules = [];
+  var varSavers = [];
   var masterEnabled = true;
   var seenRequests = [];
   var tabVars = {};
@@ -209,11 +210,19 @@
     return false;
   }
 
+  function resolveVarValue(val) {
+    if (typeof val === "string" && val.charAt(0) === "$") {
+      var v = tabVars[val];
+      return v !== undefined ? v : val;
+    }
+    return val;
+  }
+
   function applyBodyTransforms(body, transforms) {
     if (!transforms || !transforms.length) return body;
     for (var i = 0; i < transforms.length; i++) {
       var t = transforms[i];
-      setByPath(body, t.path, parseValue(t.value));
+      setByPath(body, t.path, parseValue(resolveVarValue(t.value)));
     }
     return body;
   }
@@ -277,6 +286,34 @@
     }
   }
 
+  function processVarSavers(url, respBody, respHeaders, statusCode) {
+    if (!varSavers || !varSavers.length) return;
+    for (var i = 0; i < varSavers.length; i++) {
+      var vs = varSavers[i];
+      if (!vs.enabled) continue;
+      var regex = globToRegex(vs.urlPattern);
+      if (!regex.test(url)) continue;
+      var val;
+      if (vs.source === "status") {
+        val = statusCode;
+      } else if (vs.source === "header") {
+        val = respHeaders ? respHeaders[vs.path] || respHeaders[vs.path.toLowerCase()] : undefined;
+      } else {
+        if (respBody && typeof respBody === "object") {
+          val = getByPath(respBody, vs.path);
+        }
+      }
+      if (val !== undefined) {
+        tabVars[vs.varName] = val;
+        console.log(
+          "%c[MockerJoker]%c var saved: " + vs.varName + " = " + JSON.stringify(val),
+          "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
+          "color:#8e44ad;font-weight:bold"
+        );
+      }
+    }
+  }
+
   function logAction(bg, label, method, url, rule, extra) {
     var obj = { rule: rule.name };
     if (extra) {
@@ -303,7 +340,7 @@
     }
     if (rule.action.setHeaders) {
       Object.keys(rule.action.setHeaders).forEach(function (k) {
-        headers.set(k, rule.action.setHeaders[k]);
+        headers.set(k, String(resolveVarValue(rule.action.setHeaders[k])));
       });
     }
     if (rule.action.method) {
@@ -322,7 +359,7 @@
       }
       if (rule.action.setQueryParams) {
         Object.keys(rule.action.setQueryParams).forEach(function(k) {
-          urlObj.searchParams.set(k, rule.action.setQueryParams[k]);
+          urlObj.searchParams.set(k, String(resolveVarValue(rule.action.setQueryParams[k])));
         });
       }
       return urlObj.href;
@@ -405,6 +442,7 @@
         var mockHeaders = mockRule.action.headers || {};
         saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
       }
+      processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
       return new Promise(function (resolve) {
         setTimeout(function () {
           var defHeaders = {};
@@ -470,12 +508,17 @@
             }
           }
 
+          var hdrObjFinal = {};
+          curHeaders.forEach(function(v, k) { hdrObjFinal[k] = v; });
+          processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus);
           return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
         });
       });
     } else if (modRespRules.length > 0) {
       fetchPromise = fetchPromise.then(function (response) {
         var newHeaders = new Headers(response.headers);
+        var hdrObj = {};
+        response.headers.forEach(function (v, k) { hdrObj[k] = v; });
         for (var di = 0; di < modRespRules.length; di++) {
           var dr = modRespRules[di];
           if (dr.action.removeResponseHeaders) dr.action.removeResponseHeaders.forEach(function (h) { newHeaders.delete(h); });
@@ -483,7 +526,15 @@
           reportHit(dr.id, url, method);
           logAction("#9b59b6", "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
         }
+        processVarSavers(url, null, hdrObj, response.status);
         return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
+      });
+    } else if (respRules.length === 0) {
+      fetchPromise = fetchPromise.then(function (response) {
+        var hdrObj = {};
+        response.headers.forEach(function (v, k) { hdrObj[k] = v; });
+        processVarSavers(url, null, hdrObj, response.status);
+        return response;
       });
     }
 
@@ -580,6 +631,13 @@
     // Phase 2: Response rules
     var respRules = matched.filter(function (r) { return r.action.type === AT.MOCK_RESPONSE || r.action.type === AT.MODIFY_RESPONSE; });
     if (respRules.length === 0) {
+      var origOLE = self.onloadend;
+      self.onloadend = function(evt) {
+        var hdrs = {};
+        try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
+        processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status);
+        if (origOLE) origOLE.call(self, evt);
+      };
       return origXhrSend.call(self, sendBody);
     }
 
@@ -599,6 +657,7 @@
       if (mockRule.action.saveVars) {
         saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
       }
+      processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
       mockXhrResponse(self, mockRule, mockRule.action.delay || DEFAULT_DELAY);
       return;
     }
@@ -699,6 +758,10 @@
           try { Object.defineProperty(self, 'response', { value: curText, configurable: true, writable: true }); } catch(e) {}
         }
       }
+
+      var xhHdrsFinal = {};
+      try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) xhHdrsFinal[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
+      processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status);
     }
 
     self.onreadystatechange = function(evt) {
@@ -777,6 +840,7 @@
     if (event.source !== window) return;
     if (event.data && event.data.type === PAGE_MSG.RULES) {
       rules = event.data.rules || [];
+      varSavers = event.data.varSavers || [];
       masterEnabled = event.data.masterEnabled !== false;
       tabVars = {};
     }
