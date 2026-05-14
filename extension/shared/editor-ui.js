@@ -577,6 +577,9 @@ function bindVarSaversEvents() {
   var btnCancelVs = $("btnCancelVs");
   if (btnCancelVs) btnCancelVs.addEventListener("click", closeVarSaverEditor);
 
+  var btnCancelVsBtn = $("btnCancelVsBtn");
+  if (btnCancelVsBtn) btnCancelVsBtn.addEventListener("click", closeVarSaverEditor);
+
   var editVsSource = $("editVsSource");
   if (editVsSource) {
     editVsSource.addEventListener("change", function () {
