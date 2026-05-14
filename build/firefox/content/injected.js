@@ -348,6 +348,7 @@
         );
       }
     }
+    flushTabVars();
   }
 
   function logAction(bg, label, method, url, rule, extra) {
@@ -553,17 +554,16 @@
                 }
                 reportHit(dr.id, url, method);
                 logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders, transforms: respTrans });
-                if (dr.action.saveVars) {
-                  var respHeaderObj = {};
-                  curHeaders.forEach(function(v, k) { respHeaderObj[k] = v; });
-                  saveVariables(dr.action.saveVars, parseRespObj(curText), respHeaderObj, curStatus);
-      }
-    }
-    flushTabVars();
-  }
-          }
+                 if (dr.action.saveVars) {
+                   var respHeaderObj = {};
+                   curHeaders.forEach(function(v, k) { respHeaderObj[k] = v; });
+                   saveVariables(dr.action.saveVars, parseRespObj(curText), respHeaderObj, curStatus);
+                 }
+               }
+             }
+           }
 
-          var hdrObjFinal = {};
+           var hdrObjFinal = {};
           curHeaders.forEach(function(v, k) { hdrObjFinal[k] = v; });
           processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus);
           return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
