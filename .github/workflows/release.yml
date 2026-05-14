@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: ver
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build Chrome ZIP
+        run: |
+          cd extension
+          zip -r ../dist/mock-extention-chrome.zip . -x "*.DS_Store" -x "__MACOSX/*"
+
+      - name: Build Firefox ZIP
+        run: |
+          BUILD="$(mktemp -d)"
+          cp -r extension/* "$BUILD/"
+          cp manifest.firefox.json "$BUILD/manifest.json"
+          cd "$BUILD"
+          zip -r "$GITHUB_WORKSPACE/dist/mock-extention-firefox.zip" . -x "*.DS_Store" -x "__MACOSX/*"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MockerJoker ${{ steps.ver.outputs.VERSION }}
+          body: |
+            ## Что нового
+            См. [CHANGELOG.md](./CHANGELOG.md)
+          files: |
+            dist/mock-extention-chrome.zip
+            dist/mock-extention-firefox.zip
+          draft: false
+          prerelease: false

@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome" alt="Chrome">
   <img src="https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefox" alt="Firefox">
-  <img src="https://img.shields.io/badge/version-4.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/github/v/tag/kreanx/MockerJoker?label=version&color=blue" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
 </p>
 
