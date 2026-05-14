@@ -1251,18 +1251,29 @@ body {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .vs-name {
-  font-weight: 600;
+  display: inline-block;
+  font-weight: 700;
   font-size: var(--label-fs);
-  color: var(--accent-color);
-  margin-right: 6px;
+  color: #7c3aed;
+  background: #ede9fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  width: fit-content;
 }
 
 .vs-detail {
   font-size: var(--hint-fs);
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vs-actions {
