@@ -763,16 +763,8 @@ input.json-search-input:focus {
   padding: 10px 12px;
   border-radius: 6px;
   margin-bottom: 8px;
-}
-
-.section-match {
-  background: var(--bg-surface);
   border: 1px solid var(--border-color);
-}
-
-.section-action {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  background: transparent;
 }
 
 .section-label {
@@ -785,12 +777,12 @@ input.json-search-input:focus {
 }
 
 .section-match .section-label {
-  color: var(--accent-color);
+  color: var(--ctp-sapphire);
   border-bottom: 1px solid var(--border-color);
 }
 
 .section-action .section-label {
-  color: var(--warning-color);
+  color: var(--ctp-mauve);
   border-bottom: 1px solid var(--border-color);
 }
 
