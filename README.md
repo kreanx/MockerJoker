@@ -37,6 +37,27 @@
 3. Введите URL-паттерн `*/api/*` → **Сохранить**
 4. Готово — все запросы к `*/api/*` вернут ошибку 500
 
+## Примеры использования
+
+**Симуляция ошибки сервера для конкретного эндпоинта**
+> Пресет `500 Internal Error` → URL `*/api/payments/*` → все платежи вернут 500
+
+**Убрать авторизацию для тестирования**
+> `modifyRequest` → URL `*/api/*` → Remove Header: `Authorization`
+
+**Подставить токен из логина в следующий запрос**
+> 1. varSaver: URL `*/auth/login`, source `body`, path `token`, name `$authToken`
+> 2. `modifyRequest` → URL `*/api/*` → Set Header: `Authorization` = `Bearer $authToken`
+
+**Изменить поле в теле ответа**
+> `modifyResponse` → URL `*/api/user` → Transform: `role` → `"admin"`
+
+**Мокировать GraphQL-запрос по имени операции**
+> `mockResponse` → GraphQL tab → operationName `GetUserProfile` → тело `{"data": {"name": "Test User"}}`
+
+**Условный мок — только если баланс меньше 100**
+> `mockResponse` → URL `*/api/checkout` → Body Condition: `balance` < `100` (через varSaver + varCondition)
+
 ## Возможности
 
 ### Действия с запросами
@@ -149,7 +170,8 @@ CHANGELOG.md                  — история версий
 - Трансформации работают только с JSON-телами
 - Переменные (`tabVars`) хранятся в runtime memory — не переживают перезапуск браузера или закрытие вкладки
 
-### Запрещённые заголовки
+<details>
+<summary><strong>Запрещённые заголовки</strong></summary>
 
 Браузер не позволяет удалить или изменить следующие заголовки через `modifyRequest`:
 
@@ -178,17 +200,22 @@ CHANGELOG.md                  — история версий
 | `Sec-*` | Все заголовки начинающиеся с `Sec-` |
 | `Proxy-*` | Все заголовки начинающиеся с `Proxy-` |
 
-## Troubleshooting
+</details>
+
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
 | Симптом | Решение |
 |---|---|
 | Правило не сработало | Обновите страницу (F5). Content script инжектится при загрузке |
 | Firefox: расширение пропало после перезапуска | Временное дополнение не переживает рестарт — загрузите заново через `about:debugging` |
-| Заголовок Cookie/Origin/Host не удаляется | Это forbidden headers — браузер блокирует их изменение через `fetch`/`XHR` |
-| Запрос не перехватывается | Перехватываются только `fetch()` и `XMLHttpRequest`, не `<script>`, `<img>`, навигация |
-| Правило с body condition не срабатывает | Убедитесь что тело — валидный JSON. Проверьте правильность пути (dot notation) и оператор |
+| Заголовок Cookie/Origin/Host не удаляется | Это forbidden headers — браузер блокирует их изменение |
+| Запрос не перехватывается | Перехватываются только `fetch()` и `XMLHttpRequest` |
+| Правило с body condition не срабатывает | Убедитесь что тело — валидный JSON, проверьте путь и оператор |
 | Переменная не подставляется | Переменные извлекаются из ответов. Для параллельных запросов может понадобиться 1 F5 |
 | Все правила не работают | Проверьте что мастер-переключатель (toggle) включён в header |
+
+</details>
 
 ## License
 
