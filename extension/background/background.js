@@ -73,13 +73,16 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === MSG.GET_RULES) {
     waitForRules(function () {
       var senderTabId = sender.tab ? sender.tab.id : "unknown";
-      sendResponse({ rules: currentRules, varSavers: varSavers, tabVars: tabVarsMap[senderTabId] || {}, masterEnabled: masterEnabled });
+      var savedVars = tabVarsMap[senderTabId] || {};
+      console.log("[MockerJoker BG] GET_RULES for tab " + senderTabId + ", tabVars:", JSON.stringify(savedVars));
+      sendResponse({ rules: currentRules, varSavers: varSavers, tabVars: savedVars, masterEnabled: masterEnabled });
     });
     return true;
   }
   if (msg.type === "tabVars") {
     var tabId = sender.tab ? sender.tab.id : "unknown";
     tabVarsMap[tabId] = msg.tabVars;
+    console.log("[MockerJoker BG] tabVars saved for tab " + tabId + ":", JSON.stringify(msg.tabVars));
     sendResponse({ success: true });
     return true;
   }
