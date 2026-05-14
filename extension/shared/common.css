@@ -1222,6 +1222,268 @@ body {
   flex-shrink: 0;
 }
 
+.sv-var-wrap input, .vc-var-wrap input {
+  border-radius: var(--vvi-radius);
+  flex: 1;
+  min-width: 0;
+}
+
+.sv-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-color);
+  font-size: var(--svrb-fs);
+  padding: var(--svrb-pad);
+}
+
+.vc-row {
+  display: flex;
+  gap: var(--vcr-gap);
+  align-items: center;
+}
+
+.vc-row input, .vc-row select {
+  padding: var(--vcri-pad);
+  border: 1px solid var(--border-color);
+  border-radius: var(--vcri-radius);
+  font-size: var(--vcri-fs);
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.vc-row .vc-var {
+  flex: 1;
+  min-width: var(--vcv-minw);
+}
+
+.vc-row .vc-op {
+  flex: 1;
+  min-width: var(--vco-minw);
+}
+
+.vc-row button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-color);
+  font-size: var(--vcb-fs);
+  padding: var(--vcb-pad);
+}
+
+.vars-section {
+  border-top: 1px solid var(--border-color);
+  margin: 4px 0;
+}
+
+.vars-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--label-fs);
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.vars-header:hover {
+  background: var(--bg-hover);
+}
+
+.vars-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-color);
+  color: var(--ctp-crust);
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  display: inline-block;
+}
+
+.vars-count:empty {
+  display: none;
+}
+
+.vars-body {
+  padding: 0 8px 8px;
+}
+
+.vars-body.collapsed {
+  display: none;
+}
+
+.var-savers-empty {
+  color: var(--text-muted);
+  font-size: var(--hint-fs);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.var-saver-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.var-saver-item:last-child {
+  border-bottom: none;
+}
+
+.var-saver-item.disabled {
+  opacity: 0.5;
+}
+
+.vs-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vs-name {
+  display: inline-block;
+  font-weight: 700;
+  font-size: var(--label-fs);
+  color: var(--purple-color);
+  background: rgba(203,166,247,0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  width: fit-content;
+}
+
+.vs-detail {
+  font-size: var(--hint-fs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vs-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.vs-edit, .vs-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  color: var(--text-secondary);
+  border-radius: 3px;
+}
+
+.vs-edit:hover {
+  color: var(--primary-color);
+  background: var(--bg-hover);
+}
+
+.vs-delete:hover {
+  color: var(--error-color);
+  background: var(--bg-hover);
+}
+
+.vs-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.vs-modal.hidden {
+  display: none;
+}
+
+.vs-modal-content {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  position: relative;
+  z-index: 3001;
+  border: 1px solid var(--ctp-surface1);
+}
+
+.vs-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vs-modal-body {
+  padding: 12px;
+}
+
+.vs-modal-body label {
+  display: block;
+  font-size: var(--label-fs);
+  margin-bottom: 2px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.vs-modal-body label:first-child {
+  margin-top: 0;
+}
+
+.vs-modal-body input,
+.vs-modal-body select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: var(--input-fs);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.vs-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.vs-var-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.vs-var-prefix {
+  font-weight: 700;
+  color: var(--accent-color);
+  font-size: var(--input-fs);
+  padding: 5px 6px;
+  border: 1px solid var(--border-color);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  background: var(--bg-surface);
+}
+
 .vs-var-name-wrap input {
   border-radius: 0 4px 4px 0 !important;
 }
