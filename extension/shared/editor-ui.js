@@ -48,7 +48,7 @@ function addBodyConditionRow(containerId, cond) {
     '<option value="contains"' + (cond.operator === "contains" ? " selected" : "") + '>содержит</option>' +
     '<option value="exists"' + (cond.operator === "exists" ? " selected" : "") + '>существует</option>' +
     '</select>' +
-    '<input type="text" class="bc-value" placeholder="Значение" value="' + escapeAttr(cond.value || "") + '">' +
+    '<input type="text" class="bc-value" placeholder="Значение или $var" value="' + escapeAttr(cond.value || "") + '">' +
     '<button type="button" class="bc-remove">&times;</button>';
   row.querySelector(".bc-op").addEventListener("change", function () {
     row.querySelector(".bc-value").style.display = this.value === "exists" ? "none" : "";

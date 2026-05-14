@@ -48,7 +48,7 @@
     </div>
     <div id="varsBody" class="vars-body collapsed">
       <div id="varSaversList"></div>
-      <button id="btnAddVarSaver" class="btn btn-small">+ Сохранить переменную</button>
+      <button id="btnAddVarSaver" class="btn btn-small">+ Добавить переменную</button>
       <div id="varValues" class="var-values"></div>
     </div>
   </div>
@@ -109,7 +109,7 @@
           <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
         </div>
 
-        <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
+        <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br>Значения: авто-типизация (<code>"true"</code> → true, <code>"123"</code> → 123)<br>Переменные: <code>$varName</code> подставит значение переменной<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
         <div id="bodyConditionsEditor" class="bc-editor"></div>
         <button id="btnAddBc" class="btn btn-small">+ Условие</button>
 
@@ -249,7 +249,7 @@
   <div id="varSaverModal" class="vs-modal hidden">
     <div class="vs-modal-content">
       <div class="vs-modal-header">
-        <span>Сохранить переменную</span>
+        <span>Добавить переменную</span>
         <button id="btnCancelVs" class="btn-close">&times;</button>
       </div>
       <div class="vs-modal-body">

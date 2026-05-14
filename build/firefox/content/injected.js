@@ -201,12 +201,13 @@
   }
 
   function _checkOp(val, c) {
+    var expected = resolveVarValue(c.value);
     if (c.operator === "exists") return val !== undefined;
-    if (c.operator === "equals") return val === parseValue(c.value);
-    if (c.operator === "notEquals") return val !== parseValue(c.value);
+    if (c.operator === "equals") return val === parseValue(expected);
+    if (c.operator === "notEquals") return val !== parseValue(expected);
     if (c.operator === "contains") {
-      if (typeof val === "string") return val.indexOf(c.value) !== -1;
-      if (Array.isArray(val)) return val.indexOf(parseValue(c.value)) !== -1;
+      if (typeof val === "string") return val.indexOf(expected) !== -1;
+      if (Array.isArray(val)) return val.indexOf(parseValue(expected)) !== -1;
       return false;
     }
     return false;

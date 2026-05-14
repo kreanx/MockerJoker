@@ -188,6 +188,7 @@ body::-webkit-scrollbar-thumb {
 .btn-small {
   padding: 3px 8px;
   font-size: 11px;
+  margin-top: 4px;
 }
 
 .dropdown {
