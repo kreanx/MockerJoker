@@ -574,9 +574,10 @@ function openVarSaverEditor(id) {
   if (!modal) return;
   $("editVsUrl").value = vs.urlPattern || "";
   $("editVsSource").value = vs.source || "body";
-  $("editVsPath").value = vs.path || "";
+  $("editVsPath").value = vs.source === "status" ? "" : (vs.path || "");
   $("editVsVarName").value = (vs.varName || "").replace(/^\$/, "");
-  $("editVsPath").style.display = vs.source === "status" ? "none" : "";
+  var pathGroup = $("editVsPathGroup");
+  if (pathGroup) pathGroup.style.display = vs.source === "status" ? "none" : "";
   modal.dataset.editId = id || "";
   modal.classList.remove("hidden");
 }
@@ -593,7 +594,7 @@ function saveVarSaver() {
   if (!vs) return;
   vs.urlPattern = $("editVsUrl").value.trim();
   vs.source = $("editVsSource").value;
-  vs.path = $("editVsPath").value.trim();
+  vs.path = vs.source === "status" ? "" : $("editVsPath").value.trim();
   vs.varName = "$" + $("editVsVarName").value.trim().replace(/^\$/, "");
   if (!vs.varName || vs.varName === "$") {
     alert("Укажите имя переменной");
@@ -664,7 +665,9 @@ function bindVarSaversEvents() {
   var editVsSource = $("editVsSource");
   if (editVsSource) {
     editVsSource.addEventListener("change", function () {
-      $("editVsPath").style.display = this.value === "status" ? "none" : "";
+      var pathGroup = $("editVsPathGroup");
+      if (pathGroup) pathGroup.style.display = this.value === "status" ? "none" : "";
+      if (this.value === "status") $("editVsPath").value = "";
     });
   }
 }

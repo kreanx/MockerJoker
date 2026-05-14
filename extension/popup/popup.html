@@ -254,8 +254,10 @@
           <option value="header">Header (из заголовка ответа)</option>
           <option value="status">Status (HTTP статус-код)</option>
         </select>
-        <label id="editVsPathLabel">Path <span class="hint">(dot notation)</span></label>
-        <input type="text" id="editVsPath" placeholder="data.user.id">
+        <div id="editVsPathGroup">
+          <label>Path <span class="hint">(dot notation)</span></label>
+          <input type="text" id="editVsPath" placeholder="data.user.id">
+        </div>
         <label>Имя переменной</label>
         <div class="vs-var-name-wrap"><span class="vs-var-prefix">$</span><input type="text" id="editVsVarName" placeholder="userId"></div>
       </div>

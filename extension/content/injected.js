@@ -213,6 +213,11 @@
   function resolveVarValue(val) {
     if (typeof val === "string" && val.charAt(0) === "$") {
       var v = tabVars[val];
+      console.log(
+        "%c[MockerJoker]%c resolveVar: " + val + " → " + JSON.stringify(v) + " (tabVars keys: " + Object.keys(tabVars).join(", ") + ")",
+        "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#8e44ad;font-weight:bold"
+      );
       return v !== undefined ? v : val;
     }
     return val;
@@ -288,6 +293,11 @@
 
   function processVarSavers(url, respBody, respHeaders, statusCode) {
     if (!varSavers || !varSavers.length) return;
+    console.log(
+      "%c[MockerJoker]%c processVarSavers: checking " + varSavers.length + " savers against " + url,
+      "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
+      "color:#8e44ad;font-weight:bold"
+    );
     for (var i = 0; i < varSavers.length; i++) {
       var vs = varSavers[i];
       if (!vs.enabled) continue;
@@ -303,6 +313,11 @@
           val = getByPath(respBody, vs.path);
         }
       }
+      console.log(
+        "%c[MockerJoker]%c varSaver matched: " + vs.varName + " source=" + vs.source + " path=" + vs.path + " val=" + JSON.stringify(val),
+        "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#8e44ad;font-weight:bold"
+      );
       if (val !== undefined) {
         tabVars[vs.varName] = val;
         console.log(
