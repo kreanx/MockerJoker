@@ -39,13 +39,20 @@
 
 ## Возможности
 
-- **Подмена ответа** — полностью заменить ответ (статус, заголовки, тело, задержка)
-- **Изменение заголовков запроса** — удалить/установить заголовки исходящего запроса
-- **Изменение Заголовков ответа** — удалить/установить заголовки входящего ответа
-- **Изменение тела запроса на основании условий** — трансформация JSON-тела запроса по dot notation
+### Действия с запросами
 
+- **Подмена ответа** (`mockResponse`) — полностью заменить ответ (статус, заголовки, тело, задержка)
+- **Изменение запроса** (`modifyRequest`) — изменить метод, удалить/установить заголовки, трансформировать тело, удалить/установить query-параметры
+- **Изменение ответа** (`modifyResponse`) — удалить/установить заголовки ответа, трансформировать тело ответа
+- **GraphQL** — мэтчинг по `operationName` + REST/GraphQL табы в редакторе
+- **Переменные** (`varSavers`) — извлечение значений из ответов (body/header/status) и использование `$varName` в трансформациях, заголовках и query-параметрах
+- **Условия на тело** (`bodyConditions`) — правило сработает только если все условия выполняются (equals, notEquals, contains, exists)
+
+### Интерфейс
+
+- Dark/Light тема (Catppuccin Mocha/Latte)
 - 8 пресетов для типичных сценариев
-- JSON editor с подсветкой синтаксиса и поиском
+- JSON editor с подсветкой синтаксиса, нумерацией строк и поиском
 - Полноэкранный режим редактирования тела
 - Валидация JSON в реальном времени
 - Автоформатирование при вставке
@@ -68,14 +75,22 @@ extension/
 ├── background/background.js  — service worker
 ├── content/content.js        — bridge extension ↔ page
 ├── content/injected.js       — fetch/XHR override (page context)
-├── popup/popup.html|js|css   — compact popup UI
+├── popup/popup.html|js|css   — compact popup UI (600px)
 ├── panel/panel.html|js|css   — full-page UI (new tab)
-├── shared/common.js          — общий код popup + panel
+├── shared/
+│   ├── common.css            — общий CSS (Catppuccin theme variables)
+│   ├── constants.js          — CONST объект (action types, defaults)
+│   ├── utils.js              — $, generateId, formatTime, escapeHtml
+│   ├── rules-store.js        — data model, CRUD, presets, render
+│   ├── json-editor.js        — highlighting, search, fullscreen, line numbers
+│   ├── url-autocomplete.js   — seenUrls, URL/GraphQL dropdowns
+│   └── editor-ui.js          — editor UI, varSavers UI, $var autocomplete
 └── icons/                    — иконки 16/48/128px
 manifest.firefox.json         — Firefox манифест (background.scripts)
-build-firefox.sh              — сборка Firefox билда
-build-zip.sh                  — создание ZIP-архивов
+build-zip.sh                  — создание ZIP-архивов (Chrome + Firefox)
+release.sh                    — version bump + build + tag + push
 GUIDE.md                      — руководство пользователя
+CHANGELOG.md                  — история версий
 ```
 
 ## Типы действий
@@ -83,17 +98,30 @@ GUIDE.md                      — руководство пользовател�
 | Тип | Описание |
 |---|---|
 | `mockResponse` | **Подмена ответа** — полностью заменить ответ: статус, заголовки, тело, задержка |
-| `modifyRequest` | **Заголовки запроса** — удалить/установить заголовки исходящего запроса |
-| `modifyResponse` | **Заголовки ответа** — удалить/установить заголовки входящего ответа |
-| `modifyBody` | **Тело запроса** — трансформация JSON-тела запроса по dot notation |
+| `modifyRequest` | **Изменение запроса** — метод, заголовки, query-параметры, трансформация тела |
+| `modifyResponse` | **Изменение ответа** — заголовки ответа, трансформация тела ответа |
+
+## Переменные (varSavers)
+
+Независимые от правил извлекатели значений из HTTP-ответов:
+
+1. URL-паттерн — на какие ответы реагировать
+2. Источник — `body` (dot notation path), `header` (имя заголовка), `status` (HTTP код)
+3. Имя переменной — доступно как `$varName`
+
+Использование `$varName`:
+- В **трансформациях** тела (transforms) — подставляет значение переменной
+- В **заголовках** (setHeaders) — подставляет в значение заголовка
+- В **query-параметрах** (setQueryParams) — подставляет в значение параметра
+- В **условиях** (varConditions) — правило сработает только если переменная matches
 
 ## Body Conditions
 
 Любое правило может содержать условия на тело. Правило сработает только если все условия выполняются.
 
 **Какое тело проверяется** зависит от типа действия:
-- `mockResponse` / `modifyResponse` → проверяется **response body** (после получения реального ответа)
-- `modifyBody` / `modifyRequest` → проверяется **request body** (исходящее тело запроса)
+- `mockResponse` / `modifyResponse` → проверяется **response body**
+- `modifyRequest` → проверяется **request body**
 
 | Оператор | Описание |
 |---|---|
@@ -106,27 +134,20 @@ GUIDE.md                      — руководство пользовател�
 
 Значения автотипизируются: `"true"` → `true`, `"123"` → `123`, `"null"` → `null`.
 
-## Modify Body
-
-Тип действия `modifyBody` трансформирует тело запроса перед отправкой. Таблица трансформаций: **путь** → **новое значение**.
-
-Поддерживает dot notation с индексами и wildcard: `items[0].name`, `items[*].status`.
-
-Пример: правило с URL `*` и body condition `signal equals "protect"` + transform `signal → "unprotect"` заменит значение поля `signal` в теле любого POST-запроса.
-
 ## Последовательное применение правил
 
 Несколько правил могут применяться к одному запросу последовательно:
 
-1. **Фаза 1** — `modifyBody` + `modifyRequest` (модификация исходящего запроса)
+1. **Фаза 1** — `modifyRequest` (модификация исходящего запроса: метод, заголовки, query, тело)
 2. **Фаза 2** — `mockResponse` без body conditions → немедленная подмена
-3. **Фаза 3** — реальный запрос → `mockResponse` с body conditions (условная подмена) + `modifyResponse` (условная/безусловная модификация заголовков)
+3. **Фаза 3** — реальный запрос → `mockResponse` с body conditions (условная подмена) + `modifyResponse` (условная/безусловная модификация)
 
 ## Ограничения
 
 - Перехватываются только `fetch()` и `XMLHttpRequest`
 - Content script не перехватывает навигацию, `<script src>`, `<img>` и т.д.
-- ModifyBody работает только с JSON-телами (строковые body парсятся через `JSON.parse`)
+- Трансформации работают только с JSON-телами
+- Переменные (`tabVars`) хранятся в runtime memory — не переживают перезапуск браузера или закрытие вкладки
 
 ### Запрещённые заголовки
 
@@ -166,6 +187,8 @@ GUIDE.md                      — руководство пользовател�
 | Заголовок Cookie/Origin/Host не удаляется | Это forbidden headers — браузер блокирует их изменение через `fetch`/`XHR` |
 | Запрос не перехватывается | Перехватываются только `fetch()` и `XMLHttpRequest`, не `<script>`, `<img>`, навигация |
 | Правило с body condition не срабатывает | Убедитесь что тело — валидный JSON. Проверьте правильность пути (dot notation) и оператор |
+| Переменная не подставляется | Переменные извлекаются из ответов. Для параллельных запросов может понадобиться 1 F5 |
+| Все правила не работают | Проверьте что мастер-переключатель (toggle) включён в header |
 
 ## License
 
