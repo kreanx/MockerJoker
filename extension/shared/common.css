@@ -452,7 +452,7 @@ body {
   width: 100%;
 }
 
-.json-search-input:focus {
+input.json-search-input:focus {
   border-color: var(--accent-color);
 }
 
@@ -1046,7 +1046,7 @@ body {
   margin-top: var(--jsr-mt);
 }
 
-.json-search-input {
+input.json-search-input {
   padding: var(--jsi-pad);
   border: 1px solid var(--ctp-surface1);
   border-radius: var(--jsi-radius);
@@ -1065,7 +1065,7 @@ body {
   text-align: center;
 }
 
-.json-search-btn {
+button.json-search-btn {
   background: none;
   border: 1px solid var(--border-color);
   cursor: pointer;
@@ -1081,7 +1081,7 @@ body {
   height: 26px;
 }
 
-.json-search-btn:hover {
+button.json-search-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
