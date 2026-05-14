@@ -621,9 +621,15 @@
           self.__rm.url = newUrl;
           urlChanged = true;
         }
+        if (rr.action.removeHeaders && self.__rmReqHeaders) {
+          rr.action.removeHeaders.forEach(function (h) {
+            delete self.__rmReqHeaders[h];
+          });
+        }
         if (rr.action.setHeaders) {
+          if (!self.__rmReqHeaders) self.__rmReqHeaders = {};
           Object.keys(rr.action.setHeaders).forEach(function (k) {
-            origXhrSetHeader.call(self, k, rr.action.setHeaders[k]);
+            self.__rmReqHeaders[k] = String(resolveVarValue(rr.action.setHeaders[k]));
           });
         }
         if (rr.action.method) {
@@ -742,7 +748,7 @@
           if (apply) {
             if (dr.action.removeResponseHeaders) allRemove = allRemove.concat(dr.action.removeResponseHeaders);
             if (dr.action.setResponseHeaders) {
-              for (var k in dr.action.setResponseHeaders) allSet[k.toLowerCase()] = dr.action.setResponseHeaders[k];
+              for (var k in dr.action.setResponseHeaders) allSet[k.toLowerCase()] = String(resolveVarValue(dr.action.setResponseHeaders[k]));
             }
             if (dr.action.transforms && dr.action.transforms.length > 0 && respObj) {
               respObj = applyBodyTransforms(respObj, dr.action.transforms);

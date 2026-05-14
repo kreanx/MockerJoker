@@ -289,7 +289,7 @@ body {
   width: 280px;
   min-width: 280px;
   padding: 20px;
-  background: var(--ctp-mantle);
+  background: var(--bg-secondary);
   border-right: 1px solid var(--ctp-surface1);
   overflow-y: auto;
 }
@@ -484,10 +484,6 @@ body {
   transition: all 0.15s;
 }
 
-[data-theme="light"] .btn-panel-help {
-  border-color: rgba(255,255,255,0.4);
-}
-
 .btn-panel-help:hover {
   background: rgba(255,255,255,0.2);
 }
@@ -593,7 +589,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: var(--ctp-mantle);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   font-weight: 600;
   font-size: 16px;
@@ -632,7 +628,7 @@ body {
 }
 
 .help-dialog-body code {
-  background: var(--ctp-surface0);
+  background: var(--bg-surface);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 12px;
