@@ -34,7 +34,7 @@ function renderRules() {
       '<p>Выберите пресет слева или нажмите "Добавить правило"</p></div>';
     return;
   }
-  chrome.runtime.sendMessage({ type: "getHitCounters" }, function (res) {
+  chrome.runtime.sendMessage({ type: CONST.MSG_GET_HIT_COUNTERS }, function (res) {
     var counters = (res && res.counters) || {};
     var lastTime = (res && res.lastHitTime) || {};
     var html = "";
@@ -64,82 +64,7 @@ function bindEvents() {
     if (t.classList.contains("btn-delete")) { deleteRuleById(t.getAttribute("data-id")); return; }
   });
 
-  $("btnCloseEditor").addEventListener("click", closeEditor);
-  $("btnCancel").addEventListener("click", closeEditor);
-  $("btnSave").addEventListener("click", saveEditor);
-
-  $("editUrlPattern").addEventListener("input", function () { showUrlDropdown(this.value); });
-  $("editUrlPattern").addEventListener("focus", function () { showUrlDropdown(this.value); });
-  $("editUrlPattern").addEventListener("blur", function () { $("urlDropdown").classList.add("hidden"); });
-  $("editActionType").addEventListener("change", function () { toggleActionFields(this.value); });
-
-  $("tabRest").addEventListener("click", function () { switchProtoTab("rest"); });
-  $("tabGraphql").addEventListener("click", function () { switchProtoTab("graphql"); });
-
-  var graphqlUrlEl = $("editGraphqlUrl");
-  if (graphqlUrlEl) {
-    graphqlUrlEl.addEventListener("input", function () { showGraphqlUrlDropdown(this.value); });
-    graphqlUrlEl.addEventListener("focus", function () { showGraphqlUrlDropdown(this.value); });
-    graphqlUrlEl.addEventListener("blur", function () { var dd = $("graphqlUrlDropdown"); if (dd) dd.classList.add("hidden"); });
-  }
-
-  $("btnAddHeader").addEventListener("click", function () { addKvRow("headersEditor", "", ""); });
-  $("btnAddSetHeader").addEventListener("click", function () { addKvRow("setHeadersEditor", "", ""); });
-  $("btnAddSetRespHeader").addEventListener("click", function () { addKvRow("setRespHeadersEditor", "", ""); });
-  $("btnAddRespTransform").addEventListener("click", function () { addTransformRow("respTransformsEditor", { path: "", value: "" }); });
-
-  $("btnAddBc").addEventListener("click", function () { addBodyConditionRow("bodyConditionsEditor", { path: "", operator: "equals", value: "" }); });
-  $("btnAddVc").addEventListener("click", function () { addVarConditionRow("varConditionsEditor", { var: "", operator: "equals", value: "" }); });
-  $("btnAddTransform").addEventListener("click", function () { addTransformRow("transformsEditor", { path: "", value: "" }); });
-
-  $("inputRemoveHeader").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v); this.value = ""; } }
-  });
-  $("btnAddRemoveHeader").addEventListener("click", function () { var v = $("inputRemoveHeader").value.trim(); if (v) { addRemoveHeaderTag(v); $("inputRemoveHeader").value = ""; } });
-  $("inputRemoveRespHeader").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); this.value = ""; } }
-  });
-  $("btnAddRemoveRespHeader").addEventListener("click", function () { var v = $("inputRemoveRespHeader").value.trim(); if (v) { addRemoveHeaderTag(v, "removeRespHeadersTags"); $("inputRemoveRespHeader").value = ""; } });
-
-  $("inputRemoveQueryParam").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); var v = this.value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); this.value = ""; } }
-  });
-  $("btnAddRemoveQueryParam").addEventListener("click", function () { var v = $("inputRemoveQueryParam").value.trim(); if (v) { addRemoveHeaderTag(v, "removeQueryParamsTags"); $("inputRemoveQueryParam").value = ""; } });
-  $("btnAddSetQueryParam").addEventListener("click", function () { addKvRow("setQueryParamsEditor", "", ""); });
-  $("btnAddSaveVar").addEventListener("click", function () { addSaveVarRow("saveVarsEditor", { source: "body", path: "", var: "$" }); });
-
-  $("btnFormatBody").addEventListener("click", function () { formatBodyIn("editBody", "editBodyHighlight", "jsonValidMsg"); });
-  $("btnFullscreenBody").addEventListener("click", openBodyFullscreen);
-  $("btnFormatBodyFS").addEventListener("click", function () { formatBodyIn("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS"); });
-  $("btnCloseFullscreen").addEventListener("click", closeBodyFullscreen);
-  $("btnApplyFullscreen").addEventListener("click", closeBodyFullscreen);
-  $("editBodyFS").addEventListener("input", function () { updateBodyHighlight("editBodyFS", "editBodyHighlightFS"); validateJSONBody("editBodyFS", "jsonValidMsgFS"); });
-  $("editBodyFS").addEventListener("scroll", function () { syncBodyScroll("editBodyFS", "editBodyHighlightFS"); });
-
-  $("btnExport").addEventListener("click", exportRules);
-  $("btnImport").addEventListener("click", function () { $("importFile").click(); });
-  $("importFile").addEventListener("change", importRules);
-
-  setupBodyEditor("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS");
-  setupSearch("editBody", "editBodyHighlight", "searchBody", "searchBodyCount", "searchBodyPrev", "searchBodyNext");
-  setupSearch("editBodyFS", "editBodyHighlightFS", "searchBodyFS", "searchBodyCountFS", "searchBodyPrevFS", "searchBodyNextFS");
-}
-
-function importRules() {
-  var file = $("importFile").files[0];
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function (e) {
-    try {
-      var imported = JSON.parse(e.target.result);
-      if (!Array.isArray(imported)) throw new Error("Ожидается массив");
-      rules = imported;
-      saveState();
-      renderRules();
-    } catch (err) { alert("Ошибка импорта: " + err.message); }
-  };
-  reader.readAsText(file);
-  $("importFile").value = "";
+  bindEditorEvents();
 }
 
 document.addEventListener("DOMContentLoaded", init);

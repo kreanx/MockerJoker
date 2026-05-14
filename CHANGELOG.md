@@ -1,22 +1,42 @@
 # MockerJoker Changelog
 
+## v5.0.1 (2026-05-14)
+
+### Добавлено
+- **Нумерация строк** в JSON редакторе (popup + panel)
+- **Resizable textarea** — тело ответа можно тянуть за нижний край
+- **Видимый скроллбар** в textarea (был скрыт)
+- **shared/constants.js** — централизованный объект `CONST` (action types, defaults, message types)
+- **Release automation** — `release.sh` + GitHub Actions + динамический бейдж в README
+
+### Изменено
+- `injected.js` — локальные константы `AT`, `PAGE_MSG` вместо строковых литералов
+- `common.js` — использует `CONST.ACTION_TYPES`, `CONST.DEFAULT_STATUS`, `CONST.MSG_*`
+- `content.js`, `background.js` — локальные константы `MSG`/`PAGE` для message types
+- `popup.html`, `panel.html` — подключён `constants.js`
+- `popup.js`, `panel.js` — общий `bindEditorEvents()` вынесен в `common.js`
+- Editor font sizes: labels 12→14px, inputs/selects 12→14px, hints 11→13px
+- Popup body height: 600px (Chrome max)
+- Empty-state padding уменьшен для исключения скролла
+
+### Исправлено
+- **Delay inconsistency bug**: FETCH `|| 5` → `|| 0` (теперь `DEFAULT_DELAY = 0` на обоих путях)
+- Убраны все захардкоженные `200`, `"mockResponse"` и т.д. — заменены на константы
+
+### Удалено
+- **Steps/Chains** — полностью удалены из v5 (неправильный дизайн, заменено переменными)
+
+---
+
 ## v5.0.0 (2026-05-08)
 
 ### Добавлено
-- **Цепочки шагов (Stateful Steps)** - последовательные ответы при повторных запросах
-  - Массив шагов с индивидуальными статусом, телом, задержкой
-  - Режимы: "Повторять сначала" / "Оставить последний"
-  - Badge `Chain 3` для правил со steps
 - **Изменение метода запроса** - переопределение HTTP-метода (POST -> GET и т.д.)
 - **Подмена URL-параметров** - удаление и установка query params в исходящем запросе
-- **GraphQL Support** - мэтчинг по `operationName` + conditions на `variables`
-- **Новые пресеты**: GraphQL Mock, Polling (3 шага)
+- **GraphQL Support** - мэтчинг по `operationName` + REST/GraphQL табы в редакторе
+- **Переменные между правилами** - saveVars + varConditions (body/header/status, per-tab, $prefix)
+- **Новые пресеты**: GraphQL Mock
 - **CHANGELOG.md** - история версий
-
-### Изменено
-- injected.js: добавлены callCount tracking, step selection, URL modifications, GraphQL parsing
-- common.js: openEditor/saveEditor поддерживают steps, method, queryParams, graphqlOperation
-- UI: GraphQL Operation поле, method dropdown, query params fields, steps editor
 
 ---
 

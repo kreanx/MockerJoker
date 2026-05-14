@@ -2,3 +2,4 @@ node_modules/
 dist/*.zip
 build/firefox/
 .DS_Store
+AGENTS.md
