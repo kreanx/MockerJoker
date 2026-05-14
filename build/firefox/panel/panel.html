@@ -112,7 +112,9 @@
           <button id="btnCloseEditor" class="btn-close">&times;</button>
         </div>
         <div class="editor-body">
-          <div class="form-section">
+          <div class="section-match">
+            <div class="section-label">Когда срабатывать</div>
+            <div class="form-section">
             <h3>Основные</h3>
             <div class="form-group">
               <label for="editName">Название правила</label>
@@ -183,8 +185,11 @@
               <button id="btnAddVc" class="btn btn-outline btn-sm">+ Условие на переменную</button>
             </div>
           </div>
+          </div>
 
-          <div id="mockResponseFields" class="form-section">
+          <div class="section-action">
+            <div class="section-label">Что делать</div>
+            <div id="mockResponseFields" class="form-section">
             <h3>Ответ сервера (Mock)</h3>
             <div class="form-row">
               <div class="form-group">
@@ -290,6 +295,7 @@
               <div id="respTransformsEditor" class="key-value-editor"></div>
               <button id="btnAddRespTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
+          </div>
           </div>
         </div>
         <div class="editor-footer">

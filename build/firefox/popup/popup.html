@@ -61,61 +61,66 @@
       <button id="btnCloseEditor" class="btn-close">&times;</button>
     </div>
     <div class="editor-body">
-      <label>Название</label>
-      <input type="text" id="editName" placeholder="Например: Мок для /api/users">
+      <div class="section-match">
+        <div class="section-label">Когда срабатывать</div>
+        <label>Название</label>
+        <input type="text" id="editName" placeholder="Например: Мок для /api/users">
 
-      <div class="row">
-        <div class="col">
-          <label>Метод</label>
-          <select id="editMethod">
-            <option value="ANY">Любой</option>
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="PATCH">PATCH</option>
-            <option value="DELETE">DELETE</option>
-          </select>
+        <div class="row">
+          <div class="col">
+            <label>Метод</label>
+            <select id="editMethod">
+              <option value="ANY">Любой</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Тип <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> - полностью заменить ответ (статус, тело, заголовки)<br><b>Модификация ответа</b> - изменить заголовки и/или поля JSON-тела входящего ответа<br><b>Модификация запроса</b> - изменить метод, заголовки, URL-параметры и/или тело исходящего запроса</span></span></label>
+            <select id="editActionType">
+              <option value="mockResponse">Подмена ответа</option>
+              <option value="modifyResponse">Модификация ответа</option>
+              <option value="modifyRequest">Модификация запроса</option>
+            </select>
+          </div>
         </div>
-        <div class="col">
-          <label>Тип <span class="help-tip">?<span class="help-tip-text"><b>Подмена ответа</b> - полностью заменить ответ (статус, тело, заголовки)<br><b>Модификация ответа</b> - изменить заголовки и/или поля JSON-тела входящего ответа<br><b>Модификация запроса</b> - изменить метод, заголовки, URL-параметры и/или тело исходящего запроса</span></span></label>
-          <select id="editActionType">
-            <option value="mockResponse">Подмена ответа</option>
-            <option value="modifyResponse">Модификация ответа</option>
-            <option value="modifyRequest">Модификация запроса</option>
-          </select>
+
+        <div class="proto-tabs">
+          <button id="tabRest" class="proto-tab active">REST</button>
+          <button id="tabGraphql" class="proto-tab">GraphQL</button>
         </div>
+        <div id="restFields">
+          <label>URL-паттерн <span class="hint">(* = маска)</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
+            <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
+          </div>
+        </div>
+        <div id="graphqlFields" class="hidden">
+          <label>URL-паттерн <span class="hint">(GraphQL endpoint)</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="editGraphqlUrl" placeholder="*graphql*" autocomplete="off">
+            <div id="graphqlUrlDropdown" class="autocomplete-dropdown hidden"></div>
+          </div>
+          <label>Operation Name</label>
+          <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
+        </div>
+
+        <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
+        <div id="bodyConditionsEditor" class="bc-editor"></div>
+        <button id="btnAddBc" class="btn btn-small">+ Условие</button>
+
+        <label>Условия на переменные <span class="help-tip">?<span class="help-tip-text">Проверка значений переменных, сохранённых другими правилами.<br>Переменные живут в рамках одной вкладки и сбрасываются при F5.<br><br>Имена с префиксом <code>$</code>: <code>$userId</code>, <code>$status</code></span></span></label>
+        <div id="varConditionsEditor" class="vc-editor"></div>
+        <button id="btnAddVc" class="btn btn-small">+ Условие на переменную</button>
       </div>
 
-      <div class="proto-tabs">
-        <button id="tabRest" class="proto-tab active">REST</button>
-        <button id="tabGraphql" class="proto-tab">GraphQL</button>
-      </div>
-      <div id="restFields">
-        <label>URL-паттерн <span class="hint">(* = маска)</span></label>
-        <div class="autocomplete-wrap">
-          <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
-          <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
-        </div>
-      </div>
-      <div id="graphqlFields" class="hidden">
-        <label>URL-паттерн <span class="hint">(GraphQL endpoint)</span></label>
-        <div class="autocomplete-wrap">
-          <input type="text" id="editGraphqlUrl" placeholder="*graphql*" autocomplete="off">
-          <div id="graphqlUrlDropdown" class="autocomplete-dropdown hidden"></div>
-        </div>
-        <label>Operation Name</label>
-        <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
-      </div>
-
-      <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
-      <div id="bodyConditionsEditor" class="bc-editor"></div>
-      <button id="btnAddBc" class="btn btn-small">+ Условие</button>
-
-      <label>Условия на переменные <span class="help-tip">?<span class="help-tip-text">Проверка значений переменных, сохранённых другими правилами.<br>Переменные живут в рамках одной вкладки и сбрасываются при F5.<br><br>Имена с префиксом <code>$</code>: <code>$userId</code>, <code>$status</code></span></span></label>
-      <div id="varConditionsEditor" class="vc-editor"></div>
-      <button id="btnAddVc" class="btn btn-small">+ Условие на переменную</button>
-
-      <div id="mockResponseFields">
+      <div class="section-action">
+        <div class="section-label">Что делать</div>
+        <div id="mockResponseFields">
         <div class="row">
           <div class="col">
             <label>Статус-код</label>
@@ -196,6 +201,7 @@
               <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
         <div id="respTransformsEditor" class="key-value-editor"></div>
         <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
+      </div>
       </div>
     </div>
     <div class="editor-footer">
