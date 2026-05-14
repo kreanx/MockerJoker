@@ -59,7 +59,13 @@
       if (!rule.enabled) continue;
       if (!rule.match || !rule.match.urlPattern) continue;
       var regex = globToRegex(rule.match.urlPattern);
-      if (!regex.test(url)) continue;
+      var urlMatch = regex.test(url);
+      console.log(
+        "%c[MockerJoker]%c check rule '" + rule.name + "' url=" + url + " pattern=" + rule.match.urlPattern + " match=" + urlMatch + " ruleMethod=" + rule.match.method + " reqMethod=" + method,
+        "background:#3498db;color:#fff;padding:2px 6px;border-radius:3px",
+        "color:#3498db;font-weight:bold"
+      );
+      if (!urlMatch) continue;
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
       if (rule.match.graphqlOperation) {
         var gql = parseGraphQL(reqBody);
