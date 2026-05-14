@@ -10,7 +10,8 @@
     RULES: "REQUEST_MOCKER_RULES",
     INIT: "REQUEST_MOCKER_INIT",
     HIT: "REQUEST_MOCKER_HIT",
-    SEEN: "REQUEST_MOCKER_SEEN"
+    SEEN: "REQUEST_MOCKER_SEEN",
+    TAB_VARS: "REQUEST_MOCKER_TAB_VARS"
   };
 
   var script = document.createElement("script");
@@ -65,7 +66,7 @@
     safeSendMessage({ type: MSG.GET_RULES }, function (res) {
       if (res) {
         window.postMessage(
-          { type: PAGE.RULES, rules: res.rules, varSavers: res.varSavers || [], masterEnabled: res.masterEnabled },
+          { type: PAGE.RULES, rules: res.rules, varSavers: res.varSavers || [], tabVars: res.tabVars || {}, masterEnabled: res.masterEnabled },
           "*"
         );
       }
@@ -95,6 +96,13 @@
       safeSendMessage({
         type: MSG.SEEN_REQUESTS,
         requests: data.requests
+      });
+    }
+
+    if (data.type === PAGE.TAB_VARS) {
+      safeSendMessage({
+        type: "tabVars",
+        tabVars: data.tabVars
       });
     }
   });

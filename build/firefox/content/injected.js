@@ -15,7 +15,8 @@
     RULES: "REQUEST_MOCKER_RULES",
     INIT: "REQUEST_MOCKER_INIT",
     HIT: "REQUEST_MOCKER_HIT",
-    SEEN: "REQUEST_MOCKER_SEEN"
+    SEEN: "REQUEST_MOCKER_SEEN",
+    TAB_VARS: "REQUEST_MOCKER_TAB_VARS"
   };
 
   var rules = [];
@@ -302,6 +303,10 @@
     }
   }
 
+  function flushTabVars() {
+    window.postMessage({ type: PAGE_MSG.TAB_VARS, tabVars: tabVars }, "*");
+  }
+
   function processVarSavers(url, respBody, respHeaders, statusCode) {
     if (!varSavers || !varSavers.length) return;
     console.log(
@@ -547,9 +552,10 @@
                   var respHeaderObj = {};
                   curHeaders.forEach(function(v, k) { respHeaderObj[k] = v; });
                   saveVariables(dr.action.saveVars, parseRespObj(curText), respHeaderObj, curStatus);
-                }
-              }
-            }
+      }
+    }
+    flushTabVars();
+  }
           }
 
           var hdrObjFinal = {};
@@ -903,6 +909,10 @@
     if (event.data && event.data.type === PAGE_MSG.RULES) {
       rules = event.data.rules || [];
       varSavers = event.data.varSavers || [];
+      var incomingTabVars = event.data.tabVars || {};
+      if (Object.keys(tabVars).length === 0 && Object.keys(incomingTabVars).length > 0) {
+        tabVars = incomingTabVars;
+      }
       masterEnabled = event.data.masterEnabled !== false;
       console.log(
         "%c[MockerJoker]%c rules updated: " + rules.length + " rules, " + varSavers.length + " varSavers, tabVars keys: [" + Object.keys(tabVars).join(", ") + "]",

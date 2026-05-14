@@ -19,6 +19,7 @@ var loadCallbacks = [];
 var hitCounters = {};
 var lastHitTime = {};
 var tabSeenRequests = {};
+var tabVarsMap = {};
 
 function loadRules() {
   chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true }, function (data) {
@@ -71,10 +72,18 @@ function pushToAllTabs() {
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === MSG.GET_RULES) {
     waitForRules(function () {
-      sendResponse({ rules: currentRules, varSavers: varSavers, masterEnabled: masterEnabled });
+      var senderTabId = sender.tab ? sender.tab.id : "unknown";
+      sendResponse({ rules: currentRules, varSavers: varSavers, tabVars: tabVarsMap[senderTabId] || {}, masterEnabled: masterEnabled });
     });
     return true;
   }
+  if (msg.type === "tabVars") {
+    var tabId = sender.tab ? sender.tab.id : "unknown";
+    tabVarsMap[tabId] = msg.tabVars;
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (msg.type === MSG.SAVE_RULES) {
     hitCounters = {};
     lastHitTime = {};
