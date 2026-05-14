@@ -9,6 +9,7 @@
   <div class="header">
     <h1>MockerJoker</h1>
     <div class="header-right">
+      <button id="btnTheme" class="btn-theme" title="Тема">&#9790;</button>
       <button id="btnHelp" class="btn-help" title="Справка">?</button>
       <button id="btnOpenTab" class="btn-open-tab" title="Открыть в новой вкладке">&#8599;</button>
       <label class="master-toggle" title="Включить/выключить все правила">
@@ -43,7 +44,7 @@
   <div class="vars-section">
     <div class="vars-header" id="varsHeader">
       <span>Переменные <span class="hint">(используйте $varName в трансформациях)</span></span>
-      <span id="varsToggle">&#9656;</span>
+      <span><span id="varsCount" class="vars-count"></span> <span id="varsToggle">&#9656;</span></span>
     </div>
     <div id="varsBody" class="vars-body collapsed">
       <div id="varSaversList"></div>

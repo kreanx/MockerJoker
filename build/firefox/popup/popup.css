@@ -18,11 +18,11 @@ body {
 }
 
 .rule-item {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .rule-item:hover {
-  background: #f0f4f8;
+  background: var(--bg-hover);
 }
 
 .rule-name {
@@ -34,7 +34,7 @@ body {
 }
 
 .editor {
-  border-top: 2px solid #3498db;
+  border-top: 2px solid var(--accent-color);
 }
 
 .editor-body {
@@ -74,12 +74,16 @@ body {
 .btn-open-tab {
   background: none;
   border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
+  color: inherit;
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 16px;
   cursor: pointer;
   line-height: 1;
+}
+
+[data-theme="light"] .btn-open-tab {
+  border-color: rgba(255,255,255,0.3);
 }
 
 .btn-open-tab:hover {
@@ -89,7 +93,7 @@ body {
 .btn-help {
   background: none;
   border: 1px solid rgba(255,255,255,0.4);
-  color: #fff;
+  color: inherit;
   border-radius: 50%;
   width: 20px;
   height: 20px;
@@ -102,6 +106,10 @@ body {
   justify-content: center;
 }
 
+[data-theme="light"] .btn-help {
+  border-color: rgba(255,255,255,0.4);
+}
+
 .btn-help:hover {
   background: rgba(255,255,255,0.2);
 }
@@ -111,8 +119,8 @@ body {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: #ecf0f1;
-  border-bottom: 1px solid #ddd;
+  background: var(--ctp-mantle);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .toolbar-spacer {
@@ -120,15 +128,15 @@ body {
 }
 
 .btn-accent {
-  background: #2c3e50;
-  color: #fff;
-  border-color: #2c3e50;
+  background: var(--ctp-surface0);
+  color: var(--text-primary);
+  border-color: var(--ctp-surface1);
   font-weight: 600;
   padding: 5px 12px;
 }
 
 .btn-accent:hover {
-  background: #1a252f;
+  background: var(--ctp-surface1);
 }
 
 .btn-small {
@@ -145,10 +153,10 @@ body {
   top: 100%;
   left: 0;
   z-index: 100;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--bg-surface);
+  border: 1px solid var(--ctp-surface1);
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   min-width: 190px;
 }
 
@@ -161,10 +169,11 @@ body {
   text-align: left;
   cursor: pointer;
   font-size: 12px;
+  color: var(--text-primary);
 }
 
 .dropdown-menu button:hover {
-  background: #3498db;
+  background: var(--accent-color);
   color: #fff;
 }
 
@@ -178,15 +187,18 @@ body {
   margin-bottom: 3px;
   font-weight: 600;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .editor-body input[type="text"], .editor-body input[type="number"], .editor-body select {
   width: 100%;
   padding: 5px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
 .row {
@@ -213,12 +225,13 @@ body {
 }
 
 .help-content {
-  background: #fff;
+  background: var(--bg-surface);
   border-radius: 8px;
   width: 440px;
   max-height: 520px;
   overflow-y: auto;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  border: 1px solid var(--ctp-surface1);
 }
 
 .help-header {
@@ -226,19 +239,19 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #2c3e50;
-  color: #fff;
+  background: var(--ctp-mantle);
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 14px;
   border-radius: 8px 8px 0 0;
 }
 
 .help-header .btn-close {
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .help-header .btn-close:hover {
-  color: #e74c3c;
+  color: var(--error-color);
 }
 
 .help-body {
@@ -252,7 +265,7 @@ body {
 }
 
 .help-body code {
-  background: #f0f0f0;
+  background: var(--ctp-surface0);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 11px;

@@ -1,11 +1,32 @@
 var rules = [];
 var masterEnabled = true;
 var editingRuleId = null;
+var currentTheme = "dark";
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute("data-theme", theme);
+  var btn = $("btnTheme");
+  if (btn) btn.textContent = theme === "dark" ? "\u263E" : "\u2600";
+}
+
+function loadTheme() {
+  chrome.storage.local.get({ theme: "dark" }, function (data) {
+    applyTheme(data.theme);
+  });
+}
+
+function toggleTheme() {
+  var next = currentTheme === "dark" ? "light" : "dark";
+  applyTheme(next);
+  chrome.storage.local.set({ theme: next });
+}
 
 function init() {
   var manifest = chrome.runtime.getManifest();
   var ver = $("headerVersion");
   if (ver && manifest.version) ver.textContent = "v" + manifest.version;
+  loadTheme();
   loadState();
   bindEvents();
 }
@@ -47,6 +68,7 @@ function renderRules() {
 
 function bindEvents() {
   $("masterToggle").addEventListener("change", function () { masterEnabled = this.checked; updateToggleStatus(); saveState(); });
+  $("btnTheme").addEventListener("click", toggleTheme);
   $("btnAdd").addEventListener("click", function () { openEditor(null); });
   $("btnHelp").addEventListener("click", function () { $("helpModal").classList.remove("hidden"); });
   $("btnCloseHelp").addEventListener("click", function () { $("helpModal").classList.add("hidden"); });

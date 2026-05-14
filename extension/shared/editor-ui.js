@@ -545,6 +545,8 @@ document.addEventListener("mouseleave", function (e) {
 function renderVarSavers() {
   var list = $("varSaversList");
   if (!list) return;
+  var countEl = $("varsCount");
+  if (countEl) countEl.textContent = varSavers.length > 0 ? varSavers.length : "";
   if (varSavers.length === 0) {
     list.innerHTML = '<div class="var-savers-empty">Нет сохранённых переменных</div>';
     return;
