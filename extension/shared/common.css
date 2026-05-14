@@ -538,8 +538,12 @@ body {
   border-color: #bdc3c7;
 }
 
-.btn:hover {
+.btn-secondary:hover {
   background: var(--btn-hover-bg);
+}
+
+.btn-close:hover {
+  color: #e74c3c;
 }
 
 .btn-close {
