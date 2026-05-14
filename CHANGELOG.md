@@ -2,14 +2,8 @@
 
 ## v5.3.0 (2026-05-14)
 
-### Добавлено
-- **Dark/Light theme toggle** — Catppuccin Mocha (dark, default) / Catppuccin Latte (light), кнопка луна/солнце в header
-- **varSavers counter badge** — количество переменных в секции header
-- Theme сохраняется в `chrome.storage.local`
-
 ### Изменено
 - **Semantic CSS variables** — все hardcoded `--ctp-crust/mantle/surface0` background заменены на `--bg-input/surface/secondary/hover`
-- Light theme: чёткая иерархия — body (base), surface (mantle), input (surface0), hover (surface1)
 - **JSON editor fullscreen** — единый стиль поиска (раньше fullscreen был меньше/отличался)
 - **Search navigation buttons** — 26x26px с border, крупнее и заметнее
 - Fullscreen modal footer: `--bg-secondary` + border-top (контраст с input/buttons)
@@ -23,6 +17,18 @@
 - **XHR removeHeaders** — заголовки теперь реально удаляются из `__rmReqHeaders`
 - **XHR setResponseHeaders** — добавлен `resolveVarValue()`
 - Убраны redundant `[data-theme="light"]` border overrides для header buttons (header всегда тёмный)
+
+---
+
+## v5.2.0 (2026-05-14)
+
+### Добавлено
+- **Dark/Light theme toggle** — Catppuccin Mocha (dark, default) / Catppuccin Latte (light), кнопка луна/солнце в header
+- **varSavers counter badge** — количество переменных в секции header
+- Theme сохраняется в `chrome.storage.local`
+
+### Изменено
+- Удалены все debug-логи (в injected.js остался только `logAction()` — фейковый лог при срабатывании правила)
 
 ---
 
