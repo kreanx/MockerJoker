@@ -292,6 +292,21 @@ body {
   background: var(--bg-secondary);
   border-right: 1px solid var(--ctp-surface1);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ctp-surface2) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--ctp-surface2);
+  border-radius: 3px;
 }
 
 .sidebar h2 {
@@ -435,6 +450,21 @@ body {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ctp-surface2) transparent;
+}
+
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: var(--ctp-surface2);
+  border-radius: 3px;
 }
 
 .content-header {
@@ -486,6 +516,14 @@ body {
 
 .btn-panel-help:hover {
   background: rgba(255,255,255,0.2);
+}
+
+[data-theme="light"] .btn-panel-help {
+  border-color: rgba(0,0,0,0.25);
+}
+
+[data-theme="light"] .btn-panel-help:hover {
+  background: rgba(0,0,0,0.08);
 }
 
 .empty-title {
@@ -628,7 +666,7 @@ body {
 }
 
 .help-dialog-body code {
-  background: var(--bg-surface);
+  background: var(--bg-hover);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 12px;

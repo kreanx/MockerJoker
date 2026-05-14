@@ -1,8 +1,27 @@
+:root {
+  --body-fs: 13px;
+}
+
 body {
   width: 600px;
   min-height: 600px;
   max-height: 600px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ctp-surface2) transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 6px;
+}
+
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--ctp-surface2);
+  border-radius: 3px;
 }
 
 .btn {
@@ -40,6 +59,21 @@ body {
 .editor-body {
   max-height: 340px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ctp-surface2) transparent;
+}
+
+.editor-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.editor-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-body::-webkit-scrollbar-thumb {
+  background: var(--ctp-surface2);
+  border-radius: 3px;
 }
 
 .fullscreen-modal {
@@ -90,6 +124,14 @@ body {
   background: rgba(255,255,255,0.15);
 }
 
+[data-theme="light"] .btn-open-tab {
+  border-color: rgba(0,0,0,0.2);
+}
+
+[data-theme="light"] .btn-open-tab:hover {
+  background: rgba(0,0,0,0.06);
+}
+
 .btn-help {
   background: none;
   border: 1px solid rgba(255,255,255,0.4);
@@ -108,6 +150,14 @@ body {
 
 .btn-help:hover {
   background: rgba(255,255,255,0.2);
+}
+
+[data-theme="light"] .btn-help {
+  border-color: rgba(0,0,0,0.25);
+}
+
+[data-theme="light"] .btn-help:hover {
+  background: rgba(0,0,0,0.08);
 }
 
 .toolbar {
@@ -170,7 +220,7 @@ body {
 
 .dropdown-menu button:hover {
   background: var(--accent-color);
-  color: #fff;
+  color: var(--ctp-crust);
 }
 
 .empty-state p {
@@ -261,7 +311,7 @@ body {
 }
 
 .help-body code {
-  background: var(--bg-surface);
+  background: var(--bg-hover);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 11px;

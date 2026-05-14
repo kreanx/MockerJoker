@@ -1,5 +1,22 @@
 # MockerJoker Changelog
 
+## v5.4.0 (2026-05-14)
+
+### Добавлено
+- **Визуальное разделение редактора** — секции "Условия мэтчинга" (sapphire) и "Действие" (mauve) с бордерами
+- **Custom scrollbar** — popup body, editor-body, panel sidebar, panel content (webkit + Firefox `scrollbar-width: thin`)
+- **`:focus-visible`** — глобальный outline для keyboard accessibility
+- **`:active` states** — кнопки дают feedback при нажатии (scale + brightness)
+
+### Изменено
+- **Light theme: header buttons** — `btn-open-tab`, `btn-help`, `btn-panel-help` корректно видны (border + hover)
+- **Badge backgrounds** — CSS variables (`--badge-*-bg`) с light-theme overrides (было hardcoded rgba из тёмной темы)
+- **`color: #fff`** → `var(--ctp-crust)` — autocomplete hover, proto-tab.active, dropdown
+- **Code backgrounds** — help tooltips, popup/panel help body: `var(--bg-hover)` вместо невидимого `var(--bg-surface)`
+- **`--body-fs: 13px`** — добавлен в popup.css (раньше наследовался browser default 16px)
+
+---
+
 ## v5.3.0 (2026-05-14)
 
 ### Изменено
