@@ -61,11 +61,6 @@
       if (!rule.match || !rule.match.urlPattern) continue;
       var regex = globToRegex(rule.match.urlPattern);
       var urlMatch = regex.test(url);
-      console.log(
-        "%c[MockerJoker]%c check rule '" + rule.name + "' url=" + url + " pattern=" + rule.match.urlPattern + " match=" + urlMatch + " ruleMethod=" + rule.match.method + " reqMethod=" + method,
-        "background:#3498db;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#3498db;font-weight:bold"
-      );
       if (!urlMatch) continue;
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
       if (rule.match.graphqlOperation) {
@@ -220,11 +215,6 @@
   function resolveVarValue(val) {
     if (typeof val === "string" && val.charAt(0) === "$") {
       var v = tabVars[val];
-      console.log(
-        "%c[MockerJoker]%c resolveVar: " + val + " → " + JSON.stringify(v) + " (tabVars keys: " + Object.keys(tabVars).join(", ") + ")",
-        "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#8e44ad;font-weight:bold"
-      );
       return v !== undefined ? v : val;
     }
     return val;
@@ -261,11 +251,6 @@
     for (var i = 0; i < varConditions.length; i++) {
       var vc = varConditions[i];
       var val = tabVars[vc.var];
-      console.log(
-        "%c[MockerJoker]%c varCondition: " + vc.var + " " + vc.operator + " " + vc.value + " | actual=" + JSON.stringify(val) + " (type: " + typeof val + ") | parseValue(vc.value)=" + JSON.stringify(parseValue(vc.value)) + " (type: " + typeof parseValue(vc.value) + ") | tabVars=" + JSON.stringify(tabVars),
-        "background:#e67e22;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#e67e22;font-weight:bold"
-      );
       if (vc.operator === "exists") {
         if (val === undefined) return false;
       } else if (vc.operator === "equals") {
@@ -304,21 +289,11 @@
   }
 
   function flushTabVars() {
-    console.log(
-      "%c[MockerJoker]%c flushTabVars: keys=[" + Object.keys(tabVars).join(", ") + "]",
-      "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
-      "color:#8e44ad;font-weight:bold"
-    );
     window.postMessage({ type: PAGE_MSG.TAB_VARS, tabVars: tabVars }, "*");
   }
 
   function processVarSavers(url, respBody, respHeaders, statusCode) {
     if (!varSavers || !varSavers.length) return;
-    console.log(
-      "%c[MockerJoker]%c processVarSavers: checking " + varSavers.length + " savers against " + url,
-      "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
-      "color:#8e44ad;font-weight:bold"
-    );
     for (var i = 0; i < varSavers.length; i++) {
       var vs = varSavers[i];
       if (!vs.enabled) continue;
@@ -334,18 +309,8 @@
           val = getByPath(respBody, vs.path);
         }
       }
-      console.log(
-        "%c[MockerJoker]%c varSaver matched: " + vs.varName + " source=" + vs.source + " path=" + vs.path + " val=" + JSON.stringify(val),
-        "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#8e44ad;font-weight:bold"
-      );
       if (val !== undefined) {
         tabVars[vs.varName] = val;
-        console.log(
-          "%c[MockerJoker]%c var saved: " + vs.varName + " = " + JSON.stringify(val),
-          "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
-          "color:#8e44ad;font-weight:bold"
-        );
       }
     }
     flushTabVars();
@@ -919,12 +884,6 @@
         tabVars = incomingTabVars;
       }
       masterEnabled = event.data.masterEnabled !== false;
-      console.log(
-        "%c[MockerJoker]%c rules updated: " + rules.length + " rules, " + varSavers.length + " varSavers, tabVars keys: [" + Object.keys(tabVars).join(", ") + "]",
-        "background:#2ecc71;color:#fff;padding:2px 6px;border-radius:3px",
-        "color:#2ecc71;font-weight:bold",
-        { varSavers: varSavers, tabVars: tabVars }
-      );
     }
   });
 

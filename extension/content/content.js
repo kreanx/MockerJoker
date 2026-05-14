@@ -100,7 +100,6 @@
     }
 
     if (data.type === PAGE.TAB_VARS) {
-      console.log("[MockerJoker CS] received TAB_VARS:", JSON.stringify(data.tabVars));
       safeSendMessage({
         type: "tabVars",
         tabVars: data.tabVars

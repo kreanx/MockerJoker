@@ -1,5 +1,14 @@
 # MockerJoker Changelog
 
+## v5.1.1 (2026-05-14)
+
+### Исправлено
+- **tabVars persistence**: `flushTabVars()` вызывается внутри `processVarSavers()` — переменные теперь отправляются в background.js после каждого сохранения
+- Удалён мусорный дублированный блок кода в fetch handler
+- Убраны все debug-логи (injected.js, content.js, background.js)
+
+---
+
 ## v5.1.0 (2026-05-14)
 
 ### Добавлено
