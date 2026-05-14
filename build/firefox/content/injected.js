@@ -1,10 +1,27 @@
 (function () {
+  var AT = {
+    MOCK_RESPONSE: "mockResponse",
+    MODIFY_REQUEST: "modifyRequest",
+    MODIFY_RESPONSE: "modifyResponse",
+    MODIFY_BODY: "modifyBody"
+  };
+  var DEFAULT_STATUS = 200;
+  var DEFAULT_DELAY = 0;
+  var DEFAULT_BODY = "{}";
+  var CT_JSON = "application/json";
+  var CT_HEADER = "Content-Type";
+  var SEEN_MAX = 100;
+  var PAGE_MSG = {
+    RULES: "REQUEST_MOCKER_RULES",
+    INIT: "REQUEST_MOCKER_INIT",
+    HIT: "REQUEST_MOCKER_HIT",
+    SEEN: "REQUEST_MOCKER_SEEN"
+  };
+
   var rules = [];
   var masterEnabled = true;
   var seenRequests = [];
-  var SEEN_MAX = 100;
-  var ruleCallCounts = {};
-
+  var tabVars = {};
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
   var origXhrOpen = OrigXHR.prototype.open;
@@ -49,8 +66,9 @@
         var opRegex = globToRegex(rule.match.graphqlOperation);
         if (!opRegex.test(gql.operationName)) continue;
       }
+      if (!matchVarConditions(rule.match.varConditions)) continue;
       var at = rule.action && rule.action.type;
-      if (at === "modifyBody" || at === "modifyRequest") {
+      if (at === AT.MODIFY_BODY || at === AT.MODIFY_REQUEST) {
         if (!matchBodyConditions(reqBody, rule.match.bodyConditions)) continue;
       }
       result.push(rule);
@@ -72,13 +90,13 @@
     if (seenTimer) return;
     seenTimer = setTimeout(function () {
       seenTimer = null;
-      window.postMessage({ type: "REQUEST_MOCKER_SEEN", requests: seenRequests }, "*");
+      window.postMessage({ type: PAGE_MSG.SEEN, requests: seenRequests }, "*");
     }, 500);
   }
 
   function reportHit(ruleId, url, method) {
     window.postMessage({
-      type: "REQUEST_MOCKER_HIT",
+      type: PAGE_MSG.HIT,
       ruleId: ruleId,
       url: url,
       method: method,
@@ -205,7 +223,7 @@
 
   function hasRespBC(rule) {
     return rule.match.bodyConditions && rule.match.bodyConditions.length > 0 &&
-      (rule.action.type === "mockResponse" || rule.action.type === "modifyResponse");
+      (rule.action.type === AT.MOCK_RESPONSE || rule.action.type === AT.MODIFY_RESPONSE);
   }
 
   function parseRespObj(text) {
@@ -213,51 +231,46 @@
     try { return JSON.parse(text); } catch(e) { return null; }
   }
 
-  function getCallCount(ruleId) {
-    return ruleCallCounts[ruleId] || 0;
-  }
-
-  function incrementCallCount(ruleId) {
-    ruleCallCounts[ruleId] = (ruleCallCounts[ruleId] || 0) + 1;
-    return ruleCallCounts[ruleId];
-  }
-
-  function getStep(rule) {
-    if (!rule.action.steps || rule.action.steps.length <= 1) return null;
-    var count = getCallCount(rule.id);
-    var last = rule.action.steps.length - 1;
-    if (count >= last) return rule.action.steps[last];
-    return rule.action.steps[count];
-  }
-
-  function getStepForUse(rule) {
-    var step = getStep(rule);
-    var count = incrementCallCount(rule.id);
-    if (rule.action.steps && rule.action.steps.length > 1) {
-      var last = rule.action.steps.length - 1;
-      var mode = rule.action.stepsMode || "repeat";
-      if (count > last && mode === "repeat") {
-        ruleCallCounts[rule.id] = 0;
+  function matchVarConditions(varConditions) {
+    if (!varConditions || !varConditions.length) return true;
+    for (var i = 0; i < varConditions.length; i++) {
+      var vc = varConditions[i];
+      var val = tabVars[vc.var];
+      if (vc.operator === "exists") {
+        if (val === undefined) return false;
+      } else if (vc.operator === "equals") {
+        if (val === undefined || val !== parseValue(vc.value)) return false;
+      } else if (vc.operator === "notEquals") {
+        if (val !== undefined && val === parseValue(vc.value)) return false;
+      } else if (vc.operator === "contains") {
+        if (val === undefined) return false;
+        if (typeof val === "string" && val.indexOf(vc.value) === -1) return false;
+        if (typeof val === "number" && String(val).indexOf(vc.value) === -1) return false;
       }
     }
-    return step;
+    return true;
   }
 
-  function mockActionData(rule, step) {
-    if (step) {
-      return {
-        status: step.status !== undefined ? step.status : (rule.action.status || 200),
-        body: step.body !== undefined ? step.body : (rule.action.body || ""),
-        headers: step.headers || rule.action.headers || { "Content-Type": "application/json" },
-        delay: step.delay !== undefined ? step.delay : (rule.action.delay || 0)
-      };
+  function saveVariables(saveVars, sourceObj, headers, statusCode) {
+    if (!saveVars || !saveVars.length) return;
+    for (var i = 0; i < saveVars.length; i++) {
+      var sv = saveVars[i];
+      var val;
+      if (sv.source === "status") {
+        val = statusCode;
+      } else if (sv.source === "header") {
+        val = headers ? headers[sv.path] || headers[sv.path.toLowerCase()] : undefined;
+      } else {
+        if (sourceObj && typeof sourceObj === "object") {
+          val = getByPath(sourceObj, sv.path);
+        } else {
+          val = undefined;
+        }
+      }
+      if (val !== undefined) {
+        tabVars[sv.var] = val;
+      }
     }
-    return {
-      status: rule.action.status || 200,
-      body: rule.action.body || "",
-      headers: rule.action.headers || { "Content-Type": "application/json" },
-      delay: rule.action.delay || 0
-    };
   }
 
   function logAction(bg, label, method, url, rule, extra) {
@@ -334,19 +347,19 @@
     if (matched.length === 0) return origFetch.apply(this, arguments);
 
     // Phase 1: Request modifications (modifyBody + modifyRequest)
-    var reqRules = matched.filter(function (r) { return r.action.type === "modifyBody" || r.action.type === "modifyRequest"; });
+    var reqRules = matched.filter(function (r) { return r.action.type === AT.MODIFY_BODY || r.action.type === AT.MODIFY_REQUEST; });
     var bodyObj = reqBody;
     var urlChanged = false;
     for (var ri = 0; ri < reqRules.length; ri++) {
       var rr = reqRules[ri];
-      if (rr.action.type === "modifyBody") {
+      if (rr.action.type === AT.MODIFY_BODY) {
         if (!bodyObj && init && init.body) bodyObj = parseReqBody(init.body);
         if (bodyObj) {
           bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
           reportHit(rr.id, url, method);
           logAction("#009688", "FETCH modifyBody", method, url, rr, { transforms: rr.action.transforms, resultBody: bodyObj });
         }
-      } else if (rr.action.type === "modifyRequest") {
+      } else if (rr.action.type === AT.MODIFY_REQUEST) {
         var newUrl = applyUrlModifications(url, rr);
         if (newUrl !== url) { url = newUrl; urlChanged = true; }
         init = applyRequestModifications(init, rr);
@@ -373,24 +386,27 @@
     }
 
     // Phase 2: Response rules
-    var respRules = matched.filter(function (r) { return r.action.type === "mockResponse" || r.action.type === "modifyResponse"; });
+    var respRules = matched.filter(function (r) { return r.action.type === AT.MOCK_RESPONSE || r.action.type === AT.MODIFY_RESPONSE; });
     var mockRule = null;
     for (var mi = 0; mi < respRules.length; mi++) {
-      if (respRules[mi].action.type === "mockResponse") { mockRule = respRules[mi]; break; }
+      if (respRules[mi].action.type === AT.MOCK_RESPONSE) { mockRule = respRules[mi]; break; }
     }
-    var modRespRules = respRules.filter(function (r) { return r.action.type === "modifyResponse"; });
+    var modRespRules = respRules.filter(function (r) { return r.action.type === AT.MODIFY_RESPONSE; });
 
-    // Immediate mock (no body conditions, no steps needing body)
     if (mockRule && !hasRespBC(mockRule)) {
-      var step = getStepForUse(mockRule);
-      var md = mockActionData(mockRule, step);
-      var rh = md.headers;
       reportHit(mockRule.id, url, method);
-      logAction("#e74c3c", "FETCH intercepted \u2192 " + md.status, method, url, mockRule, { status: md.status, delay: md.delay + "ms", headers: rh, step: step ? "step " + getCallCount(mockRule.id) : null });
+      logAction("#e74c3c", "FETCH intercepted \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, delay: mockRule.action.delay + "ms", headers: mockRule.action.headers });
+      if (mockRule.action.saveVars) {
+        var mockBody = tryParseBody(mockRule.action.body || DEFAULT_BODY);
+        var mockHeaders = mockRule.action.headers || {};
+        saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
+      }
       return new Promise(function (resolve) {
         setTimeout(function () {
-          resolve(new Response(md.body, { status: md.status, statusText: "", headers: new Headers(rh) }));
-        }, md.delay || 5);
+          var defHeaders = {};
+          defHeaders[CT_HEADER] = CT_JSON;
+          resolve(new Response(mockRule.action.body || "", { status: mockRule.action.status || DEFAULT_STATUS, statusText: "", headers: new Headers(mockRule.action.headers || defHeaders) }));
+        }, mockRule.action.delay || DEFAULT_DELAY);
       });
     }
 
@@ -410,15 +426,17 @@
           var mocked = false;
 
           if (mockRule && hasRespBC(mockRule) && matchBodyConditions(parseRespObj(curText), mockRule.match.bodyConditions)) {
-            var step2 = getStepForUse(mockRule);
-            var md2 = mockActionData(mockRule, step2);
-            var mrh = md2.headers;
             reportHit(mockRule.id, url, method);
-            logAction("#e74c3c", "FETCH conditional mock \u2192 " + md2.status, method, url, mockRule, { status: md2.status, headers: mrh, responseBody: tryParseBody(curText), step: step2 ? "step " + getCallCount(mockRule.id) : null });
-            curText = md2.body;
-            curStatus = md2.status;
+            logAction("#e74c3c", "FETCH conditional mock \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, headers: mockRule.action.headers, responseBody: tryParseBody(curText) });
+            curText = mockRule.action.body || "";
+            curStatus = mockRule.action.status || DEFAULT_STATUS;
             curStatusText = "";
-            curHeaders = new Headers(mrh);
+            var defMockHeaders = {};
+            defMockHeaders[CT_HEADER] = CT_JSON;
+            curHeaders = new Headers(mockRule.action.headers || defMockHeaders);
+            if (mockRule.action.saveVars) {
+              saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
+            }
             mocked = true;
           }
 
@@ -439,6 +457,11 @@
                 }
                 reportHit(dr.id, url, method);
                 logAction("#9b59b6", hasRespBC(dr) ? "FETCH conditional modifyResponse" : "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders, transforms: respTrans });
+                if (dr.action.saveVars) {
+                  var respHeaderObj = {};
+                  curHeaders.forEach(function(v, k) { respHeaderObj[k] = v; });
+                  saveVariables(dr.action.saveVars, parseRespObj(curText), respHeaderObj, curStatus);
+                }
               }
             }
           }
@@ -490,7 +513,7 @@
     if (matched.length === 0) return origXhrSend.apply(this, arguments);
 
     // Phase 1: Request modifications (modifyBody + modifyRequest)
-    var reqRules = matched.filter(function (r) { return r.action.type === "modifyBody" || r.action.type === "modifyRequest"; });
+    var reqRules = matched.filter(function (r) { return r.action.type === AT.MODIFY_BODY || r.action.type === AT.MODIFY_REQUEST; });
     var bodyObj = reqBody;
     var sendBody = body;
     var urlChanged = false;
@@ -498,7 +521,7 @@
 
     for (var ri = 0; ri < reqRules.length; ri++) {
       var rr = reqRules[ri];
-      if (rr.action.type === "modifyBody") {
+      if (rr.action.type === AT.MODIFY_BODY) {
         if (!bodyObj && body) bodyObj = parseReqBody(body);
         if (bodyObj) {
           bodyObj = applyBodyTransforms(bodyObj, rr.action.transforms);
@@ -506,7 +529,7 @@
           logAction("#009688", "XHR modifyBody", self.__rm.method, self.__rm.url, rr, { transforms: rr.action.transforms, resultBody: bodyObj });
           sendBody = JSON.stringify(bodyObj);
         }
-      } else if (rr.action.type === "modifyRequest") {
+      } else if (rr.action.type === AT.MODIFY_REQUEST) {
         var newUrl = applyUrlModifications(self.__rm.url, rr);
         if (newUrl !== self.__rm.url) {
           self.__rm.url = newUrl;
@@ -551,29 +574,28 @@
     }
 
     // Phase 2: Response rules
-    var respRules = matched.filter(function (r) { return r.action.type === "mockResponse" || r.action.type === "modifyResponse"; });
+    var respRules = matched.filter(function (r) { return r.action.type === AT.MOCK_RESPONSE || r.action.type === AT.MODIFY_RESPONSE; });
     if (respRules.length === 0) {
       return origXhrSend.call(self, sendBody);
     }
 
     var mockRule = null;
     for (var mi = 0; mi < respRules.length; mi++) {
-      if (respRules[mi].action.type === "mockResponse") { mockRule = respRules[mi]; break; }
+      if (respRules[mi].action.type === AT.MOCK_RESPONSE) { mockRule = respRules[mi]; break; }
     }
-    var modRespRules = respRules.filter(function (r) { return r.action.type === "modifyResponse"; });
+    var modRespRules = respRules.filter(function (r) { return r.action.type === AT.MODIFY_RESPONSE; });
 
-    // Immediate mock (no body conditions)
     if (mockRule && !hasRespBC(mockRule)) {
-      var step = getStepForUse(mockRule);
-      var md = mockActionData(mockRule, step);
       reportHit(mockRule.id, self.__rm.url, self.__rm.method);
-      logAction("#e74c3c", "XHR intercepted \u2192 " + md.status, self.__rm.method, self.__rm.url, mockRule, {
-        status: md.status,
-        delay: md.delay + "ms",
-        headers: md.headers,
-        step: step ? "step " + getCallCount(mockRule.id) : null
+      logAction("#e74c3c", "XHR intercepted \u2192 " + mockRule.action.status, self.__rm.method, self.__rm.url, mockRule, {
+        status: mockRule.action.status,
+        delay: mockRule.action.delay + "ms",
+        headers: mockRule.action.headers
       });
-      mockXhrResponse(self, { action: md }, md.delay);
+      if (mockRule.action.saveVars) {
+        saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
+      }
+      mockXhrResponse(self, mockRule, mockRule.action.delay || DEFAULT_DELAY);
       return;
     }
 
@@ -592,11 +614,9 @@
       var mocked = false;
 
       if (mockRule && hasRespBC(mockRule) && matchBodyConditions(respObj, mockRule.match.bodyConditions)) {
-        var step2 = getStepForUse(mockRule);
-        var md2 = mockActionData(mockRule, step2);
-        var ms = md2.status;
-        var mb = md2.body;
-        var mh = md2.headers;
+        var ms = mockRule.action.status || DEFAULT_STATUS;
+        var mb = mockRule.action.body || "";
+        var mh = mockRule.action.headers || {};
         try { Object.defineProperty(self, 'status', { value: ms, configurable: true, writable: true }); } catch(e) {}
         try { Object.defineProperty(self, 'statusText', { value: '', configurable: true, writable: true }); } catch(e) {}
         try { Object.defineProperty(self, 'responseText', { value: mb, configurable: true, writable: true }); } catch(e) {}
@@ -610,7 +630,10 @@
           return Object.keys(mh).map(function(k) { return k.toLowerCase() + ": " + mh[k]; }).join("\r\n");
         };
         reportHit(mockRule.id, self.__rm.url, self.__rm.method);
-        logAction("#e74c3c", "XHR conditional mock \u2192 " + ms, self.__rm.method, self.__rm.url, mockRule, { status: ms, headers: mh, responseBody: tryParseBody(self.responseText), step: step2 ? "step " + getCallCount(mockRule.id) : null });
+        logAction("#e74c3c", "XHR conditional mock \u2192 " + ms, self.__rm.method, self.__rm.url, mockRule, { status: ms, headers: mh, responseBody: tryParseBody(self.responseText) });
+        if (mockRule.action.saveVars) {
+          saveVariables(mockRule.action.saveVars, tryParseBody(mb), mh, ms);
+        }
         mocked = true;
       }
 
@@ -637,6 +660,11 @@
               setHeaders: dr.action.setResponseHeaders,
               transforms: dr.action.transforms
             });
+            if (dr.action.saveVars) {
+              var xhHeaders = {};
+              if (allSet) Object.keys(allSet).forEach(function(k) { xhHeaders[k] = allSet[k]; });
+              saveVariables(dr.action.saveVars, parseRespObj(curText), xhHeaders, self.status);
+            }
           }
         }
         if (allRemove.length > 0 || Object.keys(allSet).length > 0) {
@@ -686,7 +714,7 @@
 
   function mockXhrResponse(xhr, rule, delay) {
     var action = rule.action;
-    var status = action.status || 200;
+    var status = action.status || DEFAULT_STATUS;
     var body = action.body || "";
     var headers = action.headers || {};
 
@@ -736,19 +764,19 @@
           try { handler(evt); } catch (e) {}
         }
       });
-    }, delay || 5);
+    }, delay || DEFAULT_DELAY);
   }
 
   // === COMMUNICATION ===
 
   window.addEventListener("message", function (event) {
     if (event.source !== window) return;
-    if (event.data && event.data.type === "REQUEST_MOCKER_RULES") {
+    if (event.data && event.data.type === PAGE_MSG.RULES) {
       rules = event.data.rules || [];
       masterEnabled = event.data.masterEnabled !== false;
-      ruleCallCounts = {};
+      tabVars = {};
     }
   });
 
-  window.postMessage({ type: "REQUEST_MOCKER_INIT" }, "*");
+  window.postMessage({ type: PAGE_MSG.INIT }, "*");
 })();

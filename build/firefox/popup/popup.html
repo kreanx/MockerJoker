@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <link rel="stylesheet" href="../shared/common.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -31,7 +32,6 @@
         <button class="preset-btn" data-preset="removeCors">Убрать CORS</button>
         <button class="preset-btn" data-preset="modifyBodyValue">Заменить значение в ответе</button>
         <button class="preset-btn" data-preset="graphqlMock">GraphQL Mock</button>
-        <button class="preset-btn" data-preset="chainPolling">Polling (3 шага)</button>
       </div>
     </div>
     <div class="toolbar-spacer"></div>
@@ -50,12 +50,6 @@
     <div class="editor-body">
       <label>Название</label>
       <input type="text" id="editName" placeholder="Например: Мок для /api/users">
-
-      <label>URL-паттерн <span class="hint">(* = маска)</span></label>
-      <div class="autocomplete-wrap">
-        <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
-        <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
-      </div>
 
       <div class="row">
         <div class="col">
@@ -79,18 +73,41 @@
         </div>
       </div>
 
-      <label>GraphQL Operation <span class="hint">(опционально)</span></label>
-      <input type="text" id="editGraphqlOperation" placeholder="GetUsers или * для любых">
+      <div class="proto-tabs">
+        <button id="tabRest" class="proto-tab active">REST</button>
+        <button id="tabGraphql" class="proto-tab">GraphQL</button>
+      </div>
+      <div id="restFields">
+        <label>URL-паттерн <span class="hint">(* = маска)</span></label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="editUrlPattern" placeholder="*/api/*" autocomplete="off">
+          <div id="urlDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+      </div>
+      <div id="graphqlFields" class="hidden">
+        <label>URL-паттерн <span class="hint">(GraphQL endpoint)</span></label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="editGraphqlUrl" placeholder="*graphql*" autocomplete="off">
+          <div id="graphqlUrlDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+        <label>Operation Name</label>
+        <input type="text" id="editGraphqlOperation" placeholder="GetUsers, CreateOrder или * для любых">
+      </div>
 
       <label>Условия на тело <span class="help-tip">?<span class="help-tip-text">Проверка содержимого тела по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Операторы: равно, не равно, содержит, существует<br><br><b>Подмена ответа / Модификация ответа</b> → response body<br><b>Модификация запроса</b> → request body</span></span></label>
       <div id="bodyConditionsEditor" class="bc-editor"></div>
       <button id="btnAddBc" class="btn btn-small">+ Условие</button>
+
+      <label>Условия на переменные <span class="help-tip">?<span class="help-tip-text">Проверка значений переменных, сохранённых другими правилами.<br>Переменные живут в рамках одной вкладки и сбрасываются при F5.<br><br>Имена с префиксом <code>$</code>: <code>$userId</code>, <code>$status</code></span></span></label>
+      <div id="varConditionsEditor" class="vc-editor"></div>
+      <button id="btnAddVc" class="btn btn-small">+ Условие на переменную</button>
 
       <div id="mockResponseFields">
         <div class="row">
           <div class="col">
             <label>Статус-код</label>
             <input type="number" id="editStatus" value="200" min="100" max="599">
+            <div id="graphqlStatusHint" class="graphql-status-hint hidden">GraphQL всегда 200, ошибки — в теле (errors[])</div>
           </div>
           <div class="col">
             <label>Задержка (мс)</label>
@@ -117,15 +134,6 @@
             <button id="btnFormatBody" class="json-btn">Форматировать</button>
             <button id="btnFullscreenBody" class="json-btn" title="Развернуть">&#x26F6;</button>
           </div>
-        </div>
-        <label>Цепочка шагов <span class="help-tip">?<span class="help-tip-text">Последовательные ответы: при каждом запросе выдаётся следующий шаг. Если шагов нет - используется один ответ выше.</span></span></label>
-        <div id="stepsContainer" class="steps-container"></div>
-        <div class="steps-bar">
-          <button id="btnAddStep" class="btn btn-small">+ Шаг</button>
-          <select id="editStepsMode" class="steps-mode">
-            <option value="repeat">Повторять сначала</option>
-            <option value="last">Оставить последний</option>
-          </select>
         </div>
       </div>
 
@@ -176,6 +184,10 @@
         <div id="respTransformsEditor" class="key-value-editor"></div>
         <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
       </div>
+
+      <label>Сохранить переменные <span class="help-tip">?<span class="help-tip-text">Извлечь значения при срабатывании правила для использования в других правилах.<br><br><b>Body</b> — path по dot notation из тела ответа/запроса<br><b>Header</b> — имя заголовка ответа<br><b>Status</b> — HTTP статус-код<br><br>Имена с <code>$</code>: <code>$userId</code>, <code>$token</code></span></span></label>
+      <div id="saveVarsEditor" class="sv-editor"></div>
+      <button id="btnAddSaveVar" class="btn btn-small">+ Переменная</button>
     </div>
     <div class="editor-footer">
       <button id="btnSave" class="btn btn-primary">Сохранить</button>
@@ -183,7 +195,12 @@
     </div>
   </div>
 
-  <script src="../shared/common.js"></script>
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/utils.js"></script>
+  <script src="../shared/rules-store.js"></script>
+  <script src="../shared/json-editor.js"></script>
+  <script src="../shared/url-autocomplete.js"></script>
+  <script src="../shared/editor-ui.js"></script>
   <script src="popup.js"></script>
 
   <div id="bodyFullscreenModal" class="fullscreen-modal hidden">
