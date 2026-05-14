@@ -1,5 +1,19 @@
 # MockerJoker Changelog
 
+## v5.5.0 (2026-05-14)
+
+### Добавлено
+- **Счётчик перехваченных запросов** — badge на иконке расширения (Catppuccin Mauve), per-tab, сброс при навигации/закрытии
+- **URL autocomplete в varSaver модалке** — `editVsUrl` показывает dropdown с замеченными URL (popup + panel)
+- **$var dropdown во всех value-инпутах** — автодополнение `$varName` при вводе `$` в setHeaders, setQueryParams, setRespHeaders, body conditions, var conditions, varSaver varName
+- **`setBadgeTextColor`** — тёмный текст на badge для читаемости (Chrome 100+, Firefox 109+)
+
+### Изменено
+- `addKvRow()` — placeholder "Значение или $varName", подключён `showVarDropdown`
+- `openVarSaverEditor()` — вызывает `loadSeenUrls()` для заполнения URL dropdown
+
+---
+
 ## v5.4.0 (2026-05-14)
 
 ### Добавлено
