@@ -1,5 +1,32 @@
 # MockerJoker Changelog
 
+## v5.1.0 (2026-05-14)
+
+### Добавлено
+- **shared/common.css** — общий CSS (1193 строки): 68 идентичных селекторов, 87 shared-with-differences селекторов с `var(--xxx)`, 161 custom property
+- **shared/utils.js** — `$`, `generateId`, `formatTime`, `escapeHtml`, `escapeAttr`
+- **shared/rules-store.js** — data model, CRUD, presets, render, export/import
+- **shared/json-editor.js** — highlighting, search, fullscreen, line numbers
+- **shared/url-autocomplete.js** — seenUrls, URL/GraphQL dropdowns
+- **shared/editor-ui.js** — editor open/save, row helpers, bindEditorEvents, tooltips
+- **opencode.json** — конфигурация opencode (instructions: AGENTS.md)
+
+### Изменено
+- `common.js` (~1008 строк) разбит на 5 фокусных модулей для лучшей организации
+- `popup/popup.css` сокращён с ~924 до 265 строк (popup-only styles + body constraints)
+- `panel/panel.css` сокращён с ~1255 до 655 строк (:root overrides + panel-only styles)
+- `popup.html`, `panel.html` — 6 `<script>` тегов (constants, utils, rules-store, json-editor, url-autocomplete, editor-ui) + `<link>` на common.css перед variant CSS
+
+### Исправлено
+- **GraphQL anonymous queries**: `graphqlOperation: "*"` теперь мэтчит запросы без `operationName`
+- **btn-primary background**: `.btn` base class не перекрывает больше фон `.btn-primary`
+- **btn-primary hover**: hover не применяет светло-серый фон к primary кнопкам
+
+### Удалено
+- `shared/common.js` — заменён 5 модулями
+
+---
+
 ## v5.0.2 (2026-05-14)
 
 ### Добавлено
