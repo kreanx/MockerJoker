@@ -185,21 +185,6 @@ body {
   background: #2ecc71;
 }
 
-.btn-primary {
-  background: #3498db;
-  color: #fff;
-  border-color: #3498db;
-}
-
-.btn-primary:hover {
-  background: #2980b9;
-}
-
-.btn-secondary {
-  background: #fff;
-  border-color: #bdc3c7;
-}
-
 .btn-close:hover {
   color: #e74c3c;
 }
@@ -534,9 +519,23 @@ body {
   padding: var(--btn-pad);
   border: var(--btn-border);
   border-radius: var(--btn-radius);
-  background: #fff;
   cursor: pointer;
   font-size: var(--btn-fs);
+}
+
+.btn-primary {
+  background: #3498db;
+  color: #fff;
+  border-color: #3498db;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+}
+
+.btn-secondary {
+  background: #fff;
+  border-color: #bdc3c7;
 }
 
 .btn:hover {
