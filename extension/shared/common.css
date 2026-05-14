@@ -1296,11 +1296,11 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 3000;
 }
 
 .vs-modal.hidden {
@@ -1313,6 +1313,8 @@ body {
   width: 90%;
   max-width: 400px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 3001;
 }
 
 .vs-modal-header {
