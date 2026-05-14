@@ -400,7 +400,17 @@
     flushSeenRequests();
 
     var matched = findAllRules(url, method, reqBody);
-    if (matched.length === 0) return origFetch.apply(this, arguments);
+    if (matched.length === 0 && varSavers.length === 0) return origFetch.apply(this, arguments);
+    if (matched.length === 0) {
+      return origFetch.apply(this, arguments).then(function (response) {
+        response.clone().text().then(function (text) {
+          var hdrs = {};
+          response.headers.forEach(function (v, k) { hdrs[k] = v; });
+          processVarSavers(url, parseRespObj(text), hdrs, response.status);
+        });
+        return response;
+      });
+    }
 
     // Phase 1: Request modifications (modifyBody + modifyRequest)
     var reqRules = matched.filter(function (r) { return r.action.type === AT.MODIFY_BODY || r.action.type === AT.MODIFY_REQUEST; });
@@ -588,7 +598,18 @@
 
     var reqBody = parseReqBody(body);
     var matched = findAllRules(this.__rm.url, this.__rm.method, reqBody);
-    if (matched.length === 0) return origXhrSend.apply(this, arguments);
+    if (matched.length === 0 && varSavers.length === 0) return origXhrSend.apply(this, arguments);
+    if (matched.length === 0) {
+      var self2 = this;
+      var origOLE2 = this.onloadend;
+      this.onloadend = function(evt) {
+        var hdrs2 = {};
+        try { self2.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs2[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
+        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status);
+        if (origOLE2) origOLE2.call(self2, evt);
+      };
+      return origXhrSend.apply(this, arguments);
+    }
 
     // Phase 1: Request modifications (modifyBody + modifyRequest)
     var reqRules = matched.filter(function (r) { return r.action.type === AT.MODIFY_BODY || r.action.type === AT.MODIFY_REQUEST; });
