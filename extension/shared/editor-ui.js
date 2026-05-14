@@ -4,9 +4,12 @@ function addKvRow(containerId, key, value) {
   var row = document.createElement("div");
   row.className = "kv-row";
   row.innerHTML = '<input type="text" class="kv-key" placeholder="Ключ" value="' + escapeAttr(key || "") + '">' +
-    '<input type="text" class="kv-value" placeholder="Значение" value="' + escapeAttr(value || "") + '">' +
+    '<input type="text" class="kv-value" placeholder="Значение или $varName" value="' + escapeAttr(value || "") + '">' +
     '<button type="button" class="kv-remove">&times;</button>';
   row.querySelector(".kv-remove").addEventListener("click", function () { row.remove(); });
+  var valInput = row.querySelector(".kv-value");
+  valInput.addEventListener("input", function () { showVarDropdown(this); });
+  valInput.addEventListener("blur", function () { hideVarDropdown(this); });
   $(containerId).appendChild(row);
 }
 
@@ -55,6 +58,9 @@ function addBodyConditionRow(containerId, cond) {
   });
   if (cond.operator === "exists") row.querySelector(".bc-value").style.display = "none";
   row.querySelector(".bc-remove").addEventListener("click", function () { row.remove(); });
+  var bcValInput = row.querySelector(".bc-value");
+  bcValInput.addEventListener("input", function () { showVarDropdown(this); });
+  bcValInput.addEventListener("blur", function () { hideVarDropdown(this); });
   $(containerId).appendChild(row);
 }
 
@@ -221,6 +227,9 @@ function addVarConditionRow(containerId, vc) {
   vcVarInput.addEventListener("focus", function () { showVarDropdownSimple(this); });
   vcVarInput.addEventListener("input", function () { showVarDropdownSimple(this); });
   vcVarInput.addEventListener("blur", function () { var dd = this.closest(".vc-var-wrap"); if (dd) { var d = dd.querySelector(".var-dropdown"); if (d) d.remove(); } });
+  var vcValInput = row.querySelector(".vc-value");
+  vcValInput.addEventListener("input", function () { showVarDropdown(this); });
+  vcValInput.addEventListener("blur", function () { hideVarDropdown(this); });
   $(containerId).appendChild(row);
 }
 
@@ -572,6 +581,7 @@ function renderVarSavers() {
 function openVarSaverEditor(id) {
   var vs = id ? varSavers.filter(function (v) { return v.id === id; })[0] : createDefaultVarSaver();
   if (!vs) return;
+  if (typeof loadSeenUrls === "function") loadSeenUrls();
   var modal = $("varSaverModal");
   if (!modal) return;
   $("editVsUrl").value = vs.urlPattern || "";
@@ -671,5 +681,19 @@ function bindVarSaversEvents() {
       if (pathGroup) pathGroup.style.display = this.value === "status" ? "none" : "";
       if (this.value === "status") $("editVsPath").value = "";
     });
+  }
+
+  var editVsUrlEl = $("editVsUrl");
+  if (editVsUrlEl) {
+    editVsUrlEl.addEventListener("input", function () { showVsUrlDropdown(this.value); });
+    editVsUrlEl.addEventListener("focus", function () { showVsUrlDropdown(this.value); });
+    editVsUrlEl.addEventListener("blur", function () { var dd = $("vsUrlDropdown"); if (dd) dd.classList.add("hidden"); });
+  }
+
+  var editVsVarNameEl = $("editVsVarName");
+  if (editVsVarNameEl) {
+    editVsVarNameEl.addEventListener("input", function () { showVarDropdownSimple(this); });
+    editVsVarNameEl.addEventListener("focus", function () { showVarDropdownSimple(this); });
+    editVsVarNameEl.addEventListener("blur", function () { var wrap = this.closest(".vs-var-name-wrap"); if (wrap) { var d = wrap.querySelector(".var-dropdown"); if (d) d.remove(); } });
   }
 }

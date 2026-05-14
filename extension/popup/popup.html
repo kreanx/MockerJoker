@@ -254,7 +254,10 @@
       </div>
       <div class="vs-modal-body">
         <label>URL-паттерн <span class="hint">(* = маска)</span></label>
-        <input type="text" id="editVsUrl" placeholder="*/api/login*">
+        <div class="autocomplete-wrap">
+          <input type="text" id="editVsUrl" placeholder="*/api/login*" autocomplete="off">
+          <div id="vsUrlDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
         <label>Источник</label>
         <select id="editVsSource">
           <option value="body">Body (из тела ответа)</option>

@@ -31,6 +31,12 @@ function showGraphqlUrlDropdown(filter) {
   _fillUrlDropdown(dd, filter, "editGraphqlUrl");
 }
 
+function showVsUrlDropdown(filter) {
+  var dd = $("vsUrlDropdown");
+  if (!dd) return;
+  _fillUrlDropdown(dd, filter, "editVsUrl");
+}
+
 function _fillUrlDropdown(dd, filter, targetId) {
   dd.innerHTML = "";
   var items = seenUrls;

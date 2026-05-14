@@ -20,6 +20,19 @@ var hitCounters = {};
 var lastHitTime = {};
 var tabSeenRequests = {};
 var tabVarsMap = {};
+var tabInterceptedCount = {};
+
+function updateBadge(tabId) {
+  var count = tabInterceptedCount[tabId] || 0;
+  var text = count > 0 ? String(count > 999 ? "999+" : count) : "";
+  try {
+    chrome.action.setBadgeText({ text: text, tabId: tabId });
+    chrome.action.setBadgeBackgroundColor({ color: "#cba6f7", tabId: tabId });
+    if (chrome.action.setBadgeTextColor) {
+      chrome.action.setBadgeTextColor({ color: "#1e1e2e", tabId: tabId });
+    }
+  } catch (e) {}
+}
 
 function loadRules() {
   chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true }, function (data) {
@@ -107,6 +120,11 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     var id = msg.ruleId;
     hitCounters[id] = (hitCounters[id] || 0) + 1;
     lastHitTime[id] = msg.timestamp;
+    var senderTabId = sender.tab ? sender.tab.id : null;
+    if (senderTabId) {
+      tabInterceptedCount[senderTabId] = (tabInterceptedCount[senderTabId] || 0) + 1;
+      updateBadge(senderTabId);
+    }
     sendResponse({ success: true });
     return true;
   }
@@ -119,6 +137,10 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === MSG.RESET_HIT_COUNTERS) {
     hitCounters = {};
     lastHitTime = {};
+    tabInterceptedCount = {};
+    chrome.tabs.query({}, function (tabs) {
+      tabs.forEach(function (tab) { updateBadge(tab.id); });
+    });
     sendResponse({ success: true });
     return true;
   }
@@ -149,6 +171,19 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       sendResponse({ requests: all });
     }
     return true;
+  }
+});
+
+chrome.tabs.onRemoved.addListener(function (tabId) {
+  delete tabInterceptedCount[tabId];
+  delete tabVarsMap[tabId];
+  delete tabSeenRequests[tabId];
+});
+
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
+  if (changeInfo.status === "loading" && changeInfo.url) {
+    tabInterceptedCount[tabId] = 0;
+    updateBadge(tabId);
   }
 });
 

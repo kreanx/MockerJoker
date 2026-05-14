@@ -323,7 +323,10 @@
       <div class="vs-modal-body">
         <div class="form-group">
           <label for="editVsUrl">URL-паттерн <span class="hint">(поддерживает * как маску)</span></label>
-          <input type="text" id="editVsUrl" placeholder="*/api/login*">
+          <div class="autocomplete-wrap">
+            <input type="text" id="editVsUrl" placeholder="*/api/login*" autocomplete="off">
+            <div id="vsUrlDropdown" class="autocomplete-dropdown hidden"></div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
