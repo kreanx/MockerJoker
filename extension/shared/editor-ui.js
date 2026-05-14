@@ -168,6 +168,37 @@ function collectSaveVars(containerId) {
   return result;
 }
 
+function showVarDropdownSimple(input) {
+  var existing = input.closest(".vc-var-wrap, .sv-var-wrap, .kv-row, .vs-var-name-wrap");
+  if (existing) {
+    var old = existing.querySelector(".var-dropdown");
+    if (old) old.remove();
+  }
+  var names = getVarNames();
+  if (names.length === 0) return;
+  var partial = input.value.replace(/^\$/, "");
+  var matches = names.filter(function (n) { return n.replace(/^\$/, "").indexOf(partial) === 0; });
+  if (matches.length === 0) return;
+  var dd = document.createElement("div");
+  dd.className = "var-dropdown";
+  matches.forEach(function (name) {
+    var item = document.createElement("div");
+    item.className = "var-dropdown-item";
+    item.textContent = name;
+    item.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      input.value = name.replace(/^\$/, "");
+      dd.remove();
+    });
+    dd.appendChild(item);
+  });
+  var wrap = input.closest(".vc-var-wrap, .sv-var-wrap, .vs-var-name-wrap");
+  if (wrap) {
+    wrap.style.position = "relative";
+    wrap.appendChild(dd);
+  }
+}
+
 function addVarConditionRow(containerId, vc) {
   var varVal = (vc.var || "").replace(/^\$/, "");
   var row = document.createElement("div");
@@ -186,6 +217,10 @@ function addVarConditionRow(containerId, vc) {
   });
   if (vc.operator === "exists") row.querySelector(".vc-value").style.display = "none";
   row.querySelector(".vc-remove").addEventListener("click", function () { row.remove(); });
+  var vcVarInput = row.querySelector(".vc-var");
+  vcVarInput.addEventListener("focus", function () { showVarDropdownSimple(this); });
+  vcVarInput.addEventListener("input", function () { showVarDropdownSimple(this); });
+  vcVarInput.addEventListener("blur", function () { var dd = this.closest(".vc-var-wrap"); if (dd) { var d = dd.querySelector(".var-dropdown"); if (d) d.remove(); } });
   $(containerId).appendChild(row);
 }
 
