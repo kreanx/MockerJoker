@@ -194,10 +194,10 @@
   --jea-gap: 4px;
   --jsr-gap: 6px;
   --jsr-mt: 6px;
-  --jsi-pad: 4px 8px;
+  --jsi-pad: 5px 8px;
   --jsi-radius: 4px;
-  --jsi-fs: 12px;
-  --jsi-w: 140px;
+  --jsi-fs: 14px;
+  --jsi-w: 100%;
   --jsc-fs: 11px;
   --jsc-minw: 36px;
   --jsb-pad: 4px 8px;
