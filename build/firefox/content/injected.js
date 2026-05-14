@@ -304,6 +304,11 @@
   }
 
   function flushTabVars() {
+    console.log(
+      "%c[MockerJoker]%c flushTabVars: keys=[" + Object.keys(tabVars).join(", ") + "]",
+      "background:#8e44ad;color:#fff;padding:2px 6px;border-radius:3px",
+      "color:#8e44ad;font-weight:bold"
+    );
     window.postMessage({ type: PAGE_MSG.TAB_VARS, tabVars: tabVars }, "*");
   }
 
