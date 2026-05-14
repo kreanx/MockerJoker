@@ -1308,7 +1308,7 @@ body {
 }
 
 .vs-modal-content {
-  background: var(--bg-primary);
+  background: #f8f9fa;
   border-radius: 8px;
   width: 90%;
   max-width: 400px;
@@ -1349,8 +1349,8 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: var(--input-fs);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: #ffffff;
+  color: #1a1a1a;
   box-sizing: border-box;
 }
 
