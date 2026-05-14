@@ -1406,3 +1406,29 @@ body {
 .vs-toggle {
   margin: 0;
 }
+
+.var-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #c0c0c0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 500;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.var-dropdown-item {
+  padding: 4px 8px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+  color: #7c3aed;
+  cursor: pointer;
+}
+
+.var-dropdown-item:hover {
+  background: #ede9fe;
+}

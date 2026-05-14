@@ -842,7 +842,6 @@
       rules = event.data.rules || [];
       varSavers = event.data.varSavers || [];
       masterEnabled = event.data.masterEnabled !== false;
-      tabVars = {};
     }
   });
 

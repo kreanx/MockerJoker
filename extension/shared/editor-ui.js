@@ -69,13 +69,59 @@ function collectBodyConditions(containerId) {
   return result;
 }
 
+function getVarNames() {
+  var names = [];
+  if (typeof varSavers !== "undefined" && varSavers) {
+    varSavers.forEach(function (vs) {
+      if (vs.varName && vs.enabled) names.push(vs.varName);
+    });
+  }
+  return names;
+}
+
+function showVarDropdown(input) {
+  var existing = input.parentElement.querySelector(".var-dropdown");
+  if (existing) existing.remove();
+  var val = input.value;
+  var dollarPos = val.lastIndexOf("$");
+  if (dollarPos === -1) return;
+  var partial = val.substring(dollarPos);
+  var names = getVarNames();
+  var matches = names.filter(function (n) { return n.indexOf(partial) === 0; });
+  if (matches.length === 0) return;
+  if (matches.length === 1 && matches[0] === partial) return;
+  var dd = document.createElement("div");
+  dd.className = "var-dropdown";
+  matches.forEach(function (name) {
+    var item = document.createElement("div");
+    item.className = "var-dropdown-item";
+    item.textContent = name;
+    item.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      input.value = val.substring(0, dollarPos) + name;
+      dd.remove();
+    });
+    dd.appendChild(item);
+  });
+  input.parentElement.style.position = "relative";
+  input.parentElement.appendChild(dd);
+}
+
+function hideVarDropdown(input) {
+  var dd = input.parentElement.querySelector(".var-dropdown");
+  if (dd) dd.remove();
+}
+
 function addTransformRow(containerId, t) {
   var row = document.createElement("div");
   row.className = "kv-row";
   row.innerHTML = '<input type="text" class="kv-key" placeholder="items[0].name" value="' + escapeAttr(t.path || "") + '">' +
-    '<input type="text" class="kv-value" placeholder="Новое значение" value="' + escapeAttr(t.value || "") + '">' +
+    '<input type="text" class="kv-value" placeholder="Новое значение или $varName" value="' + escapeAttr(t.value || "") + '">' +
     '<button type="button" class="kv-remove">&times;</button>';
   row.querySelector(".kv-remove").addEventListener("click", function () { row.remove(); });
+  var valInput = row.querySelector(".kv-value");
+  valInput.addEventListener("input", function () { showVarDropdown(this); });
+  valInput.addEventListener("blur", function () { hideVarDropdown(this); });
   $(containerId).appendChild(row);
 }
 
