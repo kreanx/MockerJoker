@@ -62,9 +62,13 @@
       if (rule.match.method && rule.match.method !== "ANY" && rule.match.method !== method) continue;
       if (rule.match.graphqlOperation) {
         var gql = parseGraphQL(reqBody);
-        if (!gql || !gql.operationName) continue;
-        var opRegex = globToRegex(rule.match.graphqlOperation);
-        if (!opRegex.test(gql.operationName)) continue;
+        if (!gql) continue;
+        if (gql.operationName) {
+          var opRegex = globToRegex(rule.match.graphqlOperation);
+          if (!opRegex.test(gql.operationName)) continue;
+        } else if (rule.match.graphqlOperation !== "*") {
+          continue;
+        }
       }
       if (!matchVarConditions(rule.match.varConditions)) continue;
       var at = rule.action && rule.action.type;
