@@ -335,7 +335,7 @@
       var keys = Object.keys(extra);
       for (var i = 0; i < keys.length; i++) obj[keys[i]] = extra[keys[i]];
     }
-    if (rule.action.body !== undefined) obj.body = tryParseBody(rule.action.body);
+    if (rule.action.type === AT.MOCK_RESPONSE && rule.action.body !== undefined) obj.body = tryParseBody(rule.action.body);
     console.log(
       "%c[MockerJoker]%c " + label + ": " + method + " " + url,
       "background:" + bg + ";color:#fff;padding:2px 6px;border-radius:3px",
@@ -458,7 +458,7 @@
         var mh = {};
         if (init && init.headers) init.headers.forEach(function (v, k) { mh[k] = v; });
         reportHit(rr.id, url, method);
-        logAction("#f39c12", "FETCH modifyRequest", method, url, rr, { removeHeaders: rr.action.removeHeaders, setHeaders: rr.action.setHeaders, setQueryParams: rr.action.setQueryParams, removeQueryParams: rr.action.removeQueryParams, method: rr.action.method, transforms: rr.action.transforms, resultHeaders: mh });
+        logAction("#f39c12", "FETCH modifyRequest", method, url, rr, { removeHeaders: rr.action.removeHeaders, setHeaders: rr.action.setHeaders, setQueryParams: rr.action.setQueryParams, removeQueryParams: rr.action.removeQueryParams, method: rr.action.method, transforms: rr.action.transforms, graphqlQuery: rr.action.graphqlQuery || undefined, bodyOverride: rr.action.bodyOverride ? tryParseBody(rr.action.bodyOverride) : undefined, resultHeaders: mh });
       }
     }
     if (bodyObj) { init = init || {}; init.body = JSON.stringify(bodyObj); }
@@ -695,6 +695,8 @@
           removeQueryParams: rr.action.removeQueryParams,
           method: rr.action.method,
           transforms: rr.action.transforms,
+          graphqlQuery: rr.action.graphqlQuery || undefined,
+          bodyOverride: rr.action.bodyOverride ? tryParseBody(rr.action.bodyOverride) : undefined,
           requestHeaders: self.__rmReqHeaders || {}
         });
       }
