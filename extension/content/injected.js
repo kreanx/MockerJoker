@@ -221,6 +221,16 @@
     return val;
   }
 
+  function resolveVarsInString(str) {
+    if (typeof str !== "string" || str.indexOf("$") === -1) return str;
+    return str.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, function (match, name) {
+      var v = tabVars["$" + name];
+      if (v === undefined) return match;
+      if (typeof v === "object") return JSON.stringify(v);
+      return String(v);
+    });
+  }
+
   function applyBodyTransforms(body, transforms) {
     if (!transforms || !transforms.length) return body;
     for (var i = 0; i < transforms.length; i++) {
@@ -456,7 +466,7 @@
         saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
       }
       processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
-      var mockRespBody = mockRule.action.body || "";
+      var mockRespBody = resolveVarsInString(mockRule.action.body || "");
       if (mockRule.action.transforms && mockRule.action.transforms.length > 0) {
         var mockObj = parseRespObj(mockRespBody);
         if (mockObj) {
@@ -491,7 +501,7 @@
           if (mockRule && hasRespBC(mockRule) && matchBodyConditions(parseRespObj(curText), mockRule.match.bodyConditions)) {
             reportHit(mockRule.id, url, method);
             logAction("#e74c3c", "FETCH conditional mock \u2192 " + mockRule.action.status, method, url, mockRule, { status: mockRule.action.status, headers: mockRule.action.headers, responseBody: tryParseBody(curText) });
-            curText = mockRule.action.body || "";
+            curText = resolveVarsInString(mockRule.action.body || "");
             curStatus = mockRule.action.status || DEFAULT_STATUS;
             curStatusText = "";
             var defMockHeaders = {};
@@ -716,7 +726,7 @@
 
       if (mockRule && hasRespBC(mockRule) && matchBodyConditions(respObj, mockRule.match.bodyConditions)) {
         var ms = mockRule.action.status || DEFAULT_STATUS;
-        var mb = mockRule.action.body || "";
+        var mb = resolveVarsInString(mockRule.action.body || "");
         var mh = mockRule.action.headers || {};
         try { Object.defineProperty(self, 'status', { value: ms, configurable: true, writable: true }); } catch(e) {}
         try { Object.defineProperty(self, 'statusText', { value: '', configurable: true, writable: true }); } catch(e) {}
@@ -820,7 +830,7 @@
   function mockXhrResponse(xhr, rule, delay) {
     var action = rule.action;
     var status = action.status || DEFAULT_STATUS;
-    var body = action.body || "";
+    var body = resolveVarsInString(action.body || "");
     if (action.transforms && action.transforms.length > 0) {
       var obj = parseRespObj(body);
       if (obj) {

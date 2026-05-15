@@ -439,6 +439,18 @@ function saveEditor() {
     rule.match.graphqlUrl = "";
   }
   rule.action.type = actionType;
+  rule.action.transforms = [];
+  rule.action.removeHeaders = [];
+  rule.action.setHeaders = {};
+  rule.action.removeResponseHeaders = [];
+  rule.action.setResponseHeaders = {};
+  rule.action.removeQueryParams = [];
+  rule.action.setQueryParams = {};
+  rule.action.method = "";
+  rule.action.status = CONST.DEFAULT_STATUS;
+  rule.action.headers = {};
+  rule.action.body = "";
+  rule.action.delay = CONST.DEFAULT_DELAY;
   if (actionType === ACTION_TYPES.MOCK_RESPONSE) {
     rule.action.status = parseInt($("editStatus").value, 10) || CONST.DEFAULT_STATUS;
     rule.action.headers = collectKvPairs("headersEditor");
