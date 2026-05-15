@@ -120,7 +120,7 @@ function saveVarSaversState() {
 }
 
 function createDefaultVarSaver() {
-  return { id: generateId(), urlPattern: "", source: "body", path: "", varName: "$", enabled: true };
+  return { id: generateId(), urlPattern: "", source: "body", target: "response", path: "", varName: "$", enabled: true };
 }
 
 function toggleRule(id, enabled) {

@@ -303,21 +303,23 @@
     window.postMessage({ type: PAGE_MSG.TAB_VARS, tabVars: tabVars }, "*");
   }
 
-  function processVarSavers(url, respBody, respHeaders, statusCode) {
+  function processVarSavers(url, body, headers, statusCode, target) {
     if (!varSavers || !varSavers.length) return;
     for (var i = 0; i < varSavers.length; i++) {
       var vs = varSavers[i];
       if (!vs.enabled) continue;
+      if (vs.target === "request" && target !== "request") continue;
+      if (vs.target !== "request" && target === "request") continue;
       var regex = globToRegex(vs.urlPattern);
       if (!regex.test(url)) continue;
       var val;
       if (vs.source === "status") {
         val = statusCode;
       } else if (vs.source === "header") {
-        val = respHeaders ? respHeaders[vs.path] || respHeaders[vs.path.toLowerCase()] : undefined;
+        val = headers ? headers[vs.path] || headers[vs.path.toLowerCase()] : undefined;
       } else {
-        if (respBody && typeof respBody === "object") {
-          val = getByPath(respBody, vs.path);
+        if (body && typeof body === "object") {
+          val = getByPath(body, vs.path);
         }
       }
       if (val !== undefined) {
@@ -359,6 +361,15 @@
     if (rule.action.method) {
       init.method = rule.action.method;
     }
+    if (rule.action.graphqlQuery) {
+      if (init.body) {
+        var b = parseReqBody(init.body);
+        if (b && typeof b === "object") {
+          b.query = rule.action.graphqlQuery;
+          init.body = JSON.stringify(b);
+        }
+      }
+    }
     init.headers = headers;
     return init;
   }
@@ -397,6 +408,16 @@
     addSeenRequest(url, method);
     flushSeenRequests();
 
+    var reqHeadersObj = {};
+    if (init && init.headers) {
+      if (typeof init.headers.forEach === "function") {
+        init.headers.forEach(function (v, k) { reqHeadersObj[k] = v; });
+      } else if (typeof init.headers === "object") {
+        for (var hk in init.headers) { reqHeadersObj[hk] = init.headers[hk]; }
+      }
+    }
+    processVarSavers(url, reqBody, reqHeadersObj, null, "request");
+
     var matched = findAllRules(url, method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) return origFetch.apply(this, arguments);
     if (matched.length === 0) {
@@ -404,7 +425,7 @@
         response.clone().text().then(function (text) {
           var hdrs = {};
           response.headers.forEach(function (v, k) { hdrs[k] = v; });
-          processVarSavers(url, parseRespObj(text), hdrs, response.status);
+          processVarSavers(url, parseRespObj(text), hdrs, response.status, "response");
         });
         return response;
       });
@@ -465,7 +486,7 @@
         var mockHeaders = mockRule.action.headers || {};
         saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
       }
-      processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS);
+      processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || DEFAULT_STATUS, "response");
       var mockRespBody = resolveVarsInString(mockRule.action.body || "");
       if (mockRule.action.transforms && mockRule.action.transforms.length > 0) {
         var mockObj = parseRespObj(mockRespBody);
@@ -541,7 +562,7 @@
 
            var hdrObjFinal = {};
           curHeaders.forEach(function(v, k) { hdrObjFinal[k] = v; });
-          processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus);
+          processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus, "response");
           return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
         });
       });
@@ -557,14 +578,14 @@
           reportHit(dr.id, url, method);
           logAction("#9b59b6", "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
         }
-        processVarSavers(url, null, hdrObj, response.status);
+        processVarSavers(url, null, hdrObj, response.status, "response");
         return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
       });
     } else if (respRules.length === 0) {
       fetchPromise = fetchPromise.then(function (response) {
         var hdrObj = {};
         response.headers.forEach(function (v, k) { hdrObj[k] = v; });
-        processVarSavers(url, null, hdrObj, response.status);
+        processVarSavers(url, null, hdrObj, response.status, "response");
         return response;
       });
     }
@@ -595,7 +616,8 @@
     flushSeenRequests();
 
     var reqBody = parseReqBody(body);
-    var matched = findAllRules(this.__rm.url, this.__rm.method, reqBody);
+    processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
+    var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) return origXhrSend.apply(this, arguments);
     if (matched.length === 0) {
       var self2 = this;
@@ -603,7 +625,7 @@
       this.onloadend = function(evt) {
         var hdrs2 = {};
         try { self2.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs2[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status);
+        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status, "response");
         if (origOLE2) origOLE2.call(self2, evt);
       };
       return origXhrSend.apply(this, arguments);
@@ -647,6 +669,13 @@
           methodChanged = rr.action.method;
           self.__rm.method = rr.action.method.toUpperCase();
         }
+        if (rr.action.graphqlQuery) {
+          if (!bodyObj && body) bodyObj = parseReqBody(body);
+          if (bodyObj && typeof bodyObj === "object") {
+            bodyObj.query = rr.action.graphqlQuery;
+            sendBody = JSON.stringify(bodyObj);
+          }
+        }
         if (rr.action.transforms && rr.action.transforms.length > 0) {
           if (!bodyObj && body) bodyObj = parseReqBody(body);
           if (bodyObj) {
@@ -683,7 +712,7 @@
       self.onloadend = function(evt) {
         var hdrs = {};
         try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-        processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status);
+        processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status, "response");
         if (origOLE) origOLE.call(self, evt);
       };
       return origXhrSend.call(self, sendBody);
@@ -705,7 +734,7 @@
       if (mockRule.action.saveVars) {
         saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
       }
-      processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS);
+      processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || DEFAULT_STATUS, "response");
       mockXhrResponse(self, mockRule, mockRule.action.delay || DEFAULT_DELAY);
       return;
     }
@@ -809,7 +838,7 @@
 
       var xhHdrsFinal = {};
       try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) xhHdrsFinal[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-      processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status);
+      processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");
     }
 
     self.onreadystatechange = function(evt) {

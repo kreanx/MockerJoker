@@ -177,6 +177,10 @@
               <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
         <div id="transformsEditor" class="key-value-editor"></div>
         <button id="btnAddTransform" class="btn btn-small">+ Трансформация</button>
+        <div id="graphqlQueryOverrideGroup" class="hidden">
+          <label>GraphQL query <span class="hint">(заменит поле query в теле запроса)</span></label>
+          <textarea id="editGraphqlQueryOverride" rows="3" placeholder="mutation { deleteUser(id: 1) { success } }"></textarea>
+        </div>
         <label>Удалить query-параметры</label>
         <div class="tag-input-row">
           <input type="text" id="inputRemoveQueryParam" placeholder="Имя параметра">
@@ -260,9 +264,14 @@
         </div>
         <label>Источник</label>
         <select id="editVsSource">
-          <option value="body">Body (из тела ответа)</option>
-          <option value="header">Header (из заголовка ответа)</option>
+          <option value="body">Body (из тела)</option>
+          <option value="header">Header (из заголовка)</option>
           <option value="status">Status (HTTP статус-код)</option>
+        </select>
+        <label>Откуда брать</label>
+        <select id="editVsTarget">
+          <option value="response">Из ответа</option>
+          <option value="request">Из запроса</option>
         </select>
         <div id="editVsPathGroup">
           <label>Path <span class="hint">(dot notation)</span></label>

@@ -251,6 +251,7 @@ function toggleActionFields(type) {
   var mbFields = $("modifyBodyFields");
   if (mbFields) mbFields.classList.add("hidden");
   updateGraphqlStatusHint();
+  updateGraphqlQueryOverrideVisibility();
 }
 
 function switchProtoTab(tab) {
@@ -276,6 +277,20 @@ function switchProtoTab(tab) {
     restFields.classList.remove("hidden");
   }
   updateGraphqlStatusHint();
+  updateGraphqlQueryOverrideVisibility();
+}
+
+function updateGraphqlQueryOverrideVisibility() {
+  var group = $("graphqlQueryOverrideGroup");
+  if (!group) return;
+  var isGraphql = $("tabGraphql") && $("tabGraphql").classList.contains("active");
+  var actionType = $("editActionType");
+  var isModifyReq = actionType && (actionType.value === ACTION_TYPES.MODIFY_REQUEST);
+  if (isGraphql && isModifyReq) {
+    group.classList.remove("hidden");
+  } else {
+    group.classList.add("hidden");
+  }
 }
 
 function updateGraphqlStatusHint() {
@@ -393,6 +408,9 @@ function openEditor(ruleId) {
   toggleActionFields(rule.action.type);
   updateGraphqlStatusHint();
 
+  var gqlQEl = $("editGraphqlQueryOverride");
+  if (gqlQEl) gqlQEl.value = rule.action.graphqlQuery || "";
+
   var varCondEl = $("varConditionsEditor");
   if (varCondEl) {
     varCondEl.innerHTML = "";
@@ -466,6 +484,8 @@ function saveEditor() {
     if (removeParamsEl) rule.action.removeQueryParams = collectRemoveHeaderTags("removeQueryParamsTags");
     var setParamsEl = $("setQueryParamsEditor");
     if (setParamsEl) rule.action.setQueryParams = collectKvPairs("setQueryParamsEditor");
+    var gqlQEl = $("editGraphqlQueryOverride");
+    if (gqlQEl && gqlQEl.value.trim()) rule.action.graphqlQuery = gqlQEl.value.trim();
   } else if (actionType === ACTION_TYPES.MODIFY_RESPONSE) {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
@@ -576,11 +596,12 @@ function renderVarSavers() {
   varSavers.forEach(function (vs) {
     var disabledClass = vs.enabled ? "" : " disabled";
     var sourceLabel = vs.source === "body" ? "Body" : vs.source === "header" ? "Header" : "Status";
+    var targetLabel = vs.target === "request" ? "запрос" : "ответ";
     html += '<div class="var-saver-item' + disabledClass + '" data-id="' + vs.id + '">';
     html += '<input type="checkbox" class="vs-toggle" data-id="' + vs.id + '"' + (vs.enabled ? " checked" : "") + '>';
     html += '<div class="vs-info">';
     html += '<span class="vs-name">' + escapeHtml(vs.varName) + '</span>';
-    html += '<span class="vs-detail">' + escapeHtml(vs.urlPattern || "*") + ' &middot; ' + sourceLabel + (vs.path ? ': ' + escapeHtml(vs.path) : '') + '</span>';
+    html += '<span class="vs-detail">' + escapeHtml(vs.urlPattern || "*") + ' &middot; ' + sourceLabel + ' &middot; ' + targetLabel + (vs.path ? ' &middot; ' + escapeHtml(vs.path) : '') + '</span>';
     html += '</div>';
     html += '<div class="vs-actions">';
     html += '<button class="vs-edit" data-id="' + vs.id + '" title="Редактировать">&#9998;</button>';
@@ -598,6 +619,8 @@ function openVarSaverEditor(id) {
   if (!modal) return;
   $("editVsUrl").value = vs.urlPattern || "";
   $("editVsSource").value = vs.source || "body";
+  var editVsTarget = $("editVsTarget");
+  if (editVsTarget) editVsTarget.value = vs.target || "response";
   $("editVsPath").value = vs.source === "status" ? "" : (vs.path || "");
   $("editVsVarName").value = (vs.varName || "").replace(/^\$/, "");
   var pathGroup = $("editVsPathGroup");
@@ -618,6 +641,8 @@ function saveVarSaver() {
   if (!vs) return;
   vs.urlPattern = $("editVsUrl").value.trim();
   vs.source = $("editVsSource").value;
+  var editVsTarget = $("editVsTarget");
+  vs.target = editVsTarget ? editVsTarget.value : "response";
   vs.path = vs.source === "status" ? "" : $("editVsPath").value.trim();
   vs.varName = "$" + $("editVsVarName").value.trim().replace(/^\$/, "");
   if (!vs.varName || vs.varName === "$") {
@@ -686,12 +711,21 @@ function bindVarSaversEvents() {
   var btnCancelVsBtn = $("btnCancelVsBtn");
   if (btnCancelVsBtn) btnCancelVsBtn.addEventListener("click", closeVarSaverEditor);
 
-  var editVsSource = $("editVsSource");
-  if (editVsSource) {
-    editVsSource.addEventListener("change", function () {
+  if (editVsTarget) {
+    editVsTarget.addEventListener("change", function () {
+      var isReq = this.value === "request";
+      var statusOpt = $("editVsSource").querySelector('option[value="status"]');
+      if (statusOpt) statusOpt.disabled = isReq;
+      if (isReq && $("editVsSource").value === "status") $("editVsSource").value = "body";
+      var pathGroup = $("editVsPathGroup");
+      if (pathGroup) pathGroup.style.display = $("editVsSource").value === "status" ? "none" : "";
+    });
+  }
+  var editVsSourceEl = $("editVsSource");
+  if (editVsSourceEl) {
+    editVsSourceEl.addEventListener("change", function () {
       var pathGroup = $("editVsPathGroup");
       if (pathGroup) pathGroup.style.display = this.value === "status" ? "none" : "";
-      if (this.value === "status") $("editVsPath").value = "";
     });
   }
 
