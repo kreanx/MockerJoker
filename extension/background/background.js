@@ -107,6 +107,18 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
   if (msg.type === "saveVarSavers") {
     saveVarSavers(msg.varSavers);
+    var activeVarNames = {};
+    msg.varSavers.forEach(function (vs) {
+      if (vs.varName && vs.enabled) activeVarNames[vs.varName] = true;
+    });
+    for (var tid in tabVarsMap) {
+      var cleaned = {};
+      for (var vn in tabVarsMap[tid]) {
+        if (activeVarNames[vn]) cleaned[vn] = tabVarsMap[tid][vn];
+      }
+      tabVarsMap[tid] = cleaned;
+    }
+    pushToAllTabs();
     sendResponse({ success: true });
     return true;
   }

@@ -900,6 +900,15 @@
       if (Object.keys(tabVars).length === 0 && Object.keys(incomingTabVars).length > 0) {
         tabVars = incomingTabVars;
       }
+      var activeVarNames = {};
+      varSavers.forEach(function (vs) {
+        if (vs.varName && vs.enabled) activeVarNames[vs.varName] = true;
+      });
+      var cleaned = {};
+      for (var vn in tabVars) {
+        if (activeVarNames[vn]) cleaned[vn] = tabVars[vn];
+      }
+      tabVars = cleaned;
       masterEnabled = event.data.masterEnabled !== false;
     }
   });
