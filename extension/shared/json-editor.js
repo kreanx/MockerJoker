@@ -156,6 +156,69 @@ function setupBodyEditor(textareaId, highlightId, msgId) {
   update();
 }
 
+function setupCodeEditor(textareaId, highlightId) {
+  var ta = $(textareaId);
+  if (!ta || ta.dataset.editorInit) return;
+  ta.dataset.editorInit = "1";
+  var wrap = ta.closest(".json-editor-wrap");
+  var lineNums = null;
+  if (wrap) {
+    lineNums = document.createElement("div");
+    lineNums.className = "line-numbers";
+    wrap.insertBefore(lineNums, wrap.firstChild);
+  }
+
+  function updateLineNumbers() {
+    if (!lineNums) return;
+    var lines = ta.value.split("\n").length;
+    var html = "";
+    for (var i = 1; i <= lines; i++) {
+      html += "<span>" + i + "</span>";
+    }
+    lineNums.innerHTML = html;
+  }
+
+  function update() {
+    updateBodyHighlight(textareaId, highlightId);
+    syncEditorHeight();
+    updateLineNumbers();
+  }
+
+  function syncEditorHeight() {
+    var code = $(highlightId);
+    if (!code) return;
+    code.style.height = ta.offsetHeight + "px";
+    if (lineNums) lineNums.style.height = ta.offsetHeight + "px";
+  }
+
+  ta.addEventListener("input", update);
+  ta.addEventListener("scroll", function () {
+    syncBodyScroll(textareaId, highlightId);
+    if (lineNums) lineNums.scrollTop = ta.scrollTop;
+  });
+  ta.addEventListener("focus", function () { if (wrap) wrap.classList.add("focused"); });
+  ta.addEventListener("blur", function () { if (wrap) wrap.classList.remove("focused"); });
+
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(syncEditorHeight).observe(ta);
+  } else {
+    ta.addEventListener("mouseup", syncEditorHeight);
+  }
+
+  ta.addEventListener("keydown", function (e) {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      var start = ta.selectionStart;
+      var end = ta.selectionEnd;
+      ta.value = ta.value.substring(0, start) + "  " + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + 2;
+      update();
+    }
+  });
+
+  update();
+}
+
 function formatBodyIn(textareaId, highlightId, msgId) {
   var ta = $(textareaId);
   if (!ta) return;

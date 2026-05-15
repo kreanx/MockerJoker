@@ -260,9 +260,19 @@
               <div id="transformsEditor" class="key-value-editor"></div>
               <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
+            <div id="restBodyOverrideGroup" class="form-group hidden">
+              <label>Заменить тело запроса <span class="hint">(полная подмена тела)</span></label>
+              <div class="json-editor-wrap">
+                <pre class="json-highlight" aria-hidden="true"><code id="editRestBodyHighlight"></code></pre>
+                <textarea id="editRestBodyOverride" rows="3" placeholder='{"key": "value"}' spellcheck="false"></textarea>
+              </div>
+            </div>
             <div id="graphqlQueryOverrideGroup" class="form-group hidden">
               <label>GraphQL query <span class="hint">(заменит поле query в теле запроса)</span></label>
-              <textarea id="editGraphqlQueryOverride" rows="3" placeholder="mutation { deleteUser(id: 1) { success } }"></textarea>
+              <div class="json-editor-wrap">
+                <pre class="json-highlight" aria-hidden="true"><code id="editGraphqlQueryHighlight"></code></pre>
+                <textarea id="editGraphqlQueryOverride" rows="3" placeholder="mutation { deleteUser(id: 1) { success } }" spellcheck="false"></textarea>
+              </div>
             </div>
             <div class="form-group">
               <label>Удалить query-параметры</label>

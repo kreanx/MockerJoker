@@ -361,15 +361,6 @@
     if (rule.action.method) {
       init.method = rule.action.method;
     }
-    if (rule.action.graphqlQuery) {
-      if (init.body) {
-        var b = parseReqBody(init.body);
-        if (b && typeof b === "object") {
-          b.query = rule.action.graphqlQuery;
-          init.body = JSON.stringify(b);
-        }
-      }
-    }
     init.headers = headers;
     return init;
   }
@@ -448,6 +439,15 @@
         var newUrl = applyUrlModifications(url, rr);
         if (newUrl !== url) { url = newUrl; urlChanged = true; }
         init = applyRequestModifications(init, rr);
+        if (rr.action.graphqlQuery) {
+          if (!bodyObj && init && init.body) bodyObj = parseReqBody(init.body);
+          if (bodyObj && typeof bodyObj === "object") {
+            bodyObj.query = rr.action.graphqlQuery;
+          }
+        }
+        if (rr.action.bodyOverride) {
+          bodyObj = parseReqBody(rr.action.bodyOverride);
+        }
         if (rr.action.transforms && rr.action.transforms.length > 0) {
           if (!bodyObj && init && init.body) bodyObj = parseReqBody(init.body);
           if (bodyObj) {
@@ -675,6 +675,10 @@
             bodyObj.query = rr.action.graphqlQuery;
             sendBody = JSON.stringify(bodyObj);
           }
+        }
+        if (rr.action.bodyOverride) {
+          bodyObj = parseReqBody(rr.action.bodyOverride);
+          sendBody = rr.action.bodyOverride;
         }
         if (rr.action.transforms && rr.action.transforms.length > 0) {
           if (!bodyObj && body) bodyObj = parseReqBody(body);

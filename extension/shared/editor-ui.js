@@ -281,16 +281,13 @@ function switchProtoTab(tab) {
 }
 
 function updateGraphqlQueryOverrideVisibility() {
-  var group = $("graphqlQueryOverrideGroup");
-  if (!group) return;
+  var gqlGroup = $("graphqlQueryOverrideGroup");
+  var restGroup = $("restBodyOverrideGroup");
   var isGraphql = $("tabGraphql") && $("tabGraphql").classList.contains("active");
   var actionType = $("editActionType");
   var isModifyReq = actionType && (actionType.value === ACTION_TYPES.MODIFY_REQUEST);
-  if (isGraphql && isModifyReq) {
-    group.classList.remove("hidden");
-  } else {
-    group.classList.add("hidden");
-  }
+  if (gqlGroup) gqlGroup.classList.toggle("hidden", !(isGraphql && isModifyReq));
+  if (restGroup) restGroup.classList.toggle("hidden", !(!isGraphql && isModifyReq));
 }
 
 function updateGraphqlStatusHint() {
@@ -410,6 +407,8 @@ function openEditor(ruleId) {
 
   var gqlQEl = $("editGraphqlQueryOverride");
   if (gqlQEl) gqlQEl.value = rule.action.graphqlQuery || "";
+  var restBodyEl = $("editRestBodyOverride");
+  if (restBodyEl) restBodyEl.value = rule.action.bodyOverride || "";
 
   var varCondEl = $("varConditionsEditor");
   if (varCondEl) {
@@ -422,6 +421,8 @@ function openEditor(ruleId) {
   loadSeenUrls();
   $("editor").classList.remove("hidden");
   setupBodyEditor("editBody", "editBodyHighlight", "jsonValidMsg");
+  setupCodeEditor("editGraphqlQueryOverride", "editGraphqlQueryHighlight");
+  setupCodeEditor("editRestBodyOverride", "editRestBodyHighlight");
   $("editUrlPattern").focus();
 }
 
@@ -486,6 +487,8 @@ function saveEditor() {
     if (setParamsEl) rule.action.setQueryParams = collectKvPairs("setQueryParamsEditor");
     var gqlQEl = $("editGraphqlQueryOverride");
     if (gqlQEl && gqlQEl.value.trim()) rule.action.graphqlQuery = gqlQEl.value.trim();
+    var restBodyEl = $("editRestBodyOverride");
+    if (restBodyEl && restBodyEl.value.trim()) rule.action.bodyOverride = restBodyEl.value.trim();
   } else if (actionType === ACTION_TYPES.MODIFY_RESPONSE) {
     rule.action.removeResponseHeaders = collectRemoveHeaderTags("removeRespHeadersTags");
     rule.action.setResponseHeaders = collectKvPairs("setRespHeadersEditor");
