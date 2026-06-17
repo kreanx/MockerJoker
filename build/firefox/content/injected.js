@@ -38,8 +38,9 @@
   }
 
   function globToRegex(pattern) {
+    if (!pattern || pattern.length > 500) return /^(?!)/;
     var escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-    escaped = escaped.replace(/\*/g, ".*");
+    escaped = escaped.replace(/\*+/g, ".*");
     return new RegExp("^" + escaped + "$", "i");
   }
 
@@ -161,6 +162,7 @@
     if (parts.length === 0) return;
     var key = parts[0];
     var rest = parts.slice(1);
+    if (key === "__proto__" || key === "constructor" || key === "prototype") return;
     if (key === "*") {
       if (Array.isArray(obj)) {
         for (var i = 0; i < obj.length; i++) {
