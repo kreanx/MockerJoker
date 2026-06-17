@@ -1,6 +1,7 @@
 function highlightJSON(str) {
   if (!str) return "\n";
   var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  if (str.length > 50000) return s + "\n";
   return s.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     function (m) {

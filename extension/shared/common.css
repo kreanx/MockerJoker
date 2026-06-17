@@ -398,11 +398,9 @@ body {
   padding: 0;
   border: none;
   border-radius: 0;
-  overflow-wrap: anywhere;
 }
 
 .json-highlight code span {
-  overflow-wrap: anywhere;
 }
 
 .json-editor-wrap textarea::-webkit-scrollbar {
@@ -1054,7 +1052,7 @@ input.json-search-input:focus {
   color: var(--text-primary);
   z-index: 1;
   tab-size: 2;
-  scrollbar-width: none;
+  scrollbar-gutter: stable;
   box-sizing: border-box;
 }
 
@@ -1076,6 +1074,7 @@ input.json-search-input:focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow: auto;
+  scrollbar-gutter: stable;
   z-index: 2;
   tab-size: 2;
   box-sizing: border-box;
