@@ -423,6 +423,7 @@ function openEditor(ruleId) {
   setupBodyEditor("editBody", "editBodyHighlight", "jsonValidMsg");
   setupCodeEditor("editGraphqlQueryOverride", "editGraphqlQueryHighlight");
   setupCodeEditor("editRestBodyOverride", "editRestBodyHighlight");
+  updateBodyHighlight("editBody", "editBodyHighlight");
   $("editUrlPattern").focus();
 }
 
