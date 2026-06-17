@@ -540,6 +540,36 @@ input.json-search-input:focus {
   color: var(--ctp-crust);
 }
 
+.editor-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.editor-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+
+.editor-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.editor-tab.active {
+  color: var(--ctp-mauve);
+  box-shadow: inset 0 -2px 0 var(--ctp-mauve);
+}
+
 .vc-row .vc-value {
   flex: 2;
 }

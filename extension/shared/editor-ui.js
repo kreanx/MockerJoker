@@ -512,6 +512,17 @@ function bindEditorEvents() {
   $("editUrlPattern").addEventListener("blur", function () { $("urlDropdown").classList.add("hidden"); });
   $("editActionType").addEventListener("change", function () { toggleActionFields(this.value); });
 
+  document.querySelectorAll(".editor-tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var tabName = this.getAttribute("data-tab");
+      document.querySelectorAll(".editor-tab").forEach(function (t) { t.classList.remove("active"); });
+      this.classList.add("active");
+      document.querySelectorAll(".editor-tab-content").forEach(function (c) { c.classList.add("hidden"); });
+      var content = document.querySelector('.editor-tab-content[data-tab="' + tabName + '"]');
+      if (content) content.classList.remove("hidden");
+    });
+  });
+
   $("tabRest").addEventListener("click", function () { switchProtoTab("rest"); });
   $("tabGraphql").addEventListener("click", function () { switchProtoTab("graphql"); });
 

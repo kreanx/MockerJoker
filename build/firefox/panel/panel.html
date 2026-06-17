@@ -111,7 +111,12 @@
           <span id="editorTitle">Новое правило</span>
           <button id="btnCloseEditor" class="btn-close">&times;</button>
         </div>
+        <div class="editor-tabs">
+          <button class="editor-tab active" data-tab="match">Условия</button>
+          <button class="editor-tab" data-tab="action">Действие</button>
+        </div>
         <div class="editor-body">
+          <div class="editor-tab-content" data-tab="match">
           <div class="section-match">
             <div class="section-label">Условия мэтчинга</div>
             <div class="form-section">
@@ -186,6 +191,8 @@
             </div>
           </div>
           </div>
+          </div>
+          <div class="editor-tab-content hidden" data-tab="action">
 
           <div class="section-action">
             <div class="section-label">Действие</div>
@@ -309,6 +316,7 @@
               <div id="respTransformsEditor" class="key-value-editor"></div>
               <button id="btnAddRespTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
+          </div>
           </div>
           </div>
         </div>

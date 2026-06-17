@@ -60,7 +60,12 @@
       <span id="editorTitle">Новое правило</span>
       <button id="btnCloseEditor" class="btn-close">&times;</button>
     </div>
+    <div class="editor-tabs">
+      <button class="editor-tab active" data-tab="match">Условия</button>
+      <button class="editor-tab" data-tab="action">Действие</button>
+    </div>
     <div class="editor-body">
+      <div class="editor-tab-content" data-tab="match">
       <div class="section-match">
         <div class="section-label">Условия мэтчинга</div>
         <label>Название</label>
@@ -117,7 +122,8 @@
         <div id="varConditionsEditor" class="vc-editor"></div>
         <button id="btnAddVc" class="btn btn-small">+ Условие на переменную</button>
       </div>
-
+      </div>
+      <div class="editor-tab-content hidden" data-tab="action">
       <div class="section-action">
         <div class="section-label">Действие</div>
         <div id="mockResponseFields">
@@ -215,6 +221,7 @@
               <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
         <div id="respTransformsEditor" class="key-value-editor"></div>
         <button id="btnAddRespTransform" class="btn btn-small">+ Трансформация</button>
+      </div>
       </div>
       </div>
     </div>
