@@ -47,7 +47,8 @@ var CONST = {
     RESET_HIT_COUNTERS: "resetHitCounters",
     SEEN_REQUESTS: "seenRequests",
     GET_SEEN_REQUESTS: "getSeenRequests",
-    TAB_VARS: "tabVars"
+    TAB_VARS: "tabVars",
+    INTERCEPTION: "interception"
   },
 
   PAGE_MSG: {
@@ -55,8 +56,10 @@ var CONST = {
     INIT: "REQUEST_MOCKER_INIT",
     HIT: "REQUEST_MOCKER_HIT",
     SEEN: "REQUEST_MOCKER_SEEN",
-    TAB_VARS: "REQUEST_MOCKER_TAB_VARS"
+    TAB_VARS: "REQUEST_MOCKER_TAB_VARS",
+    INTERCEPTION: "REQUEST_MOCKER_INTERCEPTION"
   },
+  INTERCEPTION_LIMIT: 500,
 
   LOG_COLORS: {
     MOCK: "#e74c3c",

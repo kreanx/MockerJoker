@@ -93,6 +93,13 @@
         tabVars: data.tabVars
       });
     }
+
+    if (data.type === CONST.PAGE_MSG.INTERCEPTION) {
+      safeSendMessage({
+        type: CONST.MSG.INTERCEPTION,
+        data: data.data
+      });
+    }
   });
 
   chrome.runtime.onMessage.addListener(function (msg) {

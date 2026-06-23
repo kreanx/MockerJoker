@@ -12,6 +12,8 @@ var lastHitTime = {};
 var tabSeenRequests = {};
 var tabVarsMap = {};
 var tabInterceptedCount = {};
+var interceptionLog = {};
+var devtoolsPort = null;
 
 function updateBadge(tabId) {
   var count = tabInterceptedCount[tabId] || 0;
@@ -175,12 +177,35 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     }
     return true;
   }
+  if (msg.type === CONST.MSG.INTERCEPTION) {
+    var tabId = sender.tab ? sender.tab.id : "unknown";
+    if (!interceptionLog[tabId]) interceptionLog[tabId] = [];
+    var log = interceptionLog[tabId];
+    log.push(msg.data);
+    if (log.length > CONST.INTERCEPTION_LIMIT) log.shift();
+    if (devtoolsPort) {
+      devtoolsPort.postMessage({ type: "interception", tabId: tabId, data: msg.data });
+    }
+    sendResponse({ success: true });
+    return true;
+  }
 });
+chrome.runtime.onConnect.addListener(function (port) {
+  if (port.name === "devtools") {
+    devtoolsPort = port;
+    port.postMessage({ type: "backlog", data: interceptionLog });
+    port.onDisconnect.addListener(function () {
+      if (devtoolsPort === port) devtoolsPort = null;
+    });
+  }
+});
+
 
 chrome.tabs.onRemoved.addListener(function (tabId) {
   delete tabInterceptedCount[tabId];
   delete tabVarsMap[tabId];
   delete tabSeenRequests[tabId];
+  delete interceptionLog[tabId];
 });
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {

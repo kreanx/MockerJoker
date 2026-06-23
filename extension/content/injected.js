@@ -331,6 +331,12 @@
     flushTabVars();
   }
 
+  function reportInterception(data) {
+    data.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    data.timestamp = Date.now();
+    window.postMessage({ type: CONST.PAGE_MSG.INTERCEPTION, data: data }, "*");
+  }
+
   function logAction(bg, label, method, url, rule, extra) {
     var obj = { rule: rule.name };
     if (extra) {
@@ -498,6 +504,16 @@
           mockRespBody = JSON.stringify(mockObj);
         }
       }
+      reportInterception({
+        url: url, method: method, matched: true,
+        ruleId: mockRule.id, ruleName: mockRule.name,
+        actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
+        status: mockRule.action.status || CONST.DEFAULT_STATUS,
+        headers: mockRule.action.headers || {},
+        body: mockRespBody,
+        delay: mockRule.action.delay || CONST.DEFAULT_DELAY
+      });
+
       return new Promise(function (resolve) {
         setTimeout(function () {
           var defHeaders = {};
@@ -535,6 +551,14 @@
               saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS);
             }
             mocked = true;
+            reportInterception({
+              url: url, method: method, matched: true,
+              ruleId: mockRule.id, ruleName: mockRule.name,
+              actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
+              status: curStatus,
+              body: curText,
+              originalBody: responseText
+            });
           }
 
           if (!mocked) {
@@ -566,6 +590,15 @@
            var hdrObjFinal = {};
           curHeaders.forEach(function(v, k) { hdrObjFinal[k] = v; });
           processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus, "response");
+          reportInterception({
+            url: url, method: method, matched: true,
+            ruleId: modRespRules.length ? modRespRules[0].id : null,
+            ruleName: modRespRules.length ? modRespRules[0].name : null,
+            actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
+            status: curStatus,
+            body: curText,
+            originalBody: responseText
+          });
           return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
         });
       });
@@ -582,6 +615,14 @@
           logAction("#9b59b6", "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
         }
         processVarSavers(url, null, hdrObj, response.status, "response");
+        reportInterception({
+          url: url, method: method, matched: true,
+          ruleId: modRespRules.length ? modRespRules[0].id : null,
+          ruleName: modRespRules.length ? modRespRules[0].name : null,
+          actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
+          status: response.status,
+          body: null
+        });
         return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
       });
     } else if (respRules.length === 0) {
@@ -745,6 +786,15 @@
         saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS);
       }
       processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS, "response");
+        reportInterception({
+          url: self.__rm.url, method: self.__rm.method, matched: true,
+          ruleId: mockRule.id, ruleName: mockRule.name,
+          actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
+          status: mockRule.action.status || CONST.DEFAULT_STATUS,
+          headers: mockRule.action.headers || {},
+          body: mockRule.action.body || CONST.DEFAULT_BODY,
+          delay: mockRule.action.delay || CONST.DEFAULT_DELAY
+        });
       mockXhrResponse(self, mockRule, mockRule.action.delay || CONST.DEFAULT_DELAY);
       return;
     }
@@ -785,6 +835,14 @@
           saveVariables(mockRule.action.saveVars, tryParseBody(mb), mh, ms);
         }
         mocked = true;
+        reportInterception({
+          url: self.__rm.url, method: self.__rm.method, matched: true,
+          ruleId: mockRule.id, ruleName: mockRule.name,
+          actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
+          status: ms,
+          body: mb,
+          originalBody: self.responseText
+        });
       }
 
       if (!mocked && modRespRules.length > 0) {
@@ -848,6 +906,14 @@
 
       var xhHdrsFinal = {};
       try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) xhHdrsFinal[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
+      reportInterception({
+        url: self.__rm.url, method: self.__rm.method, matched: true,
+        ruleId: modRespRules.length ? modRespRules[0].id : null,
+        ruleName: modRespRules.length ? modRespRules[0].name : null,
+        actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
+        status: self.status,
+        body: curText
+      });
       processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");
     }
 
