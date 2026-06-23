@@ -3,3 +3,4 @@ dist/*.zip
 build/firefox/
 .DS_Store
 AGENTS.md
+build/chrome/
