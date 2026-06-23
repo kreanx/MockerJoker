@@ -420,24 +420,32 @@
     var matched = findAllRules(url, method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {
       return origFetch.apply(this, arguments).then(function (response) {
-        reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
+        var hdrs = {};
+        response.headers.forEach(function(v,k) { hdrs[k] = v; });
+        response.clone().text().then(function(text) {
+          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
+        });
         return response;
       });
     }
     if (matched.length === 0) {
       if (!hasMatchingResponseVarSaver(url)) {
         return origFetch.apply(this, arguments).then(function (response) {
-          reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
+          var hdrs = {};
+          response.headers.forEach(function(v,k) { hdrs[k] = v; });
+          response.clone().text().then(function(text) {
+            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
+          });
           return response;
         });
       }
       return origFetch.apply(this, arguments).then(function (response) {
-        response.clone().text().then(function (text) {
-          var hdrs = {};
-          response.headers.forEach(function (v, k) { hdrs[k] = v; });
+        var hdrs = {};
+        response.headers.forEach(function(v,k) { hdrs[k] = v; });
+        response.clone().text().then(function(text) {
           processVarSavers(url, parseRespObj(text), hdrs, response.status, "response");
+          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
         });
-        reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
         return response;
       });
     }
@@ -641,12 +649,16 @@
         var hdrObj = {};
         response.headers.forEach(function (v, k) { hdrObj[k] = v; });
         processVarSavers(url, null, hdrObj, response.status, "response");
-        reportInterception({
-          url: url, method: method, matched: reqRules.length > 0,
-          ruleId: reqRules.length ? reqRules[0].id : null,
-          ruleName: reqRules.length ? reqRules[0].name : null,
-          actionType: reqRules.length ? reqRules[0].action.type : null,
-          status: response.status, body: null
+        var hdrObj2 = {};
+        response.headers.forEach(function (v, k) { hdrObj2[k] = v; });
+        response.clone().text().then(function(text) {
+          reportInterception({
+            url: url, method: method, matched: reqRules.length > 0,
+            ruleId: reqRules.length ? reqRules[0].id : null,
+            ruleName: reqRules.length ? reqRules[0].name : null,
+            actionType: reqRules.length ? reqRules[0].action.type : null,
+            status: response.status, headers: hdrObj2, body: text
+          });
         });
         return response;
       });
@@ -670,6 +682,17 @@
     return origXhrSetHeader.apply(this, arguments);
   };
 
+  OrigXHR.prototype.$rmHdrs = function () {
+    var hdrs = {};
+    try {
+      this.getAllResponseHeaders().split("\r\n").forEach(function (line) {
+        var p = line.split(": ");
+        if (p[0]) hdrs[p[0].toLowerCase()] = p.slice(1).join(": ");
+      });
+    } catch (e) {}
+    return hdrs;
+  };
+
   OrigXHR.prototype.send = function (body) {
     var self = this;
     if (!this.__rm) return origXhrSend.apply(this, arguments);
@@ -683,7 +706,7 @@
     if (matched.length === 0 && varSavers.length === 0) {
       var origOLEpt = self.onloadend;
       self.onloadend = function (evt) {
-        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, body: null });
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: self.responseText });
         if (origOLEpt) origOLEpt.call(self, evt);
       };
       return origXhrSend.apply(this, arguments);
@@ -692,7 +715,7 @@
       if (!hasMatchingResponseVarSaver(self.__rm.url)) {
         var origOLEvs = self.onloadend;
         self.onloadend = function (evt) {
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, body: null });
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: self.responseText });
           if (origOLEvs) origOLEvs.call(self, evt);
         };
         return origXhrSend.apply(this, arguments);
@@ -801,7 +824,7 @@
           ruleId: reqRules.length ? reqRules[0].id : null,
           ruleName: reqRules.length ? reqRules[0].name : null,
           actionType: reqRules.length ? reqRules[0].action.type : null,
-          status: self.status, body: null
+          status: self.status, headers: hdrs, body: self.responseText
         });
         if (origOLE) origOLE.call(self, evt);
       };

@@ -5,28 +5,48 @@
   <link rel="stylesheet" href="../shared/common.css">
   <link rel="stylesheet" href="panel.css">
   <style>
-    body { margin: 0; padding: 8px; background: var(--bg-primary, #1e1e2e); color: var(--text-primary, #cdd6f4); font-size: 13px; }
+    body { margin: 0; padding: 0; background: var(--bg-primary, #1e1e2e); color: var(--text-primary, #cdd6f4); font-size: 13px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <input type="text" id="filterInput" placeholder="Фильтр по URL, правилу или методу...">
+    <input type="text" id="filterInput" placeholder="Фильтр по URL, правилу, методу или статусу...">
     <span id="countLabel"></span>
     <button id="clearBtn">Очистить</button>
   </div>
-  <table id="interceptionTable">
-    <thead>
-      <tr>
-        <th>Время</th>
-        <th>Метод</th>
-        <th>URL</th>
-        <th>Статус</th>
-        <th>Действие</th>
-        <th>Правило</th>
-      </tr>
-    </thead>
-    <tbody id="logBody"></tbody>
-  </table>
+  <div id="tableWrap">
+    <table id="interceptionTable">
+      <thead>
+        <tr>
+          <th class="col-time">Время</th>
+          <th class="col-method">Метод</th>
+          <th class="col-url">URL</th>
+          <th class="col-status">Статус</th>
+          <th class="col-action">Действие</th>
+          <th class="col-rule">Правило</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+  <div id="detailPanel" class="hidden">
+    <div id="detailHeader">
+      <span id="detailTitle"></span>
+      <button id="closeDetail" title="Закрыть">&times;</button>
+    </div>
+    <div id="detailTabs">
+      <button class="dt-tab active" data-tab="general">Общее</button>
+      <button class="dt-tab" data-tab="headers">Заголовки</button>
+      <button class="dt-tab" data-tab="body">Ответ</button>
+      <button class="dt-tab dt-tab-orig hidden" data-tab="original">Оригинал</button>
+    </div>
+    <div id="detailContent">
+      <div id="tab-general" class="dt-pane active"></div>
+      <div id="tab-headers" class="dt-pane"></div>
+      <div id="tab-body" class="dt-pane"></div>
+      <div id="tab-original" class="dt-pane"></div>
+    </div>
+  </div>
   <script src="panel.js"></script>
 </body>
 </html>
