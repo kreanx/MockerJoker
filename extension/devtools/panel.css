@@ -43,3 +43,9 @@ body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 .status-error { color: var(--ctp-red, #f38ba8); }
 
 #interceptionTable tbody tr:hover { background: var(--ctp-surface0, #313244); }
+
+/* Highlight intercepted/mocked requests vs passthrough */
+.row-matched { background: rgba(137, 180, 250, 0.08); }
+.row-matched .col-action { color: var(--ctp-blue, #89b4fa); font-weight: 600; }
+.row-passthrough { opacity: 0.7; }
+.row-passthrough .col-action { color: var(--text-secondary, #6c7086); }

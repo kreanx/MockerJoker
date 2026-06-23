@@ -418,15 +418,26 @@
     processVarSavers(url, reqBody, reqHeadersObj, null, "request");
 
     var matched = findAllRules(url, method, reqBody);
-    if (matched.length === 0 && varSavers.length === 0) return origFetch.apply(this, arguments);
+    if (matched.length === 0 && varSavers.length === 0) {
+      return origFetch.apply(this, arguments).then(function (response) {
+        reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
+        return response;
+      });
+    }
     if (matched.length === 0) {
-      if (!hasMatchingResponseVarSaver(url)) return origFetch.apply(this, arguments);
+      if (!hasMatchingResponseVarSaver(url)) {
+        return origFetch.apply(this, arguments).then(function (response) {
+          reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
+          return response;
+        });
+      }
       return origFetch.apply(this, arguments).then(function (response) {
         response.clone().text().then(function (text) {
           var hdrs = {};
           response.headers.forEach(function (v, k) { hdrs[k] = v; });
           processVarSavers(url, parseRespObj(text), hdrs, response.status, "response");
         });
+        reportInterception({ url: url, method: method, matched: false, status: response.status, body: null });
         return response;
       });
     }
@@ -630,6 +641,13 @@
         var hdrObj = {};
         response.headers.forEach(function (v, k) { hdrObj[k] = v; });
         processVarSavers(url, null, hdrObj, response.status, "response");
+        reportInterception({
+          url: url, method: method, matched: reqRules.length > 0,
+          ruleId: reqRules.length ? reqRules[0].id : null,
+          ruleName: reqRules.length ? reqRules[0].name : null,
+          actionType: reqRules.length ? reqRules[0].action.type : null,
+          status: response.status, body: null
+        });
         return response;
       });
     }
@@ -662,9 +680,23 @@
     var reqBody = parseReqBody(body);
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
-    if (matched.length === 0 && varSavers.length === 0) return origXhrSend.apply(this, arguments);
+    if (matched.length === 0 && varSavers.length === 0) {
+      var origOLEpt = self.onloadend;
+      self.onloadend = function (evt) {
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, body: null });
+        if (origOLEpt) origOLEpt.call(self, evt);
+      };
+      return origXhrSend.apply(this, arguments);
+    }
     if (matched.length === 0) {
-      if (!hasMatchingResponseVarSaver(self.__rm.url)) return origXhrSend.apply(this, arguments);
+      if (!hasMatchingResponseVarSaver(self.__rm.url)) {
+        var origOLEvs = self.onloadend;
+        self.onloadend = function (evt) {
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, body: null });
+          if (origOLEvs) origOLEvs.call(self, evt);
+        };
+        return origXhrSend.apply(this, arguments);
+      }
       var self2 = this;
       var origOLE2 = this.onloadend;
       this.onloadend = function(evt) {
@@ -764,6 +796,13 @@
         var hdrs = {};
         try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
         processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status, "response");
+        reportInterception({
+          url: self.__rm.url, method: self.__rm.method, matched: reqRules.length > 0,
+          ruleId: reqRules.length ? reqRules[0].id : null,
+          ruleName: reqRules.length ? reqRules[0].name : null,
+          actionType: reqRules.length ? reqRules[0].action.type : null,
+          status: self.status, body: null
+        });
         if (origOLE) origOLE.call(self, evt);
       };
       return origXhrSend.call(self, sendBody);
