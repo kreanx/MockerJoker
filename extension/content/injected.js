@@ -37,11 +37,18 @@
     try { return new URL(url, window.location.href).href; } catch(e) { return url; }
   }
 
+  var _globCache = {};
+  var _globCacheSize = 0;
+  var _GLOB_CACHE_MAX = 256;
   function globToRegex(pattern) {
     if (!pattern || pattern.length > 500) return /^(?!)/;
+    var cached = _globCache[pattern];
+    if (cached) return cached;
     var escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
     escaped = escaped.replace(/\*+/g, ".*");
-    return new RegExp("^" + escaped + "$", "i");
+    var re = new RegExp("^" + escaped + "$", "i");
+    if (_globCacheSize < _GLOB_CACHE_MAX) { _globCache[pattern] = re; _globCacheSize++; }
+    return re;
   }
 
   function parseGraphQL(body) {
@@ -305,6 +312,18 @@
     window.postMessage({ type: PAGE_MSG.TAB_VARS, tabVars: tabVars }, "*");
   }
 
+  // Cheap pre-check: does any response-target varSaver care about this URL?
+  // Avoids response.clone().text() (full body read) on every fetch/XHR when no
+  // varSaver actually matches.
+  function hasMatchingResponseVarSaver(url) {
+    for (var i = 0; i < varSavers.length; i++) {
+      var vs = varSavers[i];
+      if (!vs.enabled || vs.target === "request") continue;
+      if (globToRegex(vs.urlPattern).test(url)) return true;
+    }
+    return false;
+  }
+
   function processVarSavers(url, body, headers, statusCode, target) {
     if (!varSavers || !varSavers.length) return;
     for (var i = 0; i < varSavers.length; i++) {
@@ -414,6 +433,7 @@
     var matched = findAllRules(url, method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) return origFetch.apply(this, arguments);
     if (matched.length === 0) {
+      if (!hasMatchingResponseVarSaver(url)) return origFetch.apply(this, arguments);
       return origFetch.apply(this, arguments).then(function (response) {
         response.clone().text().then(function (text) {
           var hdrs = {};
@@ -622,6 +642,7 @@
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) return origXhrSend.apply(this, arguments);
     if (matched.length === 0) {
+      if (!hasMatchingResponseVarSaver(self.__rm.url)) return origXhrSend.apply(this, arguments);
       var self2 = this;
       var origOLE2 = this.onloadend;
       this.onloadend = function(evt) {
@@ -951,4 +972,24 @@
   });
 
   window.postMessage({ type: PAGE_MSG.INIT }, "*");
+  // Test-only export. Inert in production: globalThis.__RM_TEST_EXPORT is
+  // undefined in the browser, so this never runs outside the Node test harness.
+  if (typeof globalThis !== "undefined" && typeof globalThis.__RM_TEST_EXPORT === "function") {
+    globalThis.__RM_TEST_EXPORT({
+      globToRegex: globToRegex,
+      parseGraphQL: parseGraphQL,
+      findAllRules: findAllRules,
+      splitPath: splitPath,
+      getByPath: getByPath,
+      setByPath: setByPath,
+      matchBodyConditions: matchBodyConditions,
+      resolveVarsInString: resolveVarsInString,
+      applyBodyTransforms: applyBodyTransforms,
+      parseValue: parseValue,
+      matchVarConditions: matchVarConditions,
+      saveVariables: saveVariables,
+      hasMatchingResponseVarSaver: hasMatchingResponseVarSaver,
+      _setRuntime: function (r, vs, tv, me) { rules = r || []; varSavers = vs || []; tabVars = tv || {}; masterEnabled = me !== false; }
+    });
+  }
 })();

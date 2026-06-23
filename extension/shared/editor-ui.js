@@ -562,8 +562,6 @@ function bindEditorEvents() {
   $("btnFormatBodyFS").addEventListener("click", function () { formatBodyIn("editBodyFS", "editBodyHighlightFS", "jsonValidMsgFS"); });
   $("btnCloseFullscreen").addEventListener("click", closeBodyFullscreen);
   $("btnApplyFullscreen").addEventListener("click", closeBodyFullscreen);
-  $("editBodyFS").addEventListener("input", function () { updateBodyHighlight("editBodyFS", "editBodyHighlightFS"); validateJSONBody("editBodyFS", "jsonValidMsgFS"); });
-  $("editBodyFS").addEventListener("scroll", function () { syncBodyScroll("editBodyFS", "editBodyHighlightFS"); });
 
   $("btnExport").addEventListener("click", exportRules);
   $("btnImport").addEventListener("click", function () { $("importFile").click(); });

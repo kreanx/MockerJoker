@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Browser extension + mock server for HTTP request mocking in corporate network",
   "scripts": {
-    "server": "node server/server.mjs"
+    "server": "node server/server.mjs",
+    "test": "node --test test/"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }

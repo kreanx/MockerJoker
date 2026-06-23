@@ -1,7 +1,7 @@
 function highlightJSON(str) {
   if (!str) return "\n";
   var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  if (str.length > 50000) return s + "\n";
+  if (str.length > 1000000) return s + "\n";
   return s.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     function (m) {
@@ -21,21 +21,49 @@ function highlightJSON(str) {
 function applySearchHighlight(html, query) {
   if (!query) return html;
   var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  var re = new RegExp("(" + escaped + ")", "gi");
-  return html.replace(re, function(match, p1, offset, string) {
-    var before = string.substring(0, offset);
-    var lastOpen = before.lastIndexOf("<");
-    var lastClose = before.lastIndexOf(">");
-    if (lastOpen > lastClose) return match;
-    return '<mark class="search-match">' + match + "</mark>";
-  });
+  var re = new RegExp(escaped, "gi");
+  // Single forward pass: mark every position as "inside markup" or not, so we
+  // skip matches that fall inside <span>/<mark> tags without re-scanning per
+  // match (the old per-match substring + lastIndexOf made this O(n^2)).
+  var inTag = new Uint8Array(html.length);
+  var inTagNow = 0;
+  for (var i = 0; i < html.length; i++) {
+    var c = html.charCodeAt(i);
+    if (c === 60) inTagNow = 1;        // '<'
+    else if (c === 62) inTagNow = 0;   // '>'
+    inTag[i] = inTagNow;
+  }
+  var out = [];
+  var last = 0;
+  var m;
+  while ((m = re.exec(html)) !== null) {
+    if (m[0].length === 0) { re.lastIndex++; continue; }
+    if (inTag[m.index]) continue;      // match is inside markup — skip
+    out.push(html.substring(last, m.index));
+    out.push('<mark class="search-match">' + m[0] + "</mark>");
+    last = m.index + m[0].length;
+  }
+  out.push(html.substring(last));
+  return out.join("");
+}
+
+// Tokenized (syntax-highlighted) HTML is expensive to rebuild and depends only
+// on the textarea value — cache it so typing in the search box never retokenizes.
+var _hlCache = {};
+
+function getHighlightedHTML(textareaId, ta) {
+  var cached = _hlCache[textareaId];
+  if (cached && cached.value === ta.value) return cached.html;
+  var html = highlightJSON(ta.value);
+  _hlCache[textareaId] = { value: ta.value, html: html };
+  return html;
 }
 
 function updateBodyHighlight(textareaId, highlightId) {
   var ta = $(textareaId);
   var code = $(highlightId);
   if (!ta || !code) return;
-  var html = highlightJSON(ta.value);
+  var html = getHighlightedHTML(textareaId, ta);
   var query = ta.dataset.searchQuery || "";
   if (query) {
     html = applySearchHighlight(html, query);
@@ -91,9 +119,12 @@ function setupBodyEditor(textareaId, highlightId, msgId) {
     wrap.insertBefore(lineNums, wrap.firstChild);
   }
 
+  var lastLineCount = -1;
   function updateLineNumbers() {
     if (!lineNums) return;
     var lines = ta.value.split("\n").length;
+    if (lines === lastLineCount) return;
+    lastLineCount = lines;
     var html = "";
     for (var i = 1; i <= lines; i++) {
       html += "<span>" + i + "</span>";
@@ -169,9 +200,12 @@ function setupCodeEditor(textareaId, highlightId) {
     wrap.insertBefore(lineNums, wrap.firstChild);
   }
 
+  var lastLineCount = -1;
   function updateLineNumbers() {
     if (!lineNums) return;
     var lines = ta.value.split("\n").length;
+    if (lines === lastLineCount) return;
+    lastLineCount = lines;
     var html = "";
     for (var i = 1; i <= lines; i++) {
       html += "<span>" + i + "</span>";
@@ -310,7 +344,11 @@ function setupSearch(textareaId, highlightId, inputId, countId, prevId, nextId) 
     selectAndScroll();
   }
 
-  input.addEventListener("input", findMatches);
+  var searchTimer = null;
+  input.addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(findMatches, 120);
+  });
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); e.shiftKey ? prev() : next(); }
   });
