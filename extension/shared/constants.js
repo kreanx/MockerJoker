@@ -20,6 +20,7 @@ var CONST = {
 
   SEEN_MAX: 100,
 
+  // Flat keys for backwards compat (panel/popup use them)
   MSG_RULES_UPDATED: "rulesUpdated",
   MSG_GET_RULES: "getRules",
   MSG_SAVE_RULES: "saveRules",
@@ -34,6 +35,28 @@ var CONST = {
   PAGE_MSG_INIT: "REQUEST_MOCKER_INIT",
   PAGE_MSG_HIT: "REQUEST_MOCKER_HIT",
   PAGE_MSG_SEEN: "REQUEST_MOCKER_SEEN",
+
+  // Nested objects for content/injected/background (single source of truth)
+  MSG: {
+    GET_RULES: "getRules",
+    SAVE_RULES: "saveRules",
+    OPEN_PANEL: "openPanel",
+    RULES_UPDATED: "rulesUpdated",
+    HIT_COUNT: "hitCount",
+    GET_HIT_COUNTERS: "getHitCounters",
+    RESET_HIT_COUNTERS: "resetHitCounters",
+    SEEN_REQUESTS: "seenRequests",
+    GET_SEEN_REQUESTS: "getSeenRequests",
+    TAB_VARS: "tabVars"
+  },
+
+  PAGE_MSG: {
+    RULES: "REQUEST_MOCKER_RULES",
+    INIT: "REQUEST_MOCKER_INIT",
+    HIT: "REQUEST_MOCKER_HIT",
+    SEEN: "REQUEST_MOCKER_SEEN",
+    TAB_VARS: "REQUEST_MOCKER_TAB_VARS"
+  },
 
   LOG_COLORS: {
     MOCK: "#e74c3c",

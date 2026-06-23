@@ -17,13 +17,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content.js"],
+      "js": ["shared/constants.js", "content/content.js"],
       "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content/injected.js", "panel/panel.html"],
+      "resources": ["content/injected.js", "shared/constants.js", "panel/panel.html"],
       "matches": ["<all_urls>"]
     }
   ],

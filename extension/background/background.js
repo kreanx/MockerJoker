@@ -1,14 +1,5 @@
-var MSG = {
-  GET_RULES: "getRules",
-  SAVE_RULES: "saveRules",
-  OPEN_PANEL: "openPanel",
-  HIT_COUNT: "hitCount",
-  GET_HIT_COUNTERS: "getHitCounters",
-  RESET_HIT_COUNTERS: "resetHitCounters",
-  SEEN_REQUESTS: "seenRequests",
-  GET_SEEN_REQUESTS: "getSeenRequests",
-  RULES_UPDATED: "rulesUpdated"
-};
+importScripts("../shared/constants.js");
+
 
 var currentRules = [];
 var varSavers = [];
@@ -71,7 +62,7 @@ function pushToAllTabs() {
   chrome.tabs.query({}, function (tabs) {
     tabs.forEach(function (tab) {
       chrome.tabs.sendMessage(tab.id, {
-        type: MSG.RULES_UPDATED,
+        type: CONST.MSG.RULES_UPDATED,
         rules: currentRules,
         varSavers: varSavers,
         masterEnabled: masterEnabled
@@ -83,7 +74,7 @@ function pushToAllTabs() {
 }
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
-  if (msg.type === MSG.GET_RULES) {
+  if (msg.type === CONST.MSG.GET_RULES) {
     waitForRules(function () {
       var senderTabId = sender.tab ? sender.tab.id : "unknown";
       var savedVars = tabVarsMap[senderTabId] || {};
@@ -91,14 +82,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     });
     return true;
   }
-  if (msg.type === "tabVars") {
+  if (msg.type === CONST.MSG.TAB_VARS) {
     var tabId = sender.tab ? sender.tab.id : "unknown";
     tabVarsMap[tabId] = msg.tabVars;
     sendResponse({ success: true });
     return true;
   }
 
-  if (msg.type === MSG.SAVE_RULES) {
+  if (msg.type === CONST.MSG.SAVE_RULES) {
     hitCounters = {};
     lastHitTime = {};
     saveRules(msg.rules, msg.masterEnabled);
@@ -122,13 +113,13 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ success: true });
     return true;
   }
-  if (msg.type === MSG.OPEN_PANEL) {
+  if (msg.type === CONST.MSG.OPEN_PANEL) {
     chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") });
     sendResponse({ success: true });
     return true;
   }
 
-  if (msg.type === MSG.HIT_COUNT) {
+  if (msg.type === CONST.MSG.HIT_COUNT) {
     var id = msg.ruleId;
     hitCounters[id] = (hitCounters[id] || 0) + 1;
     lastHitTime[id] = msg.timestamp;
@@ -141,12 +132,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return true;
   }
 
-  if (msg.type === MSG.GET_HIT_COUNTERS) {
+  if (msg.type === CONST.MSG.GET_HIT_COUNTERS) {
     sendResponse({ counters: hitCounters, lastHitTime: lastHitTime });
     return true;
   }
 
-  if (msg.type === MSG.RESET_HIT_COUNTERS) {
+  if (msg.type === CONST.MSG.RESET_HIT_COUNTERS) {
     hitCounters = {};
     lastHitTime = {};
     tabInterceptedCount = {};
@@ -157,14 +148,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return true;
   }
 
-  if (msg.type === MSG.SEEN_REQUESTS) {
+  if (msg.type === CONST.MSG.SEEN_REQUESTS) {
     var tabId = sender.tab ? sender.tab.id : "unknown";
     tabSeenRequests[tabId] = msg.requests;
     sendResponse({ success: true });
     return true;
   }
 
-  if (msg.type === MSG.GET_SEEN_REQUESTS) {
+  if (msg.type === CONST.MSG.GET_SEEN_REQUESTS) {
     if (msg.tabId && tabSeenRequests[msg.tabId]) {
       sendResponse({ requests: tabSeenRequests[msg.tabId] });
     } else {

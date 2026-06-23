@@ -47,12 +47,15 @@ function makeFakeWindow() {
 }
 
 function loadInjected() {
-  const src = read("content/injected.js");
+  // Produce the CONST object by evaluating constants.js in isolation
+  const getConst = new Function(read("shared/constants.js") + ";\nreturn CONST;");
+  const CONST = getConst();
   const win = makeFakeWindow();
   let exported = null;
   globalThis.__RM_TEST_EXPORT = function (api) { exported = api; };
   try {
-    new Function("window", src)(win);
+    // Pass CONST as a parameter — injected.js now references CONST.* directly.
+    new Function("window", "CONST", read("content/injected.js"))(win, CONST);
   } finally {
     delete globalThis.__RM_TEST_EXPORT;
   }

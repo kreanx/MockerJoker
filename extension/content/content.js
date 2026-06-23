@@ -1,35 +1,23 @@
 (function () {
-  var MSG = {
-    GET_RULES: "getRules",
-    SAVE_RULES: "saveRules",
-    RULES_UPDATED: "rulesUpdated",
-    HIT_COUNT: "hitCount",
-    SEEN_REQUESTS: "seenRequests"
-  };
-  var PAGE = {
-    RULES: "REQUEST_MOCKER_RULES",
-    INIT: "REQUEST_MOCKER_INIT",
-    HIT: "REQUEST_MOCKER_HIT",
-    SEEN: "REQUEST_MOCKER_SEEN",
-    TAB_VARS: "REQUEST_MOCKER_TAB_VARS"
-  };
-
-  var script = document.createElement("script");
-  script.src = chrome.runtime.getURL("content/injected.js");
-  script.onload = function () {
-    script.remove();
-  };
-  (document.head || document.documentElement).appendChild(script);
-
   var contextValid = true;
   var retryTimer = null;
+
+  function loadScript(url) {
+    var s = document.createElement("script");
+    s.src = chrome.runtime.getURL(url);
+    s.onload = function () { s.remove(); };
+    (document.head || document.documentElement).appendChild(s);
+  }
+  // Constants must be loaded before injected.js — both execute in page context.
+  loadScript("shared/constants.js");
+  loadScript("content/injected.js");
 
   function tryRecover() {
     if (retryTimer) return;
     retryTimer = setTimeout(function () {
       retryTimer = null;
       try {
-        chrome.runtime.sendMessage({ type: MSG.GET_RULES }, function (res) {
+        chrome.runtime.sendMessage({ type: CONST.MSG.GET_RULES }, function (res) {
           if (chrome.runtime.lastError) {
             contextValid = false;
             tryRecover();
@@ -63,10 +51,10 @@
   }
 
   function sendRulesToPage() {
-    safeSendMessage({ type: MSG.GET_RULES }, function (res) {
+    safeSendMessage({ type: CONST.MSG.GET_RULES }, function (res) {
       if (res) {
         window.postMessage(
-          { type: PAGE.RULES, rules: res.rules, varSavers: res.varSavers || [], tabVars: res.tabVars || {}, masterEnabled: res.masterEnabled },
+          { type: CONST.PAGE_MSG.RULES, rules: res.rules, varSavers: res.varSavers || [], tabVars: res.tabVars || {}, masterEnabled: res.masterEnabled },
           "*"
         );
       }
@@ -78,13 +66,13 @@
     var data = event.data;
     if (!data) return;
 
-    if (data.type === PAGE.INIT) {
+    if (data.type === CONST.PAGE_MSG.INIT) {
       sendRulesToPage();
     }
 
-    if (data.type === PAGE.HIT) {
+    if (data.type === CONST.PAGE_MSG.HIT) {
       safeSendMessage({
-        type: MSG.HIT_COUNT,
+        type: CONST.MSG.HIT_COUNT,
         ruleId: data.ruleId,
         url: data.url,
         method: data.method,
@@ -92,23 +80,23 @@
       });
     }
 
-    if (data.type === PAGE.SEEN) {
+    if (data.type === CONST.PAGE_MSG.SEEN) {
       safeSendMessage({
-        type: MSG.SEEN_REQUESTS,
+        type: CONST.MSG.SEEN_REQUESTS,
         requests: data.requests
       });
     }
 
-    if (data.type === PAGE.TAB_VARS) {
+    if (data.type === CONST.PAGE_MSG.TAB_VARS) {
       safeSendMessage({
-        type: "tabVars",
+        type: CONST.MSG.TAB_VARS,
         tabVars: data.tabVars
       });
     }
   });
 
   chrome.runtime.onMessage.addListener(function (msg) {
-    if (msg.type === MSG.RULES_UPDATED) {
+    if (msg.type === CONST.MSG.RULES_UPDATED) {
       sendRulesToPage();
     }
   });
