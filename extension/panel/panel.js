@@ -40,6 +40,27 @@ function loadState() {
     updateToggleStatus();
     renderRules();
     renderVarSavers();
+
+    // Check for mockUrl param (from devtools "mock this request" context menu)
+    var params = new URLSearchParams(window.location.search);
+    var mockUrl = params.get("mockUrl");
+    if (mockUrl) {
+      var rule = createDefaultRule();
+      try {
+        var u = new URL(mockUrl);
+        rule.match.urlPattern = "*" + u.hostname + u.pathname + "*";
+      } catch (e) {
+        rule.match.urlPattern = "*" + mockUrl + "*";
+      }
+      var mockMethod = params.get("mockMethod");
+      rule.match.method = mockMethod || "ANY";
+      rule.name = "Mock " + (mockMethod || "GET");
+      rules.push(rule);
+      saveState();
+      renderRules();
+      openEditor(rule.id);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   });
 }
 

@@ -576,6 +576,7 @@
               actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
               status: curStatus,
               body: curText,
+              headers: mockRule.action.headers || {},
               originalBody: responseText
             });
           }
@@ -615,6 +616,7 @@
             ruleName: modRespRules.length ? modRespRules[0].name : null,
             actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
             status: curStatus,
+            headers: hdrObjFinal,
             body: curText,
             originalBody: responseText
           });
@@ -640,6 +642,7 @@
           ruleName: modRespRules.length ? modRespRules[0].name : null,
           actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
           status: response.status,
+          headers: hdrObj,
           body: null
         });
         return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
@@ -903,6 +906,7 @@
           actionType: CONST.ACTION_TYPES.MOCK_RESPONSE,
           status: ms,
           body: mb,
+          headers: mh,
           originalBody: self.responseText
         });
       }
@@ -974,6 +978,7 @@
         ruleName: modRespRules.length ? modRespRules[0].name : null,
         actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
         status: self.status,
+        headers: xhHdrsFinal,
         body: curText
       });
       processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");

@@ -8,6 +8,8 @@
   var detailPanel = document.getElementById("detailPanel");
   var detailTitle = document.getElementById("detailTitle");
   var closeDetail = document.getElementById("closeDetail");
+  var ctxMenu = document.getElementById("ctxMenu");
+  var ctxMock = document.getElementById("ctxMock");
   var entries = [];
   var filtered = [];
   var filterText = "";
@@ -23,14 +25,30 @@
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  function prettyBody(body) {
+  // Pretty-print JSON body. If originalBody is provided, highlight changed lines.
+  function prettyBody(body, originalBody) {
     if (body == null || body === "") return '<span class="empty">— нет данных —</span>';
-    try {
-      var parsed = JSON.parse(body);
-      return '<pre class="json-body">' + escapeHtml(JSON.stringify(parsed, null, 2)) + '</pre>';
-    } catch (e) {
-      return '<pre class="raw-body">' + escapeHtml(body.substring(0, 5000)) + '</pre>';
+    var pretty;
+    try { pretty = JSON.stringify(JSON.parse(body), null, 2); }
+    catch (e) { return '<pre class="raw-body">' + escapeHtml(body.substring(0, 5000)) + '</pre>'; }
+
+    if (!originalBody) {
+      return '<pre class="json-body">' + escapeHtml(pretty) + '</pre>';
     }
+
+    // Line-by-line diff against original
+    var origPretty;
+    try { origPretty = JSON.stringify(JSON.parse(originalBody), null, 2); }
+    catch (e) { return '<pre class="json-body">' + escapeHtml(pretty) + '</pre>'; }
+
+    var resLines = pretty.split("\n");
+    var origLines = origPretty.split("\n");
+    var html = "";
+    for (var i = 0; i < resLines.length; i++) {
+      var changed = i >= origLines.length || resLines[i] !== origLines[i];
+      html += '<span class="' + (changed ? "json-line-changed" : "json-line") + '">' + escapeHtml(resLines[i]) + '\n</span>';
+    }
+    return '<pre class="json-body">' + html + '</pre>';
   }
 
   function formatHeaders(hdrs) {
@@ -90,11 +108,11 @@
     selectedId = entry.id;
     render();
     detailPanel.classList.remove("hidden");
-    detailTitle.textContent = entry.method + " " + (entry.url || "").substring(0, 120);
+    detailTitle.textContent = entry.method + " " + (entry.url || "").substring(0, 100);
 
     // General tab
     var general = '<table class="hdr-table">';
-    general += '<tr><td class="hdr-key">URL</td><td class="hdr-val">' + escapeHtml(entry.url) + '</td></tr>';
+    general += '<tr><td class="hdr-key">URL</td><td class="hdr-val" style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
     general += '<tr><td class="hdr-key">Метод</td><td class="hdr-val">' + escapeHtml(entry.method) + '</td></tr>';
     general += '<tr><td class="hdr-key">Статус</td><td class="hdr-val">' + (entry.status || "-") + '</td></tr>';
     general += '<tr><td class="hdr-key">Перехвачен</td><td class="hdr-val">' + (entry.matched ? "да" : "нет") + '</td></tr>';
@@ -107,10 +125,10 @@
     // Headers tab
     document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
 
-    // Body tab (response/result)
-    document.getElementById("tab-body").innerHTML = prettyBody(entry.body);
+    // Body tab (result body, with diff highlighting if originalBody exists)
+    document.getElementById("tab-body").innerHTML = prettyBody(entry.body, entry.originalBody);
 
-    // Original tab (only for modifyResponse / conditional mock)
+    // Original tab
     var origTab = document.querySelector('.dt-tab-orig');
     if (entry.originalBody != null) {
       origTab.classList.remove("hidden");
@@ -118,7 +136,6 @@
     } else {
       origTab.classList.add("hidden");
     }
-
     switchTab("general");
   }
 
@@ -131,7 +148,7 @@
     if (pane) pane.classList.add("active");
   }
 
-  // Row click → show detail
+  // Row click → detail
   tbody.addEventListener("click", function (e) {
     var tr = e.target.closest("tr");
     if (!tr || !tr.dataset.id) return;
@@ -139,34 +156,49 @@
     if (entry) showDetail(entry);
   });
 
+  // Right-click → context menu
+  tbody.addEventListener("contextmenu", function (e) {
+    var tr = e.target.closest("tr");
+    if (!tr || !tr.dataset.id) return;
+    e.preventDefault();
+    var entry = entries.find(function (x) { return x.id === tr.dataset.id; });
+    if (!entry) return;
+    ctxMenu.style.left = e.clientX + "px";
+    ctxMenu.style.top = e.clientY + "px";
+    ctxMenu.classList.remove("hidden");
+    ctxMenu.dataset.url = entry.url || "";
+    ctxMenu.dataset.method = entry.method || "GET";
+  });
+
+  document.addEventListener("click", function () { ctxMenu.classList.add("hidden"); });
+  ctxMenu.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var url = ctxMenu.dataset.url;
+    var method = ctxMenu.dataset.method;
+    ctxMenu.classList.add("hidden");
+    if (url) {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method)
+      });
+    }
+  });
+
   // Tab switching
   document.querySelectorAll(".dt-tab").forEach(function (tab) {
     tab.addEventListener("click", function () { switchTab(tab.dataset.tab); });
   });
-
   closeDetail.addEventListener("click", function () {
-    detailPanel.classList.add("hidden");
-    selectedId = null;
-    render();
+    detailPanel.classList.add("hidden"); selectedId = null; render();
   });
 
-  // Port message handler — filter by inspected tab
+  // Port — filter by inspected tab
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") {
-      if (msg.data[inspectedTabId]) {
-        entries = entries.concat(msg.data[inspectedTabId]);
-      }
+      if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]);
       applyFilter();
     } else if (msg.type === "interception") {
       if (msg.tabId === inspectedTabId) {
         entries.push(msg.data);
-        // If detail is open for this entry, refresh it
-        if (selectedId && document.querySelector('.dt-tab[data-tab="body"]')) {
-          var ent = entries.find(function (x) { return x.id === selectedId; });
-          if (ent) {
-            document.getElementById("tab-body").innerHTML = prettyBody(ent.body);
-          }
-        }
         applyFilter();
       }
     }
