@@ -1,8 +1,9 @@
 (function () {
-  // Fallback: if shared/constants.js hasn't executed yet (race condition with
-  // dynamic <script> loading), define CONST locally. Must stay in sync with
-  // extension/shared/constants.js.
-  var CONST = window.__RM_CONST || {
+  // Constants defined locally — no dependency on shared/constants.js or
+  // window globals. The page (e.g. Jira) may define its own window.CONST
+  // which caused name collisions. This is the only reliable approach for
+  // page-context scripts. Keep in sync with extension/shared/constants.js.
+  var CONST = {
     ACTION_TYPES: { MOCK_RESPONSE: "mockResponse", MODIFY_REQUEST: "modifyRequest", MODIFY_RESPONSE: "modifyResponse", MODIFY_BODY: "modifyBody" },
     DEFAULT_STATUS: 200, DEFAULT_DELAY: 0, DEFAULT_BODY: "{}",
     HEADER_CONTENT_TYPE: "Content-Type", CONTENT_TYPE_JSON: "application/json",
