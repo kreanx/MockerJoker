@@ -1,4 +1,24 @@
 (function () {
+  // Fallback: if shared/constants.js hasn't executed yet (race condition with
+  // dynamic <script> loading), define CONST locally. Must stay in sync with
+  // extension/shared/constants.js.
+  var CONST = window.CONST || {
+    ACTION_TYPES: { MOCK_RESPONSE: "mockResponse", MODIFY_REQUEST: "modifyRequest", MODIFY_RESPONSE: "modifyResponse", MODIFY_BODY: "modifyBody" },
+    DEFAULT_STATUS: 200, DEFAULT_DELAY: 0, DEFAULT_BODY: "{}",
+    HEADER_CONTENT_TYPE: "Content-Type", CONTENT_TYPE_JSON: "application/json",
+    SEEN_MAX: 100, INTERCEPTION_LIMIT: 500,
+    MSG: {
+      GET_RULES: "getRules", SAVE_RULES: "saveRules", OPEN_PANEL: "openPanel",
+      RULES_UPDATED: "rulesUpdated", HIT_COUNT: "hitCount", GET_HIT_COUNTERS: "getHitCounters",
+      RESET_HIT_COUNTERS: "resetHitCounters", SEEN_REQUESTS: "seenRequests",
+      GET_SEEN_REQUESTS: "getSeenRequests", TAB_VARS: "tabVars", INTERCEPTION: "interception"
+    },
+    PAGE_MSG: {
+      RULES: "REQUEST_MOCKER_RULES", INIT: "REQUEST_MOCKER_INIT",
+      HIT: "REQUEST_MOCKER_HIT", SEEN: "REQUEST_MOCKER_SEEN",
+      TAB_VARS: "REQUEST_MOCKER_TAB_VARS", INTERCEPTION: "REQUEST_MOCKER_INTERCEPTION"
+    }
+  };
 
   var rules = [];
   var varSavers = [];
