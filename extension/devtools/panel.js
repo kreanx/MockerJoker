@@ -17,9 +17,20 @@
   var pageOrigin = "";
 
   // Get the inspected page's origin to hide same-origin host in URLs
-  chrome.devtools.inspectedWindow.eval("location.origin", function (result) {
-    if (result) pageOrigin = result;
-  });
+  // chrome.tabs.get is more reliable than inspectedWindow.eval
+  if (chrome.tabs && chrome.tabs.get) {
+    chrome.tabs.get(inspectedTabId, function (tab) {
+      if (chrome.runtime.lastError || !tab || !tab.url) {
+        // Fallback: eval
+        chrome.devtools.inspectedWindow.eval("location.origin", function (result) {
+          if (result) { pageOrigin = result; render(); }
+        });
+        return;
+      }
+      try { pageOrigin = new URL(tab.url).origin; } catch (e) {}
+      render();
+    });
+  }
 
   function formatTime(ts) {
     var d = new Date(ts);
