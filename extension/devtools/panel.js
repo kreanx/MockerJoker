@@ -9,11 +9,17 @@
   var detailTitle = document.getElementById("detailTitle");
   var closeDetail = document.getElementById("closeDetail");
   var ctxMenu = document.getElementById("ctxMenu");
-  var ctxMock = document.getElementById("ctxMock");
   var entries = [];
   var filtered = [];
   var filterText = "";
   var selectedId = null;
+  var statusFilter = "all";
+  var pageOrigin = "";
+
+  // Get the inspected page's origin to hide same-origin host in URLs
+  chrome.devtools.inspectedWindow.eval("location.origin", function (result) {
+    if (result) pageOrigin = result;
+  });
 
   function formatTime(ts) {
     var d = new Date(ts);
@@ -25,18 +31,24 @@
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  // Pretty-print JSON body. If originalBody is provided, highlight changed lines.
+  // Show path only for same-origin, full URL for cross-origin (like Network tab)
+  function shortUrl(url) {
+    if (!url) return "";
+    if (pageOrigin && url.indexOf(pageOrigin) === 0) {
+      var path = url.substring(pageOrigin.length);
+      return path || "/";
+    }
+    return url;
+  }
+
   function prettyBody(body, originalBody) {
     if (body == null || body === "") return '<span class="empty">— нет данных —</span>';
     var pretty;
     try { pretty = JSON.stringify(JSON.parse(body), null, 2); }
     catch (e) { return '<pre class="raw-body">' + escapeHtml(body.substring(0, 5000)) + '</pre>'; }
 
-    if (!originalBody) {
-      return '<pre class="json-body">' + escapeHtml(pretty) + '</pre>';
-    }
+    if (!originalBody) return '<pre class="json-body">' + escapeHtml(pretty) + '</pre>';
 
-    // Line-by-line diff against original
     var origPretty;
     try { origPretty = JSON.stringify(JSON.parse(originalBody), null, 2); }
     catch (e) { return '<pre class="json-body">' + escapeHtml(pretty) + '</pre>'; }
@@ -61,9 +73,19 @@
     return html + '</table>';
   }
 
+  function matchesStatusFilter(e) {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "mocked") return e.matched;
+    var s = e.status || 0;
+    if (statusFilter === "2xx") return s >= 200 && s < 300;
+    if (statusFilter === "4xx") return s >= 400 && s < 500;
+    if (statusFilter === "5xx") return s >= 500;
+    return true;
+  }
+
   function render() {
     var html = "";
-    var list = filterText ? filtered : entries;
+    var list = (filterText ? filtered : entries).filter(matchesStatusFilter);
     var matchedCount = 0;
     for (var i = list.length - 1; i >= 0; i--) {
       var e = list[i];
@@ -77,10 +99,12 @@
         : e.matched ? "matched" : "—";
       var rowClass = e.matched ? "row-matched" : "row-passthrough";
       if (e.id === selectedId) rowClass += " row-selected";
+      var displayedUrl = shortUrl(e.url);
+      var isCrossOrigin = displayedUrl === e.url;
       html += '<tr class="' + rowClass + '" data-id="' + escapeHtml(e.id) + '">' +
         '<td class="col-time">' + escapeHtml(formatTime(e.timestamp)) + '</td>' +
         '<td class="col-method">' + escapeHtml(e.method || "") + '</td>' +
-        '<td class="col-url" title="' + escapeHtml(e.url) + '">' + escapeHtml(e.url) + '</td>' +
+        '<td class="col-url ' + (isCrossOrigin ? "cross-origin" : "") + '" title="' + escapeHtml(e.url) + '">' + escapeHtml(displayedUrl) + '</td>' +
         '<td class="col-status ' + statusClass + '">' + (e.status != null ? e.status : "-") + '</td>' +
         '<td class="col-action">' + actionLabel + '</td>' +
         '<td class="col-rule">' + escapeHtml(e.ruleName || "-") + '</td></tr>';
@@ -108,9 +132,8 @@
     selectedId = entry.id;
     render();
     detailPanel.classList.remove("hidden");
-    detailTitle.textContent = entry.method + " " + (entry.url || "").substring(0, 100);
+    detailTitle.textContent = entry.method + " " + shortUrl(entry.url);
 
-    // General tab
     var general = '<table class="hdr-table">';
     general += '<tr><td class="hdr-key">URL</td><td class="hdr-val" style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
     general += '<tr><td class="hdr-key">Метод</td><td class="hdr-val">' + escapeHtml(entry.method) + '</td></tr>';
@@ -120,15 +143,17 @@
     if (entry.actionType) general += '<tr><td class="hdr-key">Действие</td><td class="hdr-val">' + escapeHtml(entry.actionType) + '</td></tr>';
     if (entry.delay) general += '<tr><td class="hdr-key">Задержка</td><td class="hdr-val">' + entry.delay + 'ms</td></tr>';
     general += '</table>';
+    general += '<div class="detail-actions">';
+    general += '<button class="dt-btn" id="btnCopyUrl">📋 URL</button>';
+    general += '<button class="dt-btn" id="btnCopyCurl">📋 cURL</button>';
+    if (entry.body) general += '<button class="dt-btn" id="btnCopyBody">📋 Тело</button>';
+    general += '<button class="dt-btn" id="btnMockReq">⚡ Замокать</button>';
+    general += '</div>';
     document.getElementById("tab-general").innerHTML = general;
 
-    // Headers tab
     document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
-
-    // Body tab (result body, with diff highlighting if originalBody exists)
     document.getElementById("tab-body").innerHTML = prettyBody(entry.body, entry.originalBody);
 
-    // Original tab
     var origTab = document.querySelector('.dt-tab-orig');
     if (entry.originalBody != null) {
       origTab.classList.remove("hidden");
@@ -136,7 +161,35 @@
     } else {
       origTab.classList.add("hidden");
     }
+
+    // Wire detail action buttons
+    document.getElementById("btnCopyUrl").onclick = function () { copyText(entry.url); };
+    document.getElementById("btnCopyCurl").onclick = function () { copyText(buildCurl(entry)); };
+    if (entry.body) document.getElementById("btnCopyBody").onclick = function () { copyText(entry.body); };
+    document.getElementById("btnMockReq").onclick = function () {
+      chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(entry.url) + "&mockMethod=" + encodeURIComponent(entry.method) });
+    };
+
     switchTab("general");
+  }
+
+  function buildCurl(e) {
+    var cmd = "curl -X " + (e.method || "GET");
+    if (e.headers) {
+      for (var k in e.headers) {
+        cmd += " -H '" + k + ": " + e.headers[k] + "'";
+      }
+    }
+    cmd += " '" + e.url + "'";
+    return cmd;
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(function () {
+      // Brief visual feedback
+      filterInput.placeholder = "✅ Скопировано!";
+      setTimeout(function () { filterInput.placeholder = "Фильтр по URL, правилу, методу или статусу..."; }, 1500);
+    });
   }
 
   function switchTab(name) {
@@ -176,20 +229,24 @@
     var url = ctxMenu.dataset.url;
     var method = ctxMenu.dataset.method;
     ctxMenu.classList.add("hidden");
-    if (url) {
-      chrome.tabs.create({
-        url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method)
-      });
-    }
+    if (url) chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method) });
   });
 
-  // Tab switching
+  // Status filter buttons
+  document.querySelectorAll(".sf-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".sf-btn").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      statusFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  // Tab switching + close
   document.querySelectorAll(".dt-tab").forEach(function (tab) {
     tab.addEventListener("click", function () { switchTab(tab.dataset.tab); });
   });
-  closeDetail.addEventListener("click", function () {
-    detailPanel.classList.add("hidden"); selectedId = null; render();
-  });
+  closeDetail.addEventListener("click", function () { detailPanel.classList.add("hidden"); selectedId = null; render(); });
 
   // Port — filter by inspected tab
   port.onMessage.addListener(function (msg) {

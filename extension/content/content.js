@@ -2,15 +2,17 @@
   var contextValid = true;
   var retryTimer = null;
 
-  function loadScript(url) {
+  function loadScript(url, onload) {
     var s = document.createElement("script");
     s.src = chrome.runtime.getURL(url);
-    s.onload = function () { s.remove(); };
+    s.onload = function () { s.remove(); if (onload) onload(); };
     (document.head || document.documentElement).appendChild(s);
   }
-  // Constants must be loaded before injected.js — both execute in page context.
-  loadScript("shared/constants.js");
-  loadScript("content/injected.js");
+  // CRITICAL: constants.js MUST execute before injected.js.
+  // Dynamic <script> elements are async by default — chain via onload to guarantee order.
+  loadScript("shared/constants.js", function () {
+    loadScript("content/injected.js");
+  });
 
   function tryRecover() {
     if (retryTimer) return;

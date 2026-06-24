@@ -105,6 +105,13 @@
     try { return JSON.parse(str); } catch(e) { return str; }
   }
 
+  function safeRespText(xhr) {
+    try {
+      if (!xhr.responseType || xhr.responseType === "text") return xhr.responseText;
+    } catch (e) {}
+    return null;
+  }
+
   function parseValue(str) {
     if (str === "true") return true;
     if (str === "false") return false;
@@ -709,7 +716,7 @@
     if (matched.length === 0 && varSavers.length === 0) {
       var origOLEpt = self.onloadend;
       self.onloadend = function (evt) {
-        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: self.responseText });
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) });
         if (origOLEpt) origOLEpt.call(self, evt);
       };
       return origXhrSend.apply(this, arguments);
@@ -718,7 +725,7 @@
       if (!hasMatchingResponseVarSaver(self.__rm.url)) {
         var origOLEvs = self.onloadend;
         self.onloadend = function (evt) {
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: self.responseText });
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) });
           if (origOLEvs) origOLEvs.call(self, evt);
         };
         return origXhrSend.apply(this, arguments);
@@ -827,7 +834,7 @@
           ruleId: reqRules.length ? reqRules[0].id : null,
           ruleName: reqRules.length ? reqRules[0].name : null,
           actionType: reqRules.length ? reqRules[0].action.type : null,
-          status: self.status, headers: hdrs, body: self.responseText
+          status: self.status, headers: hdrs, body: safeRespText(self)
         });
         if (origOLE) origOLE.call(self, evt);
       };

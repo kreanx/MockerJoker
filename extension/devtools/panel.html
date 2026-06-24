@@ -10,7 +10,14 @@
 </head>
 <body>
   <div id="toolbar">
-    <input type="text" id="filterInput" placeholder="Фильтр по URL, правилу, методу или статусу...">
+    <input type="text" id="filterInput" placeholder="Фильтр по URL, правилу, методу...">
+    <div id="statusFilters">
+      <button class="sf-btn active" data-filter="all">Все</button>
+      <button class="sf-btn" data-filter="mocked">⚡</button>
+      <button class="sf-btn" data-filter="2xx">2xx</button>
+      <button class="sf-btn" data-filter="4xx">4xx</button>
+      <button class="sf-btn" data-filter="5xx">5xx</button>
+    </div>
     <span id="countLabel"></span>
     <button id="clearBtn">Очистить</button>
   </div>
@@ -48,7 +55,7 @@
     </div>
   </div>
   <div id="ctxMenu" class="ctx-menu hidden">
-    <div id="ctxMock">⚡ Замокать запрос</div>
+    <div>⚡ Замокать запрос</div>
   </div>
   <script src="panel.js"></script>
 </body>
