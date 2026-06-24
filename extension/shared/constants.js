@@ -68,3 +68,7 @@ var CONST = {
     MODIFY_RESP: "#9b59b6"
   }
 };
+
+// Export under a unique key for page-context (injected.js) to avoid
+// collision with page globals like Jira's window.CONST.
+if (typeof window !== "undefined") { window.__RM_CONST = CONST; }

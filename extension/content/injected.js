@@ -2,7 +2,7 @@
   // Fallback: if shared/constants.js hasn't executed yet (race condition with
   // dynamic <script> loading), define CONST locally. Must stay in sync with
   // extension/shared/constants.js.
-  var CONST = window.CONST || {
+  var CONST = window.__RM_CONST || {
     ACTION_TYPES: { MOCK_RESPONSE: "mockResponse", MODIFY_REQUEST: "modifyRequest", MODIFY_RESPONSE: "modifyResponse", MODIFY_BODY: "modifyBody" },
     DEFAULT_STATUS: 200, DEFAULT_DELAY: 0, DEFAULT_BODY: "{}",
     HEADER_CONTENT_TYPE: "Content-Type", CONTENT_TYPE_JSON: "application/json",
