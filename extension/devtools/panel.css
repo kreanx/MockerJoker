@@ -13,16 +13,25 @@ body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 /* Table */
 #tableWrap { flex: 1; overflow: auto; min-height: 0; }
 #interceptionTable { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
-#interceptionTable th { text-align: left; padding: 5px 6px; border-bottom: 2px solid var(--ctp-surface1, #45475a); color: var(--text-secondary, #6c7086); font-weight: 600; position: sticky; top: 0; z-index: 1; background: var(--bg-primary, #1e1e2e); white-space: nowrap; position: relative; }
+#interceptionTable th {
+  text-align: left; padding: 5px 6px; border-bottom: 2px solid var(--ctp-surface1, #45475a);
+  color: var(--text-secondary, #6c7086); font-weight: 600; white-space: nowrap;
+  position: sticky; top: 0; z-index: 1; background: var(--bg-primary, #1e1e2e);
+  cursor: pointer; user-select: none;
+}
 #interceptionTable td { padding: 3px 6px; border-bottom: 1px solid var(--ctp-surface0, #313244); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #interceptionTable tbody tr { cursor: pointer; }
 #interceptionTable tbody tr:hover { background: var(--ctp-surface0, #313244); }
 
 .col-url.cross-origin { color: var(--ctp-peach, #fab387); }
 
-/* Column resizer */
-.col-resizer { position: absolute; right: 0; top: 0; height: 100%; width: 4px; cursor: col-resize; user-select: none; z-index: 2; }
-.col-resizer:hover { background: var(--ctp-blue, #89b4fa); }
+/* Column resizer — drag the right edge of any header to resize */
+.col-resizer { position: absolute; right: 0; top: 0; height: 100%; width: 7px; cursor: col-resize; user-select: none; z-index: 3; }
+.col-resizer:hover, .col-resizer:active { background: var(--ctp-blue, #89b4fa); opacity: 0.4; }
+
+/* Sort indicator */
+th.sort-asc::after { content: " \25B2"; color: var(--ctp-blue, #89b4fa); font-size: 9px; }
+th.sort-desc::after { content: " \25BC"; color: var(--ctp-blue, #89b4fa); font-size: 9px; }
 
 .status-ok { color: var(--ctp-green, #a6e3a1); }
 .status-redirect { color: var(--ctp-yellow, #f9e2af); }
@@ -35,7 +44,7 @@ body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 .row-selected { background: rgba(137, 180, 250, 0.2) !important; }
 .empty-state { text-align: center; color: var(--text-secondary, #6c7086); padding: 40px; }
 
-/* Detail */
+/* Detail panel */
 #detailPanel { height: 45%; border-top: 2px solid var(--ctp-surface1, #45475a); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
 #detailPanel.hidden { display: none; }
 #detailHeader { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-bottom: 1px solid var(--ctp-surface0, #313244); }
@@ -63,7 +72,6 @@ body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monosp
 .json-bool { color: var(--ctp-mauve, #cba6f7); }
 .json-null { color: var(--ctp-red, #f38ba8); font-style: italic; }
 .json-line-changed { background: rgba(250, 179, 135, 0.1); border-left: 3px solid var(--ctp-peach, #fab387); padding-left: 6px; margin-left: -9px; }
-.json-line { padding-left: 0; }
 
 .detail-actions { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
 .dt-btn { padding: 3px 8px; background: var(--ctp-surface1, #45475a); color: var(--text-primary, #cdd6f4); border: none; border-radius: 3px; cursor: pointer; font-size: 11px; }

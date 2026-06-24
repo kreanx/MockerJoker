@@ -9,12 +9,15 @@
   var detailTitle = document.getElementById("detailTitle");
   var closeDetail = document.getElementById("closeDetail");
   var ctxMenu = document.getElementById("ctxMenu");
+  var tableWrap = document.getElementById("tableWrap");
   var entries = [];
   var filtered = [];
   var filterText = "";
   var selectedId = null;
   var statusFilter = "all";
   var pageOrigin = "";
+  var sortCol = null;
+  var sortDir = 1;
 
   if (chrome.tabs && chrome.tabs.get) {
     chrome.tabs.get(inspectedTabId, function (tab) {
@@ -32,6 +35,12 @@
   function formatTime(ts) {
     var d = new Date(ts);
     return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function getBodySize(e) {
+    if (e.body) return e.body.length;
+    if (e.headers && e.headers["content-length"]) return parseInt(e.headers["content-length"], 10) || 0;
+    return 0;
   }
 
   function formatSize(body, headers) {
@@ -58,7 +67,6 @@
     return url;
   }
 
-  // JSON syntax highlighter — escapes &<> (keeps " for regex), then wraps tokens in colored spans
   function highlightJson(str) {
     var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return s.replace(
@@ -115,9 +123,41 @@
     return true;
   }
 
-  function render() {
-    var html = "";
+  function compareEntries(a, b, col) {
+    switch (col) {
+      case "time": return (a.timestamp || 0) - (b.timestamp || 0);
+      case "method": return (a.method || "").localeCompare(b.method || "");
+      case "url": return (a.url || "").localeCompare(b.url || "");
+      case "status": return (a.status || 0) - (b.status || 0);
+      case "size": return getBodySize(a) - getBodySize(b);
+      case "action": return (a.actionType || "").localeCompare(b.actionType || "");
+      case "rule": return (a.ruleName || "").localeCompare(b.ruleName || "");
+      default: return 0;
+    }
+  }
+
+  function getSortedList() {
     var list = (filterText ? filtered : entries).filter(matchesStatusFilter);
+    if (sortCol) {
+      list = list.slice().sort(function (a, b) { return compareEntries(a, b, sortCol) * sortDir; });
+    }
+    return list;
+  }
+
+  function updateSortIndicators() {
+    var ths = document.querySelectorAll("#interceptionTable th");
+    Array.prototype.forEach.call(ths, function (th) {
+      th.classList.remove("sort-asc", "sort-desc");
+    });
+    if (sortCol) {
+      var active = document.querySelector("#interceptionTable th.col-" + sortCol);
+      if (active) active.classList.add(sortDir > 0 ? "sort-asc" : "sort-desc");
+    }
+  }
+
+  function render() {
+    var list = getSortedList();
+    var html = "";
     var matchedCount = 0;
     for (var i = list.length - 1; i >= 0; i--) {
       var e = list[i];
@@ -141,6 +181,7 @@
     }
     if (countLabel) countLabel.textContent = list.length + " зап." + (matchedCount > 0 ? " · " + matchedCount + " перехв." : "");
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
+    updateSortIndicators();
   }
 
   function applyFilter() {
@@ -217,19 +258,28 @@
     if (pane) pane.classList.add("active");
   }
 
-  // --- Column resize ---
+  // --- Column resize (fixed: clientX + getBoundingClientRect + clamp) ---
   function initColumnResize() {
     var ths = document.querySelectorAll("#interceptionTable th");
-    ths.forEach(function (th, idx) {
+    Array.prototype.forEach.call(ths, function (th, idx) {
       if (idx === ths.length - 1) return;
       var grip = document.createElement("div");
       grip.className = "col-resizer";
       th.appendChild(grip);
+
       grip.addEventListener("mousedown", function (e) {
-        e.preventDefault(); e.stopPropagation();
-        var startX = e.pageX;
-        var startW = th.offsetWidth;
-        function onMove(ev) { th.style.width = Math.max(30, startW + ev.pageX - startX) + "px"; }
+        e.preventDefault();
+        e.stopPropagation();
+
+        var startX = e.clientX;
+        var startW = th.getBoundingClientRect().width;
+        var maxW = tableWrap.clientWidth - 120;
+
+        function onMove(ev) {
+          var newW = startW + (ev.clientX - startX);
+          newW = Math.max(30, Math.min(maxW, newW));
+          th.style.width = newW + "px";
+        }
         function onUp() {
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
@@ -240,6 +290,20 @@
         document.addEventListener("mouseup", onUp);
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
+      });
+    });
+  }
+
+  // --- Column sort ---
+  function initColumnSort() {
+    var ths = document.querySelectorAll("#interceptionTable th");
+    Array.prototype.forEach.call(ths, function (th) {
+      th.addEventListener("click", function (e) {
+        if (e.target.classList.contains("col-resizer")) return;
+        var col = th.className.replace(/^col-/, "").split(" ")[0];
+        if (sortCol === col) sortDir = -sortDir;
+        else { sortCol = col; sortDir = 1; }
+        render();
       });
     });
   }
@@ -300,4 +364,5 @@
   });
 
   initColumnResize();
+  initColumnSort();
 })();
