@@ -5,18 +5,17 @@
 <h1 align="center">MockerJoker</h1>
 
 <p align="center">
-  <em>fake it till you make it</em> — браузерное расширение для мокирования HTTP-запросов на стероидах.<br>
-  Тестируйте ошибки сервера, задержки, отсутствие авторизации и любой сценарий — без доступа к бэкенду.
+  <em>fake it till you make it</em> — лёгкое браузерное расширение для мокирования HTTP-запросов.<br>
+  Тестируйте ошибки сервера, задержки, любой сценарий — без бэкенда, без прокси, без сервера.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome" alt="Chrome">
   <img src="https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefox" alt="Firefox">
   <img src="https://img.shields.io/github/v/tag/kreanx/MockerJoker?label=version&color=blue" alt="Version">
+  <img src="https://img.shields.io/badge/tests-39%20node%3Atest-success" alt="Tests">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
 </p>
-
-<hr>
 
 <p align="center">
   <img width="280" alt="Popup" src="https://github.com/user-attachments/assets/79cdcf44-3853-4945-ad8a-269cbc128ccd" />
@@ -24,203 +23,239 @@
   <img width="560" alt="Panel" src="https://github.com/user-attachments/assets/664112a2-6c23-4e84-a05e-dd9482d89cf5" />
 </p>
 
-<p align="center">
-  <em>Popup · Редактор правила · Полноэкранная панель</em>
-</p>
+<p align="center"><em>Popup · Редактор правила · Полноэкранная панель</em></p>
 
-<hr>
+---
+
+## Оглавление
+
+- [Почему MockerJoker?](#почему-mockerjoker)
+- [Быстрый старт](#быстрый-старт)
+- [Возможности](#возможности)
+- [DevTools панель](#devtools-панель)
+- [Переменные между запросами](#переменные-varsavers)
+- [Типы действий](#типы-действий)
+- [Установка](#установка)
+- [Разработка](#разработка)
+- [Структура проекта](#структура-проекта)
+- [Ограничения](#ограничения)
+- [Roadmap](#roadmap)
+
+---
+
+## Почему MockerJoker?
+
+| | MockerJoker | Requestly | Tweak |
+|---|---|---|---|
+| Мок ответа | ✅ | ✅ | ✅ |
+| Модификация тела (dot notation) | ✅ `items[0].name = "x"` | ❌ | ✅ (GUI) |
+| **Переменные между правилами** | ✅ `$token` передаётся | ❌ | ❌ |
+| **Условный мок (по body)** | ✅ `balance < 100` | ❌ | ❌ |
+| GraphQL (operationName) | ✅ | ✅ | ❌ |
+| **DevTools панель** | ✅ interception log | ✅ | ❌ |
+| Экспорт/импорт правил | ✅ | ✅ | ❌ |
+| Без аккаунта, без облака | ✅ | ❌ | ✅ |
+| **Размер** | ~55 KB | ~5 MB | ~2 MB |
+
+**Принцип:** лёгкость. Никаких бандлеров, фреймворков, серверов, аккаунтов. Чистый vanilla JS. Расширение работает офлайн, данные хранятся локально.
+
+---
 
 ## Быстрый старт
 
 1. Установите расширение (Chrome/Firefox)
-2. Откройте popup и выберите пресет **500 Internal Error**
+2. Откройте popup → пресет **500 Internal Error**
 3. Введите URL-паттерн `*/api/*` → **Сохранить**
-4. Готово — все запросы к `*/api/*` вернут ошибку 500
+4. Готово — все запросы к `*/api/*` вернут 500
 
-## Примеры использования
+<details>
+<summary><b>Примеры использования</b></summary>
 
-**Симуляция ошибки сервера для конкретного эндпоинта**
-> Пресет `500 Internal Error` → URL `*/api/payments/*` → все платежи вернут 500
+**Симуляция ошибки**
+> Пресет `500 Internal Error` → URL `*/api/payments/*`
 
-**Убрать авторизацию для тестирования**
+**Убрать авторизацию**
 > `modifyRequest` → URL `*/api/*` → Remove Header: `Authorization`
 
-**Подставить токен из логина в следующий запрос**
+**Токен из логина → следующий запрос**
 > 1. varSaver: URL `*/auth/login`, source `body`, path `token`, name `$authToken`
-> 2. `modifyRequest` → URL `*/api/*` → Set Header: `Authorization` = `Bearer $authToken`
+> 2. `modifyRequest` → Set Header: `Authorization` = `Bearer $authToken`
 
-**Изменить поле в теле ответа**
+**Изменить поле в ответе**
 > `modifyResponse` → URL `*/api/user` → Transform: `role` → `"admin"`
 
-**Мокировать GraphQL-запрос по имени операции**
-> `mockResponse` → GraphQL tab → operationName `GetUserProfile` → тело `{"data": {"name": "Test User"}}`
+**Mock GraphQL по имени операции**
+> `mockResponse` → GraphQL tab → operationName `GetUserProfile` → тело `{"data": {"name": "Test"}}`
 
-**Условный мок — только если баланс меньше 100**
-> `mockResponse` → URL `*/api/checkout` → Body Condition: `balance` < `100` (через varSaver + varCondition)
+**Условный мок — только если balance < 100**
+> varSaver извлекает `$balance` → `mockResponse` с varCondition `$balance < 100`
+
+</details>
+
+---
 
 ## Возможности
 
 ### Действия с запросами
 
-- **Подмена ответа** (`mockResponse`) — полностью заменить ответ (статус, заголовки, тело, задержка)
-- **Изменение запроса** (`modifyRequest`) — изменить метод, удалить/установить заголовки, трансформировать тело, удалить/установить query-параметры
-- **Изменение ответа** (`modifyResponse`) — удалить/установить заголовки ответа, трансформировать тело ответа
-- **GraphQL** — мэтчинг по `operationName` + REST/GraphQL табы в редакторе
-- **Переменные** (`varSavers`) — извлечение значений из запросов **и** ответов (body/header/status) и использование `$varName` в трансформациях, заголовках, query-параметрах, условиях **и теле mock-ответа**
-- **Условия на тело** (`bodyConditions`) — правило сработает только если все условия выполняются (equals, notEquals, contains, exists)
+- **mockResponse** — полностью заменить ответ (статус, заголовки, тело, задержка)
+- **modifyRequest** — метод, заголовки, query-параметры, трансформация тела, GraphQL query override
+- **modifyResponse** — заголовки ответа, трансформация тела (`field.path = "value"`)
+- **bodyConditions** — правило сработает только если условия на тело выполняются (equals/notEquals/contains/exists)
+- **GraphQL** — мэтчинг по `operationName`, REST/GraphQL табы
+
+### Переменные (varSavers)
+
+Извлечение значений из запросов и ответов → использование `$varName` везде:
+- В теле mock-ответа, в трансформациях, в заголовках, в query-параметрах, в условиях
 
 ### Интерфейс
 
 - Dark/Light тема (Catppuccin Mocha/Latte)
+- JSON editor с подсветкой синтаксиса, поиском (O(n)), нумерацией строк
 - 8 пресетов для типичных сценариев
-- JSON editor с подсветкой синтаксиса, нумерацией строк и поиском
-- Полноэкранный режим редактирования тела
-- Валидация JSON в реальном времени
-- Автоформатирование при вставке
-- Счётчик перехваченных запросов (badge на иконке расширения, per-tab)
-- Автодополнение URL из реальных запросов (редактор правил + varSaver модалка)
-- Автодополнение `$varName` при вводе `$` во всех полях значений (transforms, setHeaders, setQueryParams, body conditions, var conditions)
-- Табы в редакторе — **Условия** и **Действие** для компактного интерфейса
-- **Подмена тела запроса** (REST) и **GraphQL query override** в modifyRequest
+- Счётчик перехваченных запросов (badge на иконке)
+- Автодополнение URL и `$varName`
 - Экспорт/импорт правил
 
-## Архитектура
+---
 
-- **Content script approach** — перехватывает `fetch()` и `XMLHttpRequest` через injection-скрипт в page context
-- **MV3** — Manifest V3 для Chrome (service_worker) и Firefox (background.scripts)
-- Запросы перехватываются на стороне клиента, **не видны в Network tab** DevTools
-- Логи мокированных запросов отображаются в Console с тегом `[MockerJoker]`
+## DevTools панель
 
-## Структура проекта
+Своя вкладка в Chrome DevTools — видны **все** перехваченные запросы (не только замоканные):
 
-```
-extension/
-├── manifest.json             — Chrome MV3 манифест
-├── background/background.js  — service worker
-├── content/content.js        — bridge extension ↔ page
-├── content/injected.js       — fetch/XHR override (page context)
-├── popup/popup.html|js|css   — compact popup UI (600px)
-├── panel/panel.html|js|css   — full-page UI (new tab)
-├── shared/
-│   ├── common.css            — общий CSS (Catppuccin theme variables)
-│   ├── constants.js          — CONST объект (action types, defaults)
-│   ├── utils.js              — $, generateId, formatTime, escapeHtml
-│   ├── rules-store.js        — data model, CRUD, presets, render
-│   ├── json-editor.js        — highlighting, search, fullscreen, line numbers
-│   ├── url-autocomplete.js   — seenUrls, URL/GraphQL dropdowns
-│   └── editor-ui.js          — editor UI, varSavers UI, $var autocomplete
-└── icons/                    — иконки 16/48/128px
-manifest.firefox.json         — Firefox манифест (background.scripts)
-build-zip.sh                  — создание ZIP-архивов (Chrome + Firefox)
-release.sh                    — version bump + build + tag + push
-GUIDE.md                      — руководство пользователя
-CHANGELOG.md                  — история версий
-```
+- **Таблица**: время, метод (цветной), URL (хост скрыт для same-origin), статус, размер, действие, правило
+- **Сортировка** по любому столбцу (клик на заголовок)
+- **Фильтры**: All / Mock / 2xx / 4xx / 5xx
+- **Resize колонок** — тяни границу заголовка
+- **Detail panel**: Общее / Заголовки / Запрос (payload) + **Ответ всегда виден справа**
+- **Подсветка синтаксиса JSON** в теле ответа
+- **Diff** — изменённые поля подсвечены при modifyResponse
+- **ПКМ → Замокать** — создать правило из запроса
+- **Copy as cURL** — кнопка копирования
+- **Тема синхронизируется** с popup/panel
+
+---
+
+## Переменные (varSavers)
+
+Независимые извлекатели значений из HTTP-запросов и ответов:
+
+| Параметр | Значение |
+|---|---|
+| URL-паттерн | На какие запросы реагировать |
+| Источник | `body` (dot notation), `header`, `status` |
+| Откуда | Из ответа (по умолчанию) или из запроса |
+| Имя | `$varName` — доступно везде |
+
+Использование `$varName`: в теле mock-ответа, в трансформациях, в заголовках, в query-параметрах, в условиях.
+
+---
 
 ## Типы действий
 
 | Тип | Описание |
 |---|---|
-| `mockResponse` | **Подмена ответа** — полностью заменить ответ: статус, заголовки, тело, задержка |
-| `modifyRequest` | **Изменение запроса** — метод, заголовки, query-параметры, трансформация тела |
-| `modifyResponse` | **Изменение ответа** — заголовки ответа, трансформация тела ответа |
+| `mockResponse` | Полная подмена ответа: статус, заголовки, тело, задержка |
+| `modifyRequest` | Метод, заголовки, query, трансформация тела, GraphQL override |
+| `modifyResponse` | Заголовки ответа, трансформация тела ответа |
 
-## Переменные (varSavers)
+Правила применяются последовательно: Phase 1 (modifyRequest) → Phase 2 (mockResponse unconditional) → Phase 3 (real request + conditional mock + modifyResponse).
 
-Независимые от правил извлекатели значений из HTTP-запросов и ответов:
+---
 
-1. URL-паттерн — на какие запросы/ответы реагировать
-2. Источник — `body` (dot notation path), `header` (имя заголовка), `status` (HTTP код)
-3. Откуда брать — **из ответа** (по умолчанию) или **из запроса**
-4. Имя переменной — доступно как `$varName`
+## Установка
 
-Использование `$varName`:
-- В **теле mock-ответа** — автоматическая подстановка `$varName` в JSON (mockResponse)
-- В **трансформациях** тела (transforms) — подставляет значение переменной
-- В **заголовках** (setHeaders) — подставляет в значение заголовка
-- В **query-параметрах** (setQueryParams) — подставляет в значение параметра
-- В **условиях** (varConditions, bodyConditions) — правило сработает только если переменная соответствует
+### Chrome
+1. `chrome://extensions` → Developer mode → Load unpacked → выберите `build/chrome/`
 
-## Body Conditions
+### Firefox
+1. `about:debugging` → This Firefox → Load Temporary Add-on → выберите `build/firefox/manifest.json`
 
-Любое правило может содержать условия на тело. Правило сработает только если все условия выполняются.
+### Из ZIP
+1. Скачайте `dist/mock-extention-chrome.zip` или `mock-extention-firefox.zip`
+2. Распакуйте и загрузите как unpacked extension
 
-**Какое тело проверяется** зависит от типа действия:
-- `mockResponse` / `modifyResponse` → проверяется **response body**
-- `modifyRequest` → проверяется **request body**
+---
 
-| Оператор | Описание |
-|---|---|
-| `equals` | Значение по пути равно указанному |
-| `notEquals` | Значение не равно указанному |
-| `contains` | Строка содержит подстроку / массив содержит элемент |
-| `exists` | Путь существует в JSON |
+## Разработка
 
-Путь поддерживает dot notation с индексами и wildcard: `signal`, `user.address.city`, `items[0].name`, `items[*].id`.
+```bash
+# Тесты (39 тестов, zero dependencies)
+npm test
 
-Значения автотипизируются: `"true"` → `true`, `"123"` → `123`, `"null"` → `null`.
+# Сборка ZIP + unpacked
+bash build-zip.sh
 
-## Последовательное применение правил
+# Релиз (bump version + build + tag + push)
+./release.sh 5.7.0
 
-Несколько правил могут применяться к одному запросу последовательно:
+# Разработка — редактируйте extension/, пересобирайте build-zip.sh
+```
 
-1. **Фаза 1** — `modifyRequest` (модификация исходящего запроса: метод, заголовки, query, тело)
-2. **Фаза 2** — `mockResponse` без body conditions → немедленная подмена
-3. **Фаза 3** — реальный запрос → `mockResponse` с body conditions (условная подмена) + `modifyResponse` (условная/безусловная модификация)
+Требования: Node.js ≥ 18 (для `node:test`).
+
+---
+
+## Структура проекта
+
+```
+extension/
+├── manifest.json             — Chrome MV3
+├── background/background.js  — service worker, interception log, badge
+├── content/content.js        — bridge extension ↔ page
+├── content/injected.js       — fetch/XHR override (page context)
+├── popup/                    — compact popup UI
+├── panel/                    — full-page panel UI
+├── devtools/                 — DevTools panel (interception table + detail)
+├── shared/
+│   ├── constants.js          — CONST (action types, defaults, message types)
+│   ├── utils.js              — helpers
+│   ├── rules-store.js        — data model, CRUD, presets
+│   ├── json-editor.js        — highlighting, search, line numbers
+│   ├── url-autocomplete.js   — URL/var dropdowns
+│   ├── editor-ui.js          — editor, varSavers UI
+│   └── common.css            — Catppuccin theme variables
+└── icons/
+test/                         — node:test suite (39 tests)
+manifest.firefox.json         — Firefox manifest
+build-zip.sh                  — build Chrome + Firefox (ZIP + unpacked)
+release.sh                    — version bump + tag + push
+```
+
+---
 
 ## Ограничения
 
 - Перехватываются только `fetch()` и `XMLHttpRequest`
-- Content script не перехватывает навигацию, `<script src>`, `<img>` и т.д.
+- Не перехватывает навигацию, `<script src>`, `<img>`, `<link>`
 - Трансформации работают только с JSON-телами
-- Переменные (`tabVars`) хранятся в runtime memory — не переживают перезапуск браузера или закрытие вкладки
+- Переменные (`tabVars`) хранятся в runtime memory — не переживают перезапуск браузера
 
 <details>
-<summary><strong>Запрещённые заголовки</strong></summary>
-
-Браузер не позволяет удалить или изменить следующие заголовки через `modifyRequest`:
-
-| Заголовок | Причина |
-|---|---|
-| `Accept-Charset` | Forbidden request header |
-| `Accept-Encoding` | Forbidden request header |
-| `Access-Control-Request-Headers` | CORS preflight |
-| `Access-Control-Request-Method` | CORS preflight |
-| `Connection` | Forbidden request header |
-| `Content-Length` | Forbidden request header |
-| `Cookie` | Forbidden request header |
-| `Cookie2` | Forbidden request header |
-| `Date` | Forbidden request header |
-| `DNT` | Forbidden request header |
-| `Expect` | Forbidden request header |
-| `Host` | Forbidden request header |
-| `Keep-Alive` | Forbidden request header |
-| `Origin` | Forbidden request header |
-| `Referer` | Forbidden request header |
-| `TE` | Forbidden request header |
-| `Trailer` | Forbidden request header |
-| `Transfer-Encoding` | Forbidden request header |
-| `Upgrade` | Forbidden request header |
-| `Via` | Forbidden request header |
-| `Sec-*` | Все заголовки начинающиеся с `Sec-` |
-| `Proxy-*` | Все заголовки начинающиеся с `Proxy-` |
-
-</details>
-
-<details>
-<summary><strong>Troubleshooting</strong></summary>
+<summary><b>Troubleshooting</b></summary>
 
 | Симптом | Решение |
 |---|---|
 | Правило не сработало | Обновите страницу (F5). Content script инжектится при загрузке |
-| Firefox: расширение пропало после перезапуска | Временное дополнение не переживает рестарт — загрузите заново через `about:debugging` |
-| Заголовок Cookie/Origin/Host не удаляется | Это forbidden headers — браузер блокирует их изменение |
-| Запрос не перехватывается | Перехватываются только `fetch()` и `XMLHttpRequest` |
-| Правило с body condition не срабатывает | Убедитесь что тело — валидный JSON, проверьте путь и оператор |
-| Переменная не подставляется | Переменные извлекаются из ответов. Для параллельных запросов может понадобиться 1 F5 |
-| Все правила не работают | Проверьте что мастер-переключатель (toggle) включён в header |
+| Firefox: расширение пропало | Временное дополнение не переживает рестарт — загрузите заново |
+| Cookie/Origin/Host не удаляется | Forbidden headers — браузер блокирует |
+| Запрос не перехватывается | Только `fetch()` и `XMLHttpRequest` поддерживаются |
+| Правило с body condition не срабатывает | Проверьте путь, оператор и что тело — валидный JSON |
+| Переменная не подставляется | Для параллельных запросов может потребоваться F5 |
+| Все правила не работают | Проверьте мастер-переключатель в header |
 
 </details>
+
+---
+
+## Roadmap
+
+- **v5.8.0** — Rule duplication, search, drag-and-drop, groups
+- **v5.9.0** — Redirect URL, delay на modifyResponse, request blocking, HAR import
+- **v6.0.0** — chrome.storage.session, inline body editor, keyboard shortcuts, ESLint
+
+---
 
 ## License
 
