@@ -26,6 +26,7 @@
   var masterEnabled = true;
   var seenRequests = [];
   var tabVars = {};
+  var _currentReq = {};
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
   var origXhrOpen = OrigXHR.prototype.open;
@@ -361,7 +362,8 @@
 
   function reportInterception(data) {
     data.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    data.timestamp = Date.now();
+    data.reqHeaders = _currentReq.headers;
+    data.reqBody = _currentReq.body;
     window.postMessage({ type: CONST.PAGE_MSG.INTERCEPTION, data: data }, "*");
   }
 
@@ -443,6 +445,7 @@
         for (var hk in init.headers) { reqHeadersObj[hk] = init.headers[hk]; }
       }
     }
+    _currentReq = { headers: reqHeadersObj, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(url, reqBody, reqHeadersObj, null, "request");
 
     var matched = findAllRules(url, method, reqBody);
@@ -732,6 +735,7 @@
     flushSeenRequests();
 
     var reqBody = parseReqBody(body);
+    _currentReq = { headers: self.__rmReqHeaders || {}, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {

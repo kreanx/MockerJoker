@@ -9,8 +9,7 @@
   var detailTitle = document.getElementById("detailTitle");
   var closeDetail = document.getElementById("closeDetail");
   var ctxMenu = document.getElementById("ctxMenu");
-  var tableWrap = document.getElementById("tableWrap");
-  var splitHandle = document.getElementById("splitHandle");
+  var vSplitHandle = document.getElementById("vSplitHandle");
   var entries = [];
   var filtered = [];
   var filterText = "";
@@ -20,6 +19,16 @@
   var sortCol = null;
   var sortDir = 1;
 
+  // --- Theme sync with popup/panel ---
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme || "dark");
+  }
+  chrome.storage.local.get({ theme: "dark" }, function (data) { applyTheme(data.theme); });
+  chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area === "local" && changes.theme) applyTheme(changes.theme.newValue);
+  });
+
+  // --- Get inspected page origin for URL shortening ---
   if (chrome.tabs && chrome.tabs.get) {
     chrome.tabs.get(inspectedTabId, function (tab) {
       if (chrome.runtime.lastError || !tab || !tab.url) {
@@ -194,9 +203,9 @@
   function showDetail(entry) {
     selectedId = entry.id;
     render();
-    detailPanel.classList.remove("hidden");
-    splitHandle.classList.add("visible");
     detailTitle.textContent = (entry.method || "GET") + " " + shortUrl(entry.url);
+
+    // General tab
     var general = '<table class="hdr-table">';
     general += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
     general += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
@@ -212,13 +221,34 @@
     if (entry.body) general += '<button class="dt-btn" id="btnCopyBody">Тело</button>';
     general += '<button class="dt-btn" id="btnMockReq">Замокать</button></div>';
     document.getElementById("tab-general").innerHTML = general;
+
+    // Headers tab
     document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
+
+    // Payload tab (request data)
+    var payloadHtml = '<table class="hdr-table">';
+    payloadHtml += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
+    payloadHtml += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
+    payloadHtml += '</table>';
+    payloadHtml += '<div style="margin-top:12px;font-weight:500;color:var(--ctp-overlay0,);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Заголовки запроса</div>';
+    payloadHtml += formatHeaders(entry.reqHeaders);
+    if (entry.reqBody) {
+      payloadHtml += '<div style="margin-top:12px;font-weight:500;color:var(--ctp-overlay0);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Тело запроса</div>';
+      payloadHtml += prettyBody(entry.reqBody);
+    }
+    document.getElementById("tab-payload").innerHTML = payloadHtml;
+
+    // Body tab (response)
     document.getElementById("tab-body").innerHTML = prettyBody(entry.body, entry.originalBody);
+
+    // Original tab
     var origTab = document.querySelector('.dt-tab-orig');
     if (entry.originalBody != null) {
       origTab.classList.remove("hidden");
       document.getElementById("tab-original").innerHTML = prettyBody(entry.originalBody);
     } else { origTab.classList.add("hidden"); }
+
+    // Wire buttons
     document.getElementById("btnCopyUrl").onclick = function () { copyText(entry.url); };
     document.getElementById("btnCopyCurl").onclick = function () { copyText(buildCurl(entry)); };
     if (entry.body) document.getElementById("btnCopyBody").onclick = function () { copyText(entry.body); };
@@ -251,7 +281,7 @@
     if (pane) pane.classList.add("active");
   }
 
-  // --- Column resize: grow this column, shrink adjacent (no horizontal scroll) ---
+  // --- Column resize (adjacent shrinks) ---
   function initColumnResize() {
     var ths = document.querySelectorAll("#interceptionTable th");
     Array.prototype.forEach.call(ths, function (th, idx) {
@@ -267,19 +297,13 @@
         var startNextW = nextTh.getBoundingClientRect().width;
         function onMove(ev) {
           var diff = ev.clientX - startX;
-          var newW = startW + diff;
-          var newNextW = startNextW - diff;
+          var newW = startW + diff, newNextW = startNextW - diff;
           if (newW < 30) { newW = 30; newNextW = startW + startNextW - 30; }
           if (newNextW < 30) { newNextW = 30; newW = startW + startNextW - 30; }
           th.style.width = newW + "px";
           nextTh.style.width = newNextW + "px";
         }
-        function onUp() {
-          document.removeEventListener("mousemove", onMove);
-          document.removeEventListener("mouseup", onUp);
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-        }
+        function onUp() { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
         document.body.style.cursor = "col-resize";
@@ -288,26 +312,21 @@
     });
   }
 
-  // --- Detail panel vertical resize ---
-  function initDetailResize() {
-    splitHandle.addEventListener("mousedown", function (e) {
+  // --- Vertical split resize (table ↔ detail) ---
+  function initVerticalSplit() {
+    vSplitHandle.addEventListener("mousedown", function (e) {
       e.preventDefault();
-      var startY = e.clientY;
-      var startH = detailPanel.getBoundingClientRect().height;
+      var startX = e.clientX;
+      var startW = detailPanel.getBoundingClientRect().width;
       function onMove(ev) {
-        var newH = startH + (startY - ev.clientY);
-        newH = Math.max(80, Math.min(window.innerHeight - 120, newH));
-        detailPanel.style.height = newH + "px";
+        var newW = startW - (ev.clientX - startX);
+        newW = Math.max(250, Math.min(window.innerWidth - 250, newW));
+        detailPanel.style.width = newW + "px";
       }
-      function onUp() {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      }
+      function onUp() { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
-      document.body.style.cursor = "ns-resize";
+      document.body.style.cursor = "ew-resize";
       document.body.style.userSelect = "none";
     });
   }
@@ -340,11 +359,9 @@
     e.preventDefault();
     var entry = entries.find(function (x) { return x.id === tr.dataset.id; });
     if (!entry) return;
-    ctxMenu.style.left = e.clientX + "px";
-    ctxMenu.style.top = e.clientY + "px";
+    ctxMenu.style.left = e.clientX + "px"; ctxMenu.style.top = e.clientY + "px";
     ctxMenu.classList.remove("hidden");
-    ctxMenu.dataset.url = entry.url || "";
-    ctxMenu.dataset.method = entry.method || "GET";
+    ctxMenu.dataset.url = entry.url || ""; ctxMenu.dataset.method = entry.method || "GET";
   });
 
   document.addEventListener("click", function () { ctxMenu.classList.add("hidden"); });
@@ -358,9 +375,7 @@
   document.querySelectorAll(".sf-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       document.querySelectorAll(".sf-btn").forEach(function (b) { b.classList.remove("active"); });
-      btn.classList.add("active");
-      statusFilter = btn.dataset.filter;
-      render();
+      btn.classList.add("active"); statusFilter = btn.dataset.filter; render();
     });
   });
 
@@ -368,20 +383,9 @@
     tab.addEventListener("click", function () { switchTab(tab.dataset.tab); });
   });
 
-  closeDetail.addEventListener("click", function () {
-    detailPanel.classList.add("hidden");
-    splitHandle.classList.remove("visible");
-    selectedId = null;
-    render();
-  });
-
+  closeDetail.addEventListener("click", function () { selectedId = null; render(); detailTitle.textContent = "Выберите запрос"; switchTab("general"); });
   filterInput.addEventListener("input", applyFilter);
-  clearBtn.addEventListener("click", function () {
-    entries = []; filtered = []; render();
-    detailPanel.classList.add("hidden");
-    splitHandle.classList.remove("visible");
-    selectedId = null;
-  });
+  clearBtn.addEventListener("click", function () { entries = []; filtered = []; render(); selectedId = null; detailTitle.textContent = "Выберите запрос"; });
 
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") {
@@ -393,6 +397,6 @@
   });
 
   initColumnResize();
-  initDetailResize();
+  initVerticalSplit();
   initColumnSort();
 })();
