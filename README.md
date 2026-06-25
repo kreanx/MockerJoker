@@ -35,11 +35,7 @@
 - [DevTools панель](#devtools-панель)
 - [Переменные между запросами](#переменные-varsavers)
 - [Типы действий](#типы-действий)
-- [Установка](#установка)
-- [Разработка](#разработка)
-- [Структура проекта](#структура-проекта)
 - [Ограничения](#ограничения)
-- [Roadmap](#roadmap)
 
 ---
 
@@ -162,66 +158,6 @@
 
 Правила применяются последовательно: Phase 1 (modifyRequest) → Phase 2 (mockResponse unconditional) → Phase 3 (real request + conditional mock + modifyResponse).
 
----
-
-## Установка
-
-### Chrome
-1. `chrome://extensions` → Developer mode → Load unpacked → выберите `build/chrome/`
-
-### Firefox
-1. `about:debugging` → This Firefox → Load Temporary Add-on → выберите `build/firefox/manifest.json`
-
-### Из ZIP
-1. Скачайте `dist/mock-extention-chrome.zip` или `mock-extention-firefox.zip`
-2. Распакуйте и загрузите как unpacked extension
-
----
-
-## Разработка
-
-```bash
-# Тесты (39 тестов, zero dependencies)
-npm test
-
-# Сборка ZIP + unpacked
-bash build-zip.sh
-
-# Релиз (bump version + build + tag + push)
-./release.sh 5.7.0
-
-# Разработка — редактируйте extension/, пересобирайте build-zip.sh
-```
-
-Требования: Node.js ≥ 18 (для `node:test`).
-
----
-
-## Структура проекта
-
-```
-extension/
-├── manifest.json             — Chrome MV3
-├── background/background.js  — service worker, interception log, badge
-├── content/content.js        — bridge extension ↔ page
-├── content/injected.js       — fetch/XHR override (page context)
-├── popup/                    — compact popup UI
-├── panel/                    — full-page panel UI
-├── devtools/                 — DevTools panel (interception table + detail)
-├── shared/
-│   ├── constants.js          — CONST (action types, defaults, message types)
-│   ├── utils.js              — helpers
-│   ├── rules-store.js        — data model, CRUD, presets
-│   ├── json-editor.js        — highlighting, search, line numbers
-│   ├── url-autocomplete.js   — URL/var dropdowns
-│   ├── editor-ui.js          — editor, varSavers UI
-│   └── common.css            — Catppuccin theme variables
-└── icons/
-test/                         — node:test suite (39 tests)
-manifest.firefox.json         — Firefox manifest
-build-zip.sh                  — build Chrome + Firefox (ZIP + unpacked)
-release.sh                    — version bump + tag + push
-```
 
 ---
 
@@ -238,7 +174,6 @@ release.sh                    — version bump + tag + push
 | Симптом | Решение |
 |---|---|
 | Правило не сработало | Обновите страницу (F5). Content script инжектится при загрузке |
-| Firefox: расширение пропало | Временное дополнение не переживает рестарт — загрузите заново |
 | Cookie/Origin/Host не удаляется | Forbidden headers — браузер блокирует |
 | Запрос не перехватывается | Только `fetch()` и `XMLHttpRequest` поддерживаются |
 | Правило с body condition не срабатывает | Проверьте путь, оператор и что тело — валидный JSON |
@@ -246,14 +181,6 @@ release.sh                    — version bump + tag + push
 | Все правила не работают | Проверьте мастер-переключатель в header |
 
 </details>
-
----
-
-## Roadmap
-
-- **v5.8.0** — Rule duplication, search, drag-and-drop, groups
-- **v5.9.0** — Redirect URL, delay на modifyResponse, request blocking, HAR import
-- **v6.0.0** — chrome.storage.session, inline body editor, keyboard shortcuts, ESLint
 
 ---
 
