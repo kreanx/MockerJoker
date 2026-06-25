@@ -303,34 +303,66 @@ function initRulesListDnD() {
   var list = $("rulesList");
   if (!list || list.dataset.dndInit) return;
   list.dataset.dndInit = "1";
+
+  var dragEl = null;
+  var lastTarget = null;
+
   list.addEventListener("dragstart", function (e) {
     var item = e.target.closest(".rule-item");
     if (!item) return;
+    // Don't start drag from interactive elements (checkbox, buttons)
+    if (e.target.matches("input, button")) { e.preventDefault(); return; }
     _dragId = item.dataset.id;
+    dragEl = item;
     e.dataTransfer.effectAllowed = "move";
-    item.classList.add("dragging");
+    e.dataTransfer.setData("text/plain", _dragId); // Firefox requires this
+    requestAnimationFrame(function () { item.classList.add("dragging"); });
   });
-  list.addEventListener("dragend", function (e) {
-    var item = e.target.closest(".rule-item");
-    if (item) item.classList.remove("dragging");
-    list.querySelectorAll(".rule-item").forEach(function (el) { el.classList.remove("drop-above", "drop-below"); });
+
+  list.addEventListener("dragend", function () {
+    if (dragEl) dragEl.classList.remove("dragging");
+    dragEl = null;
     _dragId = null;
+    lastTarget = null;
+    // Clean up drop indicators efficiently
+    var dirty = list.querySelectorAll(".drop-above, .drop-below");
+    for (var i = 0; i < dirty.length; i++) {
+      dirty[i].classList.remove("drop-above", "drop-below");
+    }
   });
+
   list.addEventListener("dragover", function (e) {
     e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
     var target = e.target.closest(".rule-item");
-    if (!target || target.dataset.id === _dragId) return;
-    target.classList.remove("drop-above", "drop-below");
+    if (!target || target === dragEl) return;
+
     var rect = target.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) target.classList.add("drop-above");
-    else target.classList.add("drop-below");
+    var above = e.clientY < rect.top + rect.height / 2;
+
+    // Only remove classes from PREVIOUS target if it changed
+    if (lastTarget && lastTarget !== target) {
+      lastTarget.classList.remove("drop-above", "drop-below");
+    }
+    lastTarget = target;
+    target.classList.toggle("drop-above", above);
+    target.classList.toggle("drop-below", !above);
   });
+
   list.addEventListener("drop", function (e) {
     e.preventDefault();
+    if (!_dragId) return;
     var target = e.target.closest(".rule-item");
-    if (!target || !_dragId) return;
+    if (!target || target === dragEl) return;
     var rect = target.getBoundingClientRect();
-    var insertBefore = e.clientY < rect.top + rect.height / 2;
-    reorderRules(_dragId, target.dataset.id, insertBefore);
+    reorderRules(_dragId, target.dataset.id, e.clientY < rect.top + rect.height / 2);
+  });
+
+  // Re-init after renderRules replaces innerHTML (DnD listeners on list survive,
+  // but cached elements are stale — reset on next interaction)
+  list.addEventListener("dragenter", function (e) {
+    if (!_dragId) return;
+    e.preventDefault();
   });
 }
