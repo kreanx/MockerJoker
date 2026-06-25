@@ -336,15 +336,22 @@ function initRulesListDnD() {
     e.dataTransfer.dropEffect = "move";
 
     var target = e.target.closest(".rule-item");
-    if (!target || target === dragEl) return;
-
+    // Below all items → treat as "drop after last"
+    if (!target) {
+      var all = list.querySelectorAll(".rule-item");
+      if (all.length === 0 || !dragEl) return;
+      target = all[all.length - 1];
+      if (target === dragEl) return;
+      if (lastTarget && lastTarget !== target) lastTarget.classList.remove("drop-above", "drop-below");
+      lastTarget = target;
+      target.classList.remove("drop-above");
+      target.classList.add("drop-below");
+      return;
+    }
+    if (target === dragEl) return;
     var rect = target.getBoundingClientRect();
     var above = e.clientY < rect.top + rect.height / 2;
-
-    // Only remove classes from PREVIOUS target if it changed
-    if (lastTarget && lastTarget !== target) {
-      lastTarget.classList.remove("drop-above", "drop-below");
-    }
+    if (lastTarget && lastTarget !== target) lastTarget.classList.remove("drop-above", "drop-below");
     lastTarget = target;
     target.classList.toggle("drop-above", above);
     target.classList.toggle("drop-below", !above);
@@ -354,7 +361,17 @@ function initRulesListDnD() {
     e.preventDefault();
     if (!_dragId) return;
     var target = e.target.closest(".rule-item");
-    if (!target || target === dragEl) return;
+    // Drop below all items → move to end
+    if (!target) {
+      var all = list.querySelectorAll(".rule-item");
+      if (all.length > 0) {
+        target = all[all.length - 1];
+        if (target === dragEl) return;
+        reorderRules(_dragId, target.dataset.id, false);
+      }
+      return;
+    }
+    if (target === dragEl) return;
     var rect = target.getBoundingClientRect();
     reorderRules(_dragId, target.dataset.id, e.clientY < rect.top + rect.height / 2);
   });
