@@ -10,6 +10,7 @@
   var closeDetail = document.getElementById("closeDetail");
   var ctxMenu = document.getElementById("ctxMenu");
   var tableWrap = document.getElementById("tableWrap");
+  var splitHandle = document.getElementById("splitHandle");
   var entries = [];
   var filtered = [];
   var filterText = "";
@@ -35,6 +36,11 @@
   function formatTime(ts) {
     var d = new Date(ts);
     return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function methodClass(method) {
+    var m = (method || "").toUpperCase();
+    return { "GET": "m-get", "POST": "m-post", "PUT": "m-put", "DELETE": "m-delete", "PATCH": "m-patch" }[m] || "";
   }
 
   function getBodySize(e) {
@@ -86,16 +92,11 @@
     var pretty;
     try { pretty = JSON.stringify(JSON.parse(body), null, 2); }
     catch (e) { return '<pre class="raw-body">' + escapeHtml(body.substring(0, 5000)) + '</pre>'; }
-
     if (!originalBody) return '<pre class="json-body">' + highlightJson(pretty) + '</pre>';
-
     var origPretty;
     try { origPretty = JSON.stringify(JSON.parse(originalBody), null, 2); }
     catch (e) { return '<pre class="json-body">' + highlightJson(pretty) + '</pre>'; }
-
-    var resLines = pretty.split("\n");
-    var origLines = origPretty.split("\n");
-    var html = "";
+    var resLines = pretty.split("\n"), origLines = origPretty.split("\n"), html = "";
     for (var i = 0; i < resLines.length; i++) {
       var changed = i >= origLines.length || resLines[i] !== origLines[i];
       html += '<div class="' + (changed ? "json-line-changed" : "json-line") + '">' + highlightJson(resLines[i]) + '</div>';
@@ -105,10 +106,9 @@
 
   function formatHeaders(hdrs) {
     if (!hdrs || Object.keys(hdrs).length === 0) return '<span class="empty">— нет заголовков —</span>';
-    var html = '<table class="hdr-table">';
-    var keys = Object.keys(hdrs).sort();
+    var html = '<table class="hdr-table">', keys = Object.keys(hdrs).sort();
     for (var i = 0; i < keys.length; i++) {
-      html += '<tr><td class="hdr-key">' + escapeHtml(keys[i]) + '</td><td class="hdr-val">' + escapeHtml(hdrs[keys[i]]) + '</td></tr>';
+      html += '<tr><td class="hdr-key">' + escapeHtml(keys[i]) + '</td><td>' + escapeHtml(hdrs[keys[i]]) + '</td></tr>';
     }
     return html + '</table>';
   }
@@ -138,17 +138,13 @@
 
   function getSortedList() {
     var list = (filterText ? filtered : entries).filter(matchesStatusFilter);
-    if (sortCol) {
-      list = list.slice().sort(function (a, b) { return compareEntries(a, b, sortCol) * sortDir; });
-    }
+    if (sortCol) list = list.slice().sort(function (a, b) { return compareEntries(a, b, sortCol) * sortDir; });
     return list;
   }
 
   function updateSortIndicators() {
     var ths = document.querySelectorAll("#interceptionTable th");
-    Array.prototype.forEach.call(ths, function (th) {
-      th.classList.remove("sort-asc", "sort-desc");
-    });
+    Array.prototype.forEach.call(ths, function (th) { th.classList.remove("sort-asc", "sort-desc"); });
     if (sortCol) {
       var active = document.querySelector("#interceptionTable th.col-" + sortCol);
       if (active) active.classList.add(sortDir > 0 ? "sort-asc" : "sort-desc");
@@ -156,9 +152,7 @@
   }
 
   function render() {
-    var list = getSortedList();
-    var html = "";
-    var matchedCount = 0;
+    var list = getSortedList(), html = "", matchedCount = 0;
     for (var i = list.length - 1; i >= 0; i--) {
       var e = list[i];
       if (e.matched) matchedCount++;
@@ -170,9 +164,10 @@
       var rowClass = e.matched ? "row-matched" : "row-passthrough";
       if (e.id === selectedId) rowClass += " row-selected";
       var dispUrl = shortUrl(e.url);
+      var mc = methodClass(e.method);
       html += '<tr class="' + rowClass + '" data-id="' + escapeHtml(e.id) + '">' +
         '<td>' + escapeHtml(formatTime(e.timestamp)) + '</td>' +
-        '<td>' + escapeHtml(e.method || "") + '</td>' +
+        '<td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td>' +
         '<td class="' + (dispUrl === e.url ? "col-url cross-origin" : "col-url") + '" title="' + escapeHtml(e.url) + '">' + escapeHtml(dispUrl) + '</td>' +
         '<td class="' + statusClass + '">' + (e.status != null ? e.status : "-") + '</td>' +
         '<td>' + formatSize(e.body, e.headers) + '</td>' +
@@ -200,8 +195,8 @@
     selectedId = entry.id;
     render();
     detailPanel.classList.remove("hidden");
-    detailTitle.textContent = entry.method + " " + shortUrl(entry.url);
-
+    splitHandle.classList.add("visible");
+    detailTitle.textContent = (entry.method || "GET") + " " + shortUrl(entry.url);
     var general = '<table class="hdr-table">';
     general += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
     general += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
@@ -219,13 +214,11 @@
     document.getElementById("tab-general").innerHTML = general;
     document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
     document.getElementById("tab-body").innerHTML = prettyBody(entry.body, entry.originalBody);
-
     var origTab = document.querySelector('.dt-tab-orig');
     if (entry.originalBody != null) {
       origTab.classList.remove("hidden");
       document.getElementById("tab-original").innerHTML = prettyBody(entry.originalBody);
     } else { origTab.classList.add("hidden"); }
-
     document.getElementById("btnCopyUrl").onclick = function () { copyText(entry.url); };
     document.getElementById("btnCopyCurl").onclick = function () { copyText(buildCurl(entry)); };
     if (entry.body) document.getElementById("btnCopyBody").onclick = function () { copyText(entry.body); };
@@ -258,27 +251,28 @@
     if (pane) pane.classList.add("active");
   }
 
-  // --- Column resize (fixed: clientX + getBoundingClientRect + clamp) ---
+  // --- Column resize: grow this column, shrink adjacent (no horizontal scroll) ---
   function initColumnResize() {
     var ths = document.querySelectorAll("#interceptionTable th");
     Array.prototype.forEach.call(ths, function (th, idx) {
-      if (idx === ths.length - 1) return;
+      if (idx >= ths.length - 1) return;
+      var nextTh = ths[idx + 1];
       var grip = document.createElement("div");
       grip.className = "col-resizer";
       th.appendChild(grip);
-
       grip.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
+        e.preventDefault(); e.stopPropagation();
         var startX = e.clientX;
         var startW = th.getBoundingClientRect().width;
-        var maxW = tableWrap.clientWidth - 120;
-
+        var startNextW = nextTh.getBoundingClientRect().width;
         function onMove(ev) {
-          var newW = startW + (ev.clientX - startX);
-          newW = Math.max(30, Math.min(maxW, newW));
+          var diff = ev.clientX - startX;
+          var newW = startW + diff;
+          var newNextW = startNextW - diff;
+          if (newW < 30) { newW = 30; newNextW = startW + startNextW - 30; }
+          if (newNextW < 30) { newNextW = 30; newW = startW + startNextW - 30; }
           th.style.width = newW + "px";
+          nextTh.style.width = newNextW + "px";
         }
         function onUp() {
           document.removeEventListener("mousemove", onMove);
@@ -291,6 +285,30 @@
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
       });
+    });
+  }
+
+  // --- Detail panel vertical resize ---
+  function initDetailResize() {
+    splitHandle.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      var startY = e.clientY;
+      var startH = detailPanel.getBoundingClientRect().height;
+      function onMove(ev) {
+        var newH = startH + (startY - ev.clientY);
+        newH = Math.max(80, Math.min(window.innerHeight - 120, newH));
+        detailPanel.style.height = newH + "px";
+      }
+      function onUp() {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
     });
   }
 
@@ -350,9 +368,20 @@
     tab.addEventListener("click", function () { switchTab(tab.dataset.tab); });
   });
 
-  closeDetail.addEventListener("click", function () { detailPanel.classList.add("hidden"); selectedId = null; render(); });
+  closeDetail.addEventListener("click", function () {
+    detailPanel.classList.add("hidden");
+    splitHandle.classList.remove("visible");
+    selectedId = null;
+    render();
+  });
+
   filterInput.addEventListener("input", applyFilter);
-  clearBtn.addEventListener("click", function () { entries = []; filtered = []; render(); detailPanel.classList.add("hidden"); selectedId = null; });
+  clearBtn.addEventListener("click", function () {
+    entries = []; filtered = []; render();
+    detailPanel.classList.add("hidden");
+    splitHandle.classList.remove("visible");
+    selectedId = null;
+  });
 
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") {
@@ -364,5 +393,6 @@
   });
 
   initColumnResize();
+  initDetailResize();
   initColumnSort();
 })();

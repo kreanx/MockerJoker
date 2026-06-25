@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="panel.css">
   <style>
     body { margin: 0; padding: 0; background: var(--bg-primary, #1e1e2e); color: var(--text-primary, #cdd6f4); font-size: 13px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    * { box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -26,17 +27,18 @@
       <thead>
         <tr>
           <th class="col-time" style="width:58px">Время</th>
-          <th class="col-method" style="width:48px">Метод</th>
-          <th class="col-url" style="width:300px">URL</th>
-          <th class="col-status" style="width:46px">Статус</th>
-          <th class="col-size" style="width:56px">Размер</th>
-          <th class="col-action" style="width:72px">Действие</th>
+          <th class="col-method" style="width:52px">Метод</th>
+          <th class="col-url" style="width:auto">URL</th>
+          <th class="col-status" style="width:48px">Статус</th>
+          <th class="col-size" style="width:54px">Размер</th>
+          <th class="col-action" style="width:74px">Действие</th>
           <th class="col-rule" style="width:90px">Правило</th>
         </tr>
       </thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
+  <div id="splitHandle"></div>
   <div id="detailPanel" class="hidden">
     <div id="detailHeader">
       <span id="detailTitle"></span>
