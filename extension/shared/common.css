@@ -748,6 +748,21 @@ input.json-search-input:focus {
   color: var(--text-muted);
 }
 
+.rules-search {
+  width: 100%; padding: 6px 10px; margin-bottom: 8px;
+  border: 0.5px solid var(--ctp-surface1); border-radius: 6px;
+  background: var(--ctp-crust); color: var(--ctp-text);
+  font-size: 13px; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rules-search::placeholder { color: var(--ctp-overlay0); }
+.rules-search:focus { border-color: var(--ctp-blue); box-shadow: 0 0 0 3px rgba(137,180,250,0.15); outline: none; }
+
+/* Drag-and-drop visual feedback */
+.rule-item.dragging { opacity: 0.4; }
+.rule-item.drop-above { border-top: 2px solid var(--ctp-blue); }
+.rule-item.drop-below { border-bottom: 2px solid var(--ctp-blue); }
+.btn-duplicate { font-size: 14px; line-height: 1; }
+
 .editor {
   background: var(--bg-surface);
 }

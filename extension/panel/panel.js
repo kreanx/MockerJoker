@@ -70,22 +70,6 @@ function updateToggleStatus() {
   else { el.textContent = "ВЫКЛ"; el.className = "toggle-status off"; }
 }
 
-function renderRules() {
-  var list = $("rulesList");
-  if (rules.length === 0) {
-    list.innerHTML = '<div class="empty-state">' +
-      '<p class="empty-title">Правил пока нет</p>' +
-      '<p>Выберите пресет слева или нажмите "Добавить правило"</p></div>';
-    return;
-  }
-  chrome.runtime.sendMessage({ type: CONST.MSG_GET_HIT_COUNTERS }, function (res) {
-    var counters = (res && res.counters) || {};
-    var lastTime = (res && res.lastHitTime) || {};
-    var html = "";
-    rules.forEach(function (rule) { html += renderRuleItem(rule, counters, lastTime); });
-    list.innerHTML = html;
-  });
-}
 
 function bindEvents() {
   $("masterToggle").addEventListener("change", function () { masterEnabled = this.checked; updateToggleStatus(); saveState(); });
@@ -102,15 +86,19 @@ function bindEvents() {
     });
   });
 
-  $("rulesList").addEventListener("click", function (e) {
-    var t = e.target;
-    if (t.classList.contains("rule-toggle")) { toggleRule(t.getAttribute("data-id"), t.checked); return; }
-    if (t.classList.contains("btn-edit")) { openEditor(t.getAttribute("data-id")); return; }
-    if (t.classList.contains("btn-delete")) { deleteRuleById(t.getAttribute("data-id")); return; }
-  });
+  $("rulesList").addEventListener("click", function (e) { handleRulesListClick(e); });
+  var searchInput = $("rulesSearch");
+  if (searchInput) {
+    var searchTimer = null;
+    searchInput.addEventListener("input", function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () { setRulesSearchQuery(searchInput.value); }, 150);
+    });
+  }
 
   bindEditorEvents();
   bindVarSaversEvents();
+  initRulesListDnD();
 }
 
 document.addEventListener("DOMContentLoaded", init);

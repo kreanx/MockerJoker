@@ -70,7 +70,7 @@ function loadRulesStore() {
   const factory = new Function(
     "$", "document",
     src +
-      "\n;return {validateRule: validateRule, createDefaultRule: createDefaultRule, findRuleById: findRuleById, escapeAttr: escapeAttr, generateId: generateId};"
+      "\n;return {validateRule: validateRule, createDefaultRule: createDefaultRule, findRuleById: findRuleById, escapeAttr: escapeAttr, generateId: generateId, cloneRule: cloneRule, reorderArray: reorderArray};"
   );
   return factory(function () { return null; }, {});
 }

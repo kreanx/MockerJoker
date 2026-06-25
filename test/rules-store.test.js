@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadRulesStore } = require("./_load");
 
-const { validateRule, createDefaultRule, findRuleById, escapeAttr, generateId } = loadRulesStore();
+const { validateRule, createDefaultRule, findRuleById, escapeAttr, generateId, cloneRule, reorderArray } = loadRulesStore();
 
 test("createDefaultRule: produces a well-formed default rule", () => {
   const r = createDefaultRule();
@@ -49,4 +49,52 @@ test("generateId: unique and uses a safe charset", () => {
   const b = generateId();
   assert.notStrictEqual(a, b);
   assert.match(a, /^[0-9a-z]+$/);
+});
+
+// --- cloneRule (rule duplication) ---
+test("cloneRule: deep copy with new id, (копия) suffix, disabled", () => {
+  var rule = createDefaultRule();
+  rule.name = "My API Mock";
+  rule.enabled = true;
+  rule.match.urlPattern = "*/api/users*";
+  var clone = cloneRule(rule);
+  assert.notStrictEqual(clone.id, rule.id);
+  assert.equal(clone.name, "My API Mock (копия)");
+  assert.equal(clone.enabled, false);
+  assert.equal(clone.match.urlPattern, "*/api/users*");
+  clone.match.urlPattern = "changed";
+  assert.equal(rule.match.urlPattern, "*/api/users*", "original unmutated");
+});
+
+test("cloneRule: handles empty name", () => {
+  var clone = cloneRule(createDefaultRule());
+  assert.equal(clone.name, "Правило (копия)");
+});
+
+// --- reorderArray (drag-and-drop) ---
+test("reorderArray: move forward (insert before)", () => {
+  var a = ["a", "b", "c", "d"];
+  reorderArray(a, 0, 2, true);
+  assert.deepEqual(a, ["b", "a", "c", "d"]);
+});
+test("reorderArray: move backward (insert before)", () => {
+  var a = ["a", "b", "c", "d"];
+  reorderArray(a, 3, 1, true);
+  assert.deepEqual(a, ["a", "d", "b", "c"]);
+});
+test("reorderArray: move after target", () => {
+  var a = ["a", "b", "c", "d"];
+  reorderArray(a, 0, 2, false);
+  assert.deepEqual(a, ["b", "c", "a", "d"]);
+});
+test("reorderArray: no-op same index", () => {
+  var a = ["a", "b", "c"];
+  reorderArray(a, 1, 1, true);
+  assert.deepEqual(a, ["a", "b", "c"]);
+});
+test("reorderArray: no-op invalid indices", () => {
+  var a = ["a", "b"];
+  reorderArray(a, -1, 0, true);
+  reorderArray(a, 0, 99, true);
+  assert.deepEqual(a, ["a", "b"]);
 });

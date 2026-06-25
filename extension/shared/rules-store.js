@@ -196,7 +196,7 @@ function renderRuleItem(rule, counters, lastTime) {
   var hits = counters[rule.id] || 0;
   var hitClass = hits > 0 ? "has-hits" : "";
   var hitTitle = hits > 0 ? "Перехвачено: " + hits + " (последний: " + formatTime(lastTime[rule.id]) + ")" : "Нет перехватов";
-  var html = '<div class="rule-item' + disabledClass + '" data-id="' + rule.id + '">';
+  var html = '<div class="rule-item' + disabledClass + '" data-id="' + rule.id + '" draggable="true">';
   html += '<input type="checkbox" class="rule-toggle" data-id="' + rule.id + '"' + (rule.enabled ? " checked" : "") + '>';
   html += '<div class="rule-info">';
   html += '<div class="rule-name">' + escapeHtml(rule.name || "Без названия") + '</div>';
@@ -206,7 +206,131 @@ function renderRuleItem(rule, counters, lastTime) {
   html += '<span class="rule-badge ' + badgeClass + " " + statusColor + '">' + actionLabel + '</span>';
   html += '<div class="rule-actions">';
   html += '<button class="btn-edit" data-id="' + rule.id + '" title="Редактировать">&#9998;</button>';
+  html += '<button class="btn-duplicate" data-id="' + rule.id + '" title="Дублировать">&#8982;</button>';
   html += '<button class="btn-delete" data-id="' + rule.id + '" title="Удалить">&times;</button>';
   html += '</div></div>';
   return html;
+}
+
+// --- Shared rule list logic (used by popup + panel) ---
+
+var _rulesSearchQuery = "";
+
+function setRulesSearchQuery(q) {
+  _rulesSearchQuery = (q || "").toLowerCase();
+  renderRules();
+}
+
+function _filterRules(list) {
+  if (!_rulesSearchQuery) return list;
+  return list.filter(function (r) {
+    return (r.name && r.name.toLowerCase().indexOf(_rulesSearchQuery) !== -1) ||
+      (r.match && r.match.urlPattern && r.match.urlPattern.toLowerCase().indexOf(_rulesSearchQuery) !== -1) ||
+      (r.match && r.match.method && r.match.method.toLowerCase().indexOf(_rulesSearchQuery) !== -1);
+  });
+}
+
+function renderRules() {
+  var list = $("rulesList");
+  if (!list) return;
+  var filtered = _filterRules(rules);
+  if (filtered.length === 0) {
+    list.innerHTML = _rulesSearchQuery
+      ? '<div class="empty-state"><p class="empty-title">Ничего не найдено</p></div>'
+      : '<div class="empty-state"><p class="empty-title">Правил нет</p><p>Нажмите <b>+ Добавить</b> или выберите <b>Пресет</b></p></div>';
+    return;
+  }
+  chrome.runtime.sendMessage({ type: CONST.MSG_GET_HIT_COUNTERS }, function (res) {
+    var counters = (res && res.counters) || {};
+    var lastTime = (res && res.lastHitTime) || {};
+    var html = "";
+    filtered.forEach(function (rule) { html += renderRuleItem(rule, counters, lastTime); });
+    list.innerHTML = html;
+  });
+}
+
+function handleRulesListClick(e) {
+  var t = e.target;
+  if (t.classList.contains("rule-toggle")) { toggleRule(t.getAttribute("data-id"), t.checked); return true; }
+  if (t.classList.contains("btn-edit")) { openEditor(t.getAttribute("data-id")); return true; }
+  if (t.classList.contains("btn-duplicate")) { duplicateRule(t.getAttribute("data-id")); return true; }
+  if (t.classList.contains("btn-delete")) { deleteRuleById(t.getAttribute("data-id")); return true; }
+  return false;
+}
+
+// Pure helpers — testable without DOM/chrome dependencies
+function cloneRule(rule) {
+  var clone = JSON.parse(JSON.stringify(rule));
+  clone.id = generateId();
+  clone.name = (rule.name || "Правило") + " (копия)";
+  clone.enabled = false;
+  return clone;
+}
+
+function reorderArray(arr, fromIdx, toIdx, insertBefore) {
+  if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= arr.length || toIdx >= arr.length) return arr;
+  var moved = arr.splice(fromIdx, 1)[0];
+  if (fromIdx < toIdx) toIdx--;
+  arr.splice(insertBefore ? toIdx : toIdx + 1, 0, moved);
+  return arr;
+}
+
+function duplicateRule(id) {
+  var rule = findRuleById(rules, id);
+  if (!rule) return;
+  var clone = cloneRule(rule);
+  var idx = rules.indexOf(rule);
+  rules.splice(idx + 1, 0, clone);
+  saveState();
+  renderRules();
+  if (typeof openEditor === "function") openEditor(clone.id);
+}
+
+function reorderRules(fromId, toId, insertBefore) {
+  var fromIdx = -1, toIdx = -1;
+  for (var i = 0; i < rules.length; i++) {
+    if (rules[i].id === fromId) fromIdx = i;
+    if (rules[i].id === toId) toIdx = i;
+  }
+  if (fromIdx === -1 || toIdx === -1) return;
+  reorderArray(rules, fromIdx, toIdx, insertBefore);
+  saveState();
+  renderRules();
+}
+
+var _dragId = null;
+function initRulesListDnD() {
+  var list = $("rulesList");
+  if (!list || list.dataset.dndInit) return;
+  list.dataset.dndInit = "1";
+  list.addEventListener("dragstart", function (e) {
+    var item = e.target.closest(".rule-item");
+    if (!item) return;
+    _dragId = item.dataset.id;
+    e.dataTransfer.effectAllowed = "move";
+    item.classList.add("dragging");
+  });
+  list.addEventListener("dragend", function (e) {
+    var item = e.target.closest(".rule-item");
+    if (item) item.classList.remove("dragging");
+    list.querySelectorAll(".rule-item").forEach(function (el) { el.classList.remove("drop-above", "drop-below"); });
+    _dragId = null;
+  });
+  list.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    var target = e.target.closest(".rule-item");
+    if (!target || target.dataset.id === _dragId) return;
+    target.classList.remove("drop-above", "drop-below");
+    var rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) target.classList.add("drop-above");
+    else target.classList.add("drop-below");
+  });
+  list.addEventListener("drop", function (e) {
+    e.preventDefault();
+    var target = e.target.closest(".rule-item");
+    if (!target || !_dragId) return;
+    var rect = target.getBoundingClientRect();
+    var insertBefore = e.clientY < rect.top + rect.height / 2;
+    reorderRules(_dragId, target.dataset.id, insertBefore);
+  });
 }
