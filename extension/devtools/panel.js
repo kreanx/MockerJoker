@@ -9,7 +9,8 @@
   var detailTitle = document.getElementById("detailTitle");
   var closeDetail = document.getElementById("closeDetail");
   var ctxMenu = document.getElementById("ctxMenu");
-  var vSplitHandle = document.getElementById("vSplitHandle");
+  var hSplitHandle = document.getElementById("hSplitHandle");
+  var responseView = document.getElementById("responseView");
   var entries = [];
   var filtered = [];
   var filterText = "";
@@ -19,16 +20,14 @@
   var sortCol = null;
   var sortDir = 1;
 
-  // --- Theme sync with popup/panel ---
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme || "dark");
-  }
+  // --- Theme sync ---
+  function applyTheme(theme) { document.documentElement.setAttribute("data-theme", theme || "dark"); }
   chrome.storage.local.get({ theme: "dark" }, function (data) { applyTheme(data.theme); });
   chrome.storage.onChanged.addListener(function (changes, area) {
     if (area === "local" && changes.theme) applyTheme(changes.theme.newValue);
   });
 
-  // --- Get inspected page origin for URL shortening ---
+  // --- Page origin ---
   if (chrome.tabs && chrome.tabs.get) {
     chrome.tabs.get(inspectedTabId, function (tab) {
       if (chrome.runtime.lastError || !tab || !tab.url) {
@@ -43,59 +42,42 @@
   }
 
   function formatTime(ts) {
-    var d = new Date(ts);
-    return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
-
-  function methodClass(method) {
-    var m = (method || "").toUpperCase();
-    return { "GET": "m-get", "POST": "m-post", "PUT": "m-put", "DELETE": "m-delete", "PATCH": "m-patch" }[m] || "";
+  function methodClass(m) {
+    return { "GET": "m-get", "POST": "m-post", "PUT": "m-put", "DELETE": "m-delete", "PATCH": "m-patch" }[(m || "").toUpperCase()] || "";
   }
-
   function getBodySize(e) {
     if (e.body) return e.body.length;
     if (e.headers && e.headers["content-length"]) return parseInt(e.headers["content-length"], 10) || 0;
     return 0;
   }
-
   function formatSize(body, headers) {
-    var bytes = 0;
-    if (body) bytes = body.length;
-    else if (headers && headers["content-length"]) bytes = parseInt(headers["content-length"], 10) || 0;
-    if (!bytes) return "—";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " kB";
-    return (bytes / 1048576).toFixed(1) + " MB";
+    var b = body ? body.length : (headers && headers["content-length"] ? parseInt(headers["content-length"], 10) || 0 : 0);
+    if (!b) return "—";
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b / 1024).toFixed(1) + " kB";
+    return (b / 1048576).toFixed(1) + " MB";
   }
-
-  function escapeHtml(str) {
-    if (str == null) return "";
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-
   function shortUrl(url) {
     if (!url) return "";
-    if (pageOrigin && url.indexOf(pageOrigin) === 0) {
-      var path = url.substring(pageOrigin.length);
-      return path || "/";
-    }
+    if (pageOrigin && url.indexOf(pageOrigin) === 0) { var p = url.substring(pageOrigin.length); return p || "/"; }
     return url;
   }
-
   function highlightJson(str) {
     var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return s.replace(
-      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-      function (m) {
-        var cls = "json-num";
-        if (/^"/.test(m)) cls = /:$/.test(m) ? "json-key" : "json-str";
-        else if (/true|false/.test(m)) cls = "json-bool";
-        else if (/null/.test(m)) cls = "json-null";
-        return '<span class="' + cls + '">' + m + '</span>';
-      }
-    );
+    return s.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (m) {
+      var c = "json-num";
+      if (/^"/.test(m)) c = /:$/.test(m) ? "json-key" : "json-str";
+      else if (/true|false/.test(m)) c = "json-bool";
+      else if (/null/.test(m)) c = "json-null";
+      return '<span class="' + c + '">' + m + '</span>';
+    });
   }
-
   function prettyBody(body, originalBody) {
     if (body == null || body === "") return '<span class="empty">— нет данных —</span>';
     var pretty;
@@ -105,23 +87,19 @@
     var origPretty;
     try { origPretty = JSON.stringify(JSON.parse(originalBody), null, 2); }
     catch (e) { return '<pre class="json-body">' + highlightJson(pretty) + '</pre>'; }
-    var resLines = pretty.split("\n"), origLines = origPretty.split("\n"), html = "";
-    for (var i = 0; i < resLines.length; i++) {
-      var changed = i >= origLines.length || resLines[i] !== origLines[i];
-      html += '<div class="' + (changed ? "json-line-changed" : "json-line") + '">' + highlightJson(resLines[i]) + '</div>';
+    var rl = pretty.split("\n"), ol = origPretty.split("\n"), h = "";
+    for (var i = 0; i < rl.length; i++) {
+      var ch = i >= ol.length || rl[i] !== ol[i];
+      h += '<div class="' + (ch ? "json-line-changed" : "json-line") + '">' + highlightJson(rl[i]) + '</div>';
     }
-    return '<pre class="json-body">' + html + '</pre>';
+    return '<pre class="json-body">' + h + '</pre>';
   }
-
   function formatHeaders(hdrs) {
-    if (!hdrs || Object.keys(hdrs).length === 0) return '<span class="empty">— нет заголовков —</span>';
-    var html = '<table class="hdr-table">', keys = Object.keys(hdrs).sort();
-    for (var i = 0; i < keys.length; i++) {
-      html += '<tr><td class="hdr-key">' + escapeHtml(keys[i]) + '</td><td>' + escapeHtml(hdrs[keys[i]]) + '</td></tr>';
-    }
-    return html + '</table>';
+    if (!hdrs || !Object.keys(hdrs).length) return '<span class="empty">— нет заголовков —</span>';
+    var h = '<table class="hdr-table">', k = Object.keys(hdrs).sort();
+    for (var i = 0; i < k.length; i++) h += '<tr><td class="hdr-key">' + escapeHtml(k[i]) + '</td><td>' + escapeHtml(hdrs[k[i]]) + '</td></tr>';
+    return h + '</table>';
   }
-
   function matchesStatusFilter(e) {
     if (statusFilter === "all") return true;
     if (statusFilter === "mocked") return e.matched;
@@ -131,7 +109,6 @@
     if (statusFilter === "5xx") return s >= 500;
     return true;
   }
-
   function compareEntries(a, b, col) {
     switch (col) {
       case "time": return (a.timestamp || 0) - (b.timestamp || 0);
@@ -144,46 +121,29 @@
       default: return 0;
     }
   }
-
   function getSortedList() {
     var list = (filterText ? filtered : entries).filter(matchesStatusFilter);
     if (sortCol) list = list.slice().sort(function (a, b) { return compareEntries(a, b, sortCol) * sortDir; });
     return list;
   }
-
   function updateSortIndicators() {
     var ths = document.querySelectorAll("#interceptionTable th");
     Array.prototype.forEach.call(ths, function (th) { th.classList.remove("sort-asc", "sort-desc"); });
-    if (sortCol) {
-      var active = document.querySelector("#interceptionTable th.col-" + sortCol);
-      if (active) active.classList.add(sortDir > 0 ? "sort-asc" : "sort-desc");
-    }
+    if (sortCol) { var a = document.querySelector("#interceptionTable th.col-" + sortCol); if (a) a.classList.add(sortDir > 0 ? "sort-asc" : "sort-desc"); }
   }
 
   function render() {
-    var list = getSortedList(), html = "", matchedCount = 0;
+    var list = getSortedList(), html = "", mc2 = 0;
     for (var i = list.length - 1; i >= 0; i--) {
       var e = list[i];
-      if (e.matched) matchedCount++;
-      var statusClass = e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
-      var actionLabel = e.actionType === "mockResponse" ? "MOCK"
-        : e.actionType === "modifyResponse" ? "MOD-RESP"
-        : e.actionType === "modifyRequest" || e.actionType === "modifyBody" ? "MOD-REQ"
-        : e.matched ? "matched" : "—";
-      var rowClass = e.matched ? "row-matched" : "row-passthrough";
-      if (e.id === selectedId) rowClass += " row-selected";
-      var dispUrl = shortUrl(e.url);
-      var mc = methodClass(e.method);
-      html += '<tr class="' + rowClass + '" data-id="' + escapeHtml(e.id) + '">' +
-        '<td>' + escapeHtml(formatTime(e.timestamp)) + '</td>' +
-        '<td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td>' +
-        '<td class="' + (dispUrl === e.url ? "col-url cross-origin" : "col-url") + '" title="' + escapeHtml(e.url) + '">' + escapeHtml(dispUrl) + '</td>' +
-        '<td class="' + statusClass + '">' + (e.status != null ? e.status : "-") + '</td>' +
-        '<td>' + formatSize(e.body, e.headers) + '</td>' +
-        '<td class="col-action">' + actionLabel + '</td>' +
-        '<td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
+      if (e.matched) mc2++;
+      var sc = e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
+      var al = e.actionType === "mockResponse" ? "MOCK" : e.actionType === "modifyResponse" ? "MOD-RESP" : (e.actionType === "modifyRequest" || e.actionType === "modifyBody") ? "MOD-REQ" : e.matched ? "matched" : "—";
+      var rc = (e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
+      var du = shortUrl(e.url), mc = methodClass(e.method);
+      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="' + (du === e.url ? "col-url cross-origin" : "col-url") + '" title="' + escapeHtml(e.url) + '">' + escapeHtml(du) + '</td><td class="' + sc + '">' + (e.status != null ? e.status : "-") + '</td><td>' + formatSize(e.body, e.headers) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
     }
-    if (countLabel) countLabel.textContent = list.length + " зап." + (matchedCount > 0 ? " · " + matchedCount + " перехв." : "");
+    if (countLabel) countLabel.textContent = list.length + " зап." + (mc2 > 0 ? " · " + mc2 + " перехв." : "");
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
     updateSortIndicators();
   }
@@ -192,10 +152,7 @@
     filterText = filterInput.value.toLowerCase();
     if (!filterText) { render(); return; }
     filtered = entries.filter(function (e) {
-      return (e.url && e.url.toLowerCase().indexOf(filterText) !== -1) ||
-        (e.ruleName && e.ruleName.toLowerCase().indexOf(filterText) !== -1) ||
-        (e.method && e.method.toLowerCase().indexOf(filterText) !== -1) ||
-        (e.actionType && e.actionType.toLowerCase().indexOf(filterText) !== -1);
+      return (e.url && e.url.toLowerCase().indexOf(filterText) !== -1) || (e.ruleName && e.ruleName.toLowerCase().indexOf(filterText) !== -1) || (e.method && e.method.toLowerCase().indexOf(filterText) !== -1) || (e.actionType && e.actionType.toLowerCase().indexOf(filterText) !== -1);
     });
     render();
   }
@@ -203,52 +160,49 @@
   function showDetail(entry) {
     selectedId = entry.id;
     render();
+    detailPanel.classList.remove("hidden");
+    hSplitHandle.classList.add("visible");
     detailTitle.textContent = (entry.method || "GET") + " " + shortUrl(entry.url);
 
-    // General tab
-    var general = '<table class="hdr-table">';
-    general += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
-    general += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
-    general += '<tr><td class="hdr-key">Статус</td><td>' + (entry.status || "-") + '</td></tr>';
-    general += '<tr><td class="hdr-key">Размер</td><td>' + formatSize(entry.body, entry.headers) + '</td></tr>';
-    general += '<tr><td class="hdr-key">Перехвачен</td><td>' + (entry.matched ? "да" : "нет") + '</td></tr>';
-    if (entry.ruleName) general += '<tr><td class="hdr-key">Правило</td><td>' + escapeHtml(entry.ruleName) + '</td></tr>';
-    if (entry.actionType) general += '<tr><td class="hdr-key">Действие</td><td>' + escapeHtml(entry.actionType) + '</td></tr>';
-    if (entry.delay) general += '<tr><td class="hdr-key">Задержка</td><td>' + entry.delay + 'ms</td></tr>';
-    general += '</table><div class="detail-actions">';
-    general += '<button class="dt-btn" id="btnCopyUrl">URL</button>';
-    general += '<button class="dt-btn" id="btnCopyCurl">cURL</button>';
-    if (entry.body) general += '<button class="dt-btn" id="btnCopyBody">Тело</button>';
-    general += '<button class="dt-btn" id="btnMockReq">Замокать</button></div>';
-    document.getElementById("tab-general").innerHTML = general;
+    // Left: General
+    var g = '<table class="hdr-table">';
+    g += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
+    g += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
+    g += '<tr><td class="hdr-key">Статус</td><td>' + (entry.status || "-") + '</td></tr>';
+    g += '<tr><td class="hdr-key">Размер</td><td>' + formatSize(entry.body, entry.headers) + '</td></tr>';
+    g += '<tr><td class="hdr-key">Перехвачен</td><td>' + (entry.matched ? "да" : "нет") + '</td></tr>';
+    if (entry.ruleName) g += '<tr><td class="hdr-key">Правило</td><td>' + escapeHtml(entry.ruleName) + '</td></tr>';
+    if (entry.actionType) g += '<tr><td class="hdr-key">Действие</td><td>' + escapeHtml(entry.actionType) + '</td></tr>';
+    if (entry.delay) g += '<tr><td class="hdr-key">Задержка</td><td>' + entry.delay + 'ms</td></tr>';
+    g += '</table><div class="detail-actions"><button class="dt-btn" id="btnCopyUrl">URL</button><button class="dt-btn" id="btnCopyCurl">cURL</button>';
+    if (entry.body) g += '<button class="dt-btn" id="btnCopyBody">Тело</button>';
+    g += '<button class="dt-btn" id="btnMockReq">Замокать</button></div>';
+    document.getElementById("tab-general").innerHTML = g;
 
-    // Headers tab
+    // Left: Headers
     document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
 
-    // Payload tab (request data)
-    var payloadHtml = '<table class="hdr-table">';
-    payloadHtml += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
-    payloadHtml += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr>';
-    payloadHtml += '</table>';
-    payloadHtml += '<div style="margin-top:12px;font-weight:500;color:var(--ctp-overlay0,);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Заголовки запроса</div>';
-    payloadHtml += formatHeaders(entry.reqHeaders);
+    // Left: Payload (request data)
+    var p = '<table class="hdr-table">';
+    p += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
+    p += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr></table>';
+    p += '<div style="margin-top:10px;font-size:11px;color:var(--ctp-overlay0);font-weight:500;text-transform:uppercase;margin-bottom:4px">Заголовки запроса</div>';
+    p += formatHeaders(entry.reqHeaders);
     if (entry.reqBody) {
-      payloadHtml += '<div style="margin-top:12px;font-weight:500;color:var(--ctp-overlay0);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Тело запроса</div>';
-      payloadHtml += prettyBody(entry.reqBody);
+      p += '<div style="margin-top:10px;font-size:11px;color:var(--ctp-overlay0);font-weight:500;text-transform:uppercase;margin-bottom:4px">Тело запроса</div>';
+      p += prettyBody(entry.reqBody);
     }
-    document.getElementById("tab-payload").innerHTML = payloadHtml;
+    document.getElementById("tab-payload").innerHTML = p;
 
-    // Body tab (response)
-    document.getElementById("tab-body").innerHTML = prettyBody(entry.body, entry.originalBody);
-
-    // Original tab
+    // Left: Original (only if modified)
     var origTab = document.querySelector('.dt-tab-orig');
-    if (entry.originalBody != null) {
-      origTab.classList.remove("hidden");
-      document.getElementById("tab-original").innerHTML = prettyBody(entry.originalBody);
-    } else { origTab.classList.add("hidden"); }
+    if (entry.originalBody != null) { origTab.classList.remove("hidden"); document.getElementById("tab-original").innerHTML = prettyBody(entry.originalBody); }
+    else { origTab.classList.add("hidden"); }
 
-    // Wire buttons
+    // Right: Response (ALWAYS visible)
+    responseView.innerHTML = prettyBody(entry.body, entry.originalBody);
+
+    // Buttons
     document.getElementById("btnCopyUrl").onclick = function () { copyText(entry.url); };
     document.getElementById("btnCopyCurl").onclick = function () { copyText(buildCurl(entry)); };
     if (entry.body) document.getElementById("btnCopyBody").onclick = function () { copyText(entry.body); };
@@ -260,74 +214,49 @@
 
   function buildCurl(e) {
     var cmd = "curl -X " + (e.method || "GET");
-    if (e.headers) { for (var k in e.headers) { cmd += " -H '" + k + ": " + e.headers[k] + "'"; } }
-    cmd += " '" + e.url + "'";
-    return cmd;
+    if (e.headers) { for (var k in e.headers) cmd += " -H '" + k + ": " + e.headers[k] + "'"; }
+    return cmd + " '" + e.url + "'";
   }
-
-  function copyText(text) {
-    navigator.clipboard.writeText(text).then(function () {
-      filterInput.placeholder = "Скопировано!";
-      setTimeout(function () { filterInput.placeholder = "Фильтр..."; }, 1500);
-    });
-  }
-
+  function copyText(text) { navigator.clipboard.writeText(text).then(function () { filterInput.placeholder = "Скопировано!"; setTimeout(function () { filterInput.placeholder = "Фильтр..."; }, 1500); }); }
   function switchTab(name) {
     document.querySelectorAll(".dt-tab").forEach(function (t) { t.classList.remove("active"); });
     document.querySelectorAll(".dt-pane").forEach(function (p) { p.classList.remove("active"); });
-    var tab = document.querySelector('.dt-tab[data-tab="' + name + '"]');
-    var pane = document.getElementById("tab-" + name);
-    if (tab) tab.classList.add("active");
-    if (pane) pane.classList.add("active");
+    var tab = document.querySelector('.dt-tab[data-tab="' + name + '"]'), pane = document.getElementById("tab-" + name);
+    if (tab) tab.classList.add("active"); if (pane) pane.classList.add("active");
   }
 
-  // --- Column resize (adjacent shrinks) ---
+  // --- Column resize ---
   function initColumnResize() {
     var ths = document.querySelectorAll("#interceptionTable th");
     Array.prototype.forEach.call(ths, function (th, idx) {
       if (idx >= ths.length - 1) return;
-      var nextTh = ths[idx + 1];
-      var grip = document.createElement("div");
-      grip.className = "col-resizer";
-      th.appendChild(grip);
+      var nextTh = ths[idx + 1], grip = document.createElement("div");
+      grip.className = "col-resizer"; th.appendChild(grip);
       grip.addEventListener("mousedown", function (e) {
         e.preventDefault(); e.stopPropagation();
-        var startX = e.clientX;
-        var startW = th.getBoundingClientRect().width;
-        var startNextW = nextTh.getBoundingClientRect().width;
+        var sX = e.clientX, sW = th.getBoundingClientRect().width, sNW = nextTh.getBoundingClientRect().width;
         function onMove(ev) {
-          var diff = ev.clientX - startX;
-          var newW = startW + diff, newNextW = startNextW - diff;
-          if (newW < 30) { newW = 30; newNextW = startW + startNextW - 30; }
-          if (newNextW < 30) { newNextW = 30; newW = startW + startNextW - 30; }
-          th.style.width = newW + "px";
-          nextTh.style.width = newNextW + "px";
+          var d = ev.clientX - sX, nW = sW + d, nNW = sNW - d;
+          if (nW < 30) { nW = 30; nNW = sW + sNW - 30; }
+          if (nNW < 30) { nNW = 30; nW = sW + sNW - 30; }
+          th.style.width = nW + "px"; nextTh.style.width = nNW + "px";
         }
         function onUp() { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
-        document.addEventListener("mousemove", onMove);
-        document.addEventListener("mouseup", onUp);
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
+        document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
+        document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
       });
     });
   }
 
-  // --- Vertical split resize (table ↔ detail) ---
-  function initVerticalSplit() {
-    vSplitHandle.addEventListener("mousedown", function (e) {
+  // --- Horizontal split (table height ↔ detail height) ---
+  function initHSplit() {
+    hSplitHandle.addEventListener("mousedown", function (e) {
       e.preventDefault();
-      var startX = e.clientX;
-      var startW = detailPanel.getBoundingClientRect().width;
-      function onMove(ev) {
-        var newW = startW - (ev.clientX - startX);
-        newW = Math.max(250, Math.min(window.innerWidth - 250, newW));
-        detailPanel.style.width = newW + "px";
-      }
+      var sY = e.clientY, sH = detailPanel.getBoundingClientRect().height;
+      function onMove(ev) { var nH = Math.max(80, Math.min(window.innerHeight - 120, sH + (sY - ev.clientY))); detailPanel.style.height = nH + "px"; }
       function onUp() { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-      document.body.style.cursor = "ew-resize";
-      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "ns-resize"; document.body.style.userSelect = "none";
     });
   }
 
@@ -338,8 +267,7 @@
       th.addEventListener("click", function (e) {
         if (e.target.classList.contains("col-resizer")) return;
         var col = th.className.replace(/^col-/, "").split(" ")[0];
-        if (sortCol === col) sortDir = -sortDir;
-        else { sortCol = col; sortDir = 1; }
+        if (sortCol === col) sortDir = -sortDir; else { sortCol = col; sortDir = 1; }
         render();
       });
     });
@@ -352,7 +280,6 @@
     var entry = entries.find(function (x) { return x.id === tr.dataset.id; });
     if (entry) showDetail(entry);
   });
-
   tbody.addEventListener("contextmenu", function (e) {
     var tr = e.target.closest("tr");
     if (!tr || !tr.dataset.id) return;
@@ -360,10 +287,8 @@
     var entry = entries.find(function (x) { return x.id === tr.dataset.id; });
     if (!entry) return;
     ctxMenu.style.left = e.clientX + "px"; ctxMenu.style.top = e.clientY + "px";
-    ctxMenu.classList.remove("hidden");
-    ctxMenu.dataset.url = entry.url || ""; ctxMenu.dataset.method = entry.method || "GET";
+    ctxMenu.classList.remove("hidden"); ctxMenu.dataset.url = entry.url || ""; ctxMenu.dataset.method = entry.method || "GET";
   });
-
   document.addEventListener("click", function () { ctxMenu.classList.add("hidden"); });
   ctxMenu.addEventListener("click", function (e) {
     e.stopPropagation();
@@ -371,32 +296,29 @@
     ctxMenu.classList.add("hidden");
     if (url) chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method) });
   });
-
   document.querySelectorAll(".sf-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       document.querySelectorAll(".sf-btn").forEach(function (b) { b.classList.remove("active"); });
       btn.classList.add("active"); statusFilter = btn.dataset.filter; render();
     });
   });
-
   document.querySelectorAll(".dt-tab").forEach(function (tab) {
     tab.addEventListener("click", function () { switchTab(tab.dataset.tab); });
   });
-
-  closeDetail.addEventListener("click", function () { selectedId = null; render(); detailTitle.textContent = "Выберите запрос"; switchTab("general"); });
+  closeDetail.addEventListener("click", function () {
+    detailPanel.classList.add("hidden"); hSplitHandle.classList.remove("visible");
+    selectedId = null; render(); responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
+  });
   filterInput.addEventListener("input", applyFilter);
-  clearBtn.addEventListener("click", function () { entries = []; filtered = []; render(); selectedId = null; detailTitle.textContent = "Выберите запрос"; });
-
+  clearBtn.addEventListener("click", function () {
+    entries = []; filtered = []; render(); selectedId = null;
+    detailPanel.classList.add("hidden"); hSplitHandle.classList.remove("visible");
+    responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
+  });
   port.onMessage.addListener(function (msg) {
-    if (msg.type === "backlog") {
-      if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]);
-      applyFilter();
-    } else if (msg.type === "interception") {
-      if (msg.tabId === inspectedTabId) { entries.push(msg.data); applyFilter(); }
-    }
+    if (msg.type === "backlog") { if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]); applyFilter(); }
+    else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { entries.push(msg.data); applyFilter(); } }
   });
 
-  initColumnResize();
-  initVerticalSplit();
-  initColumnSort();
+  initColumnResize(); initHSplit(); initColumnSort();
 })();

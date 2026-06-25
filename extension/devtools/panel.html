@@ -22,46 +22,48 @@
     <span id="countLabel"></span>
     <button id="clearBtn">Очистить</button>
   </div>
-  <div id="mainSplit">
-    <div id="leftPanel">
-      <div id="tableWrap">
-        <table id="interceptionTable">
-          <thead>
-            <tr>
-              <th class="col-time" style="width:58px">Время</th>
-              <th class="col-method" style="width:52px">Метод</th>
-              <th class="col-url" style="width:auto">URL</th>
-              <th class="col-status" style="width:48px">Статус</th>
-              <th class="col-size" style="width:54px">Размер</th>
-              <th class="col-action" style="width:74px">Действие</th>
-              <th class="col-rule" style="width:90px">Правило</th>
-            </tr>
-          </thead>
-          <tbody id="logBody"></tbody>
-        </table>
-      </div>
+  <div id="tableWrap">
+    <table id="interceptionTable">
+      <thead>
+        <tr>
+          <th class="col-time" style="width:58px">Время</th>
+          <th class="col-method" style="width:52px">Метод</th>
+          <th class="col-url" style="width:auto">URL</th>
+          <th class="col-status" style="width:48px">Статус</th>
+          <th class="col-size" style="width:54px">Размер</th>
+          <th class="col-action" style="width:74px">Действие</th>
+          <th class="col-rule" style="width:90px">Правило</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+  <div id="hSplitHandle"></div>
+  <div id="detailPanel" class="hidden">
+    <div id="detailHeader">
+      <span id="detailTitle">Выберите запрос</span>
+      <button id="closeDetail" title="Скрыть">&times;</button>
     </div>
-    <div id="vSplitHandle"></div>
-    <div id="detailPanel">
-      <div id="detailHeader">
-        <span id="detailTitle">Выберите запрос</span>
-        <button id="closeDetail" title="Скрыть панель" style="display:none">&times;</button>
-      </div>
-      <div id="detailTabs">
-        <button class="dt-tab active" data-tab="general">Общее</button>
-        <button class="dt-tab" data-tab="headers">Заголовки</button>
-        <button class="dt-tab" data-tab="payload">Запрос</button>
-        <button class="dt-tab" data-tab="body">Ответ</button>
-        <button class="dt-tab dt-tab-orig hidden" data-tab="original">Оригинал</button>
-      </div>
-      <div id="detailContent">
-        <div id="tab-general" class="dt-pane active">
-          <div class="empty-detail">Кликните на запрос в таблице слева</div>
+    <div id="detailBody">
+      <div id="detailLeft">
+        <div id="detailTabs">
+          <button class="dt-tab active" data-tab="general">Общее</button>
+          <button class="dt-tab" data-tab="headers">Заголовки</button>
+          <button class="dt-tab" data-tab="payload">Запрос</button>
+          <button class="dt-tab dt-tab-orig hidden" data-tab="original">Оригинал</button>
         </div>
-        <div id="tab-headers" class="dt-pane"></div>
-        <div id="tab-payload" class="dt-pane"></div>
-        <div id="tab-body" class="dt-pane"></div>
-        <div id="tab-original" class="dt-pane"></div>
+        <div id="detailContent">
+          <div id="tab-general" class="dt-pane active"></div>
+          <div id="tab-headers" class="dt-pane"></div>
+          <div id="tab-payload" class="dt-pane"></div>
+          <div id="tab-original" class="dt-pane"></div>
+        </div>
+      </div>
+      <div id="detailRight">
+        <div class="section-label">Ответ</div>
+        <div id="responseView" class="response-view">
+          <span class="empty">— выберите запрос —</span>
+        </div>
       </div>
     </div>
   </div>
