@@ -146,6 +146,42 @@
     if (countLabel) countLabel.textContent = list.length + " зап." + (mc2 > 0 ? " · " + mc2 + " перехв." : "");
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
     updateSortIndicators();
+    autoSizeColumns();
+  }
+
+  // --- Auto-size columns to widest content ---
+  var manualCols = {};
+  function autoSizeColumns() {
+    var ths = document.querySelectorAll("#interceptionTable th");
+    var rows = tbody.querySelectorAll("tr");
+    // Skip if only empty-state row
+    if (rows.length === 0) return;
+    var first = rows[0];
+    if (first && first.querySelector(".empty-state")) return;
+    // Calibrate average char width once (re-calibrate on resize)
+    if (!autoSizeColumns._cw || autoSizeColumns._lastW !== window.innerWidth) {
+      var m = document.createElement("span");
+      var cs = getComputedStyle(tbody);
+      m.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font:" + cs.fontSize + "/1 " + cs.fontFamily;
+      m.textContent = "АБВГД0123456789abcdeWMMIij";
+      document.body.appendChild(m);
+      autoSizeColumns._cw = m.offsetWidth / 24;
+      autoSizeColumns._lastW = window.innerWidth;
+      document.body.removeChild(m);
+    }
+    var cw = autoSizeColumns._cw;
+    for (var ci = 0; ci < ths.length; ci++) {
+      if (ths[ci].classList.contains("col-url") || manualCols[ci]) continue;
+      var maxLen = ths[ci].textContent.length;
+      for (var ri = 0; ri < rows.length; ri++) {
+        var cell = rows[ri].children[ci];
+        if (cell) {
+          var t = cell.textContent;
+          if (t.length > maxLen) maxLen = t.length;
+        }
+      }
+      ths[ci].style.width = Math.max(maxLen * cw + 18, 40) + "px";
+    }
   }
 
   function applyFilter() {
@@ -241,7 +277,7 @@
           if (nNW < 30) { nNW = 30; nW = sW + sNW - 30; }
           th.style.width = nW + "px"; nextTh.style.width = nNW + "px";
         }
-        function onUp() { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
+        function onUp() { manualCols[idx] = true; manualCols[idx + 1] = true; document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; }
         document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp);
         document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
       });
