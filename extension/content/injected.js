@@ -362,6 +362,7 @@
 
   function reportInterception(data, id) {
     data.id = id || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
+    if (id) data.pending = false;
     data.timestamp = Date.now();
     data.reqHeaders = _currentReq.headers;
     data.reqBody = _currentReq.body;
