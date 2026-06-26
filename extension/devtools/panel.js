@@ -441,12 +441,7 @@
     if (action === "mock") {
       chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method) });
     } else if (action === "bpReq" || action === "bpResp") {
-      var bp = {
-        id: "bp_" + Date.now().toString(36), type: "breakpoint", name: "BP: " + shortUrl(url), enabled: true,
-        match: { urlPattern: url, method: method },
-        breakpoint: { phase: action === "bpReq" ? "request" : "response", autoResume: 0 }
-      };
-      bpStore.push(bp); saveBpStore(); updateBpButton();
+      openBpConfig(url, method, action === "bpReq" ? "request" : "response");
     }
   });
   document.querySelectorAll(".sf-btn").forEach(function (btn) {
@@ -479,10 +474,13 @@
   var bpBtn = document.getElementById("bpBtn");
   var bpOverlay = document.getElementById("bpOverlay");
   var bpListOverlay = document.getElementById("bpListOverlay");
+  var bpConfigOverlay = document.getElementById("bpConfigOverlay");
   var bpModalTitle = document.getElementById("bpModalTitle");
   var bpModalBody = document.getElementById("bpModalBody");
   var bpListBody = document.getElementById("bpListBody");
   var currentBpMsgId = null;
+  var bpExtractedVars = {};
+  var bpConfigEditIdx = -1;
 
   chrome.storage.local.get({ rules: [] }, function(data) {
     bpStore = (data.rules || []).filter(function(r) { return r.type === "breakpoint"; });
@@ -504,10 +502,81 @@
     bpBtn.classList.toggle("has-bp", activeCount > 0);
   }
 
+  // --- Config Dialog ---
+  function openBpConfig(url, method, phase, editIdx) {
+    bpConfigEditIdx = editIdx != null ? editIdx : -1;
+    document.getElementById("bpConfigTitle").textContent = editIdx != null ? "Редактировать" : "Новая точка останова";
+    document.getElementById("bpCfgUrl").value = url || "*/api/*";
+    document.getElementById("bpCfgPhase").value = phase || "response";
+    document.getElementById("bpCfgMethod").value = method || "ANY";
+    var extractsEl = document.getElementById("bpCfgExtracts");
+    extractsEl.innerHTML = "";
+    if (editIdx != null && bpStore[editIdx] && bpStore[editIdx].breakpoint.extracts) {
+      bpStore[editIdx].breakpoint.extracts.forEach(function(ex) { addExtractRow(ex.name, ex.path); });
+    }
+    bpConfigOverlay.classList.remove("hidden");
+  }
+
+  function addExtractRow(name, path) {
+    var row = document.createElement("div");
+    row.className = "bp-extract-row";
+    row.innerHTML = '<input type="text" class="bp-extract-name bp-url-input" placeholder="$varName" style="max-width:130px" value="' + escapeHtml(name || "") + '">' +
+      '<input type="text" class="bp-extract-path bp-url-input" placeholder="$.data.token" value="' + escapeHtml(path || "") + '">' +
+      '<button class="dt-btn bp-extract-del" style="font-size:14px;padding:2px 8px">×</button>';
+    row.querySelector(".bp-extract-del").addEventListener("click", function() { row.remove(); });
+    document.getElementById("bpCfgExtracts").appendChild(row);
+  }
+
+  document.getElementById("bpCfgAddExtract").addEventListener("click", function() { addExtractRow(); });
+  document.getElementById("bpCfgCancel").addEventListener("click", function() { bpConfigOverlay.classList.add("hidden"); });
+  document.getElementById("bpCfgSave").addEventListener("click", function() {
+    var url = document.getElementById("bpCfgUrl").value.trim() || "*/api/*";
+    var phase = document.getElementById("bpCfgPhase").value;
+    var method = document.getElementById("bpCfgMethod").value;
+    var extracts = [];
+    document.querySelectorAll("#bpCfgExtracts .bp-extract-row").forEach(function(row) {
+      var n = row.querySelector(".bp-extract-name").value.trim();
+      var p = row.querySelector(".bp-extract-path").value.trim();
+      if (n && p) extracts.push({ name: n.startsWith("$") ? n : "$" + n, path: p });
+    });
+    if (bpConfigEditIdx >= 0 && bpStore[bpConfigEditIdx]) {
+      var bp = bpStore[bpConfigEditIdx];
+      bp.match.urlPattern = url;
+      bp.match.method = method;
+      bp.breakpoint.phase = phase;
+      bp.breakpoint.extracts = extracts;
+    } else {
+      bpStore.push({
+        id: "bp_" + Date.now().toString(36), type: "breakpoint", name: "BP: " + shortUrl(url), enabled: true,
+        match: { urlPattern: url, method: method },
+        breakpoint: { phase: phase, autoResume: 0, extracts: extracts }
+      });
+    }
+    saveBpStore(); updateBpButton(); renderBpList();
+    bpConfigOverlay.classList.add("hidden");
+  });
+  bpConfigOverlay.addEventListener("click", function(e) {
+    if (e.target === bpConfigOverlay) bpConfigOverlay.classList.add("hidden");
+  });
+
+  // --- Hit Overlay ---
   function showBreakpointHit(bpMsgId, data) {
     currentBpMsgId = bpMsgId;
+    bpExtractedVars = {};
+    for (var i = 0; i < bpStore.length; i++) {
+      var bp = bpStore[i];
+      if (!bp.enabled || bp.breakpoint.phase !== data.phase) continue;
+      if (!bp.breakpoint.extracts || bp.breakpoint.extracts.length === 0) continue;
+      if (data.body) {
+        for (var j = 0; j < bp.breakpoint.extracts.length; j++) {
+          var ex = bp.breakpoint.extracts[j];
+          var val = extractJsonPath(data.body, ex.path);
+          if (val != null) bpExtractedVars[ex.name] = val;
+        }
+      }
+    }
     bpModalTitle.textContent = "⛔ " + (data.phase === "request" ? "Запрос" : "Ответ") + ": " + (data.method || "") + " " + shortUrl(data.url);
-    var html = '<div class="bp-field"><label>URL</label><input type="text" id="bpEditUrl" value="' + escapeHtml(data.url) + '" readonly></div>';
+    var html = '<div class="bp-field"><label>URL</label><input type="text" value="' + escapeHtml(data.url) + '" readonly></div>';
     if (data.status != null) html += '<div class="bp-field"><label>Статус</label><input type="text" value="' + data.status + '" readonly></div>';
     if (data.headers) {
       html += '<div class="bp-field"><label>Заголовки</label><pre class="json-body" style="max-height:120px;overflow:auto">';
@@ -520,33 +589,16 @@
       html += prettyBody(data.body);
       html += '</div>';
     }
-    html += '<div class="bp-extract"><label>Извлечь переменную</label>';
-    html += '<div class="bp-extract-row"><input type="text" id="bpVarName" placeholder="$varName" class="bp-url-input" style="max-width:120px">';
-    html += '<input type="text" id="bpVarPath" placeholder="$.field.path (JSON path)" class="bp-url-input">';
-    html += '<button id="bpVarAdd" class="dt-btn dt-btn-accent" style="font-size:11px;padding:4px 10px">+</button></div>';
-    html += '<div id="bpVarsList" class="bp-vars-list"></div>';
-    html += '</div>';
+    var vk = Object.keys(bpExtractedVars);
+    if (vk.length > 0) {
+      html += '<div class="bp-extract"><label>Извлечённые переменные</label>';
+      for (var i = 0; i < vk.length; i++) {
+        html += '<div class="bp-var-item"><span class="json-key">' + escapeHtml(vk[i]) + '</span> = <span class="json-str">' + escapeHtml(String(bpExtractedVars[vk[i]]).substring(0, 200)) + '</span></div>';
+      }
+      html += '</div>';
+    }
     bpModalBody.innerHTML = html;
-    bpExtractedVars = {};
-    renderBpVars();
     bpOverlay.classList.remove("hidden");
-    document.getElementById("bpVarAdd").addEventListener("click", function() {
-      var name = document.getElementById("bpVarName").value.trim();
-      var path = document.getElementById("bpVarPath").value.trim();
-      if (!name || !path || !data.body) return;
-      var val = extractJsonPath(data.body, path);
-      if (val != null) { bpExtractedVars[name] = val; renderBpVars(); }
-    });
-  }
-
-  var bpExtractedVars = {};
-  function renderBpVars() {
-    var el = document.getElementById("bpVarsList");
-    if (!el) return;
-    var keys = Object.keys(bpExtractedVars);
-    el.innerHTML = keys.length === 0 ? "" : keys.map(function(k) {
-      return '<div class="bp-var-item"><span class="json-key">' + escapeHtml(k) + "</span> = <span class=\"json-str\">" + escapeHtml(String(bpExtractedVars[k]).substring(0, 100)) + "</span></div>";
-    }).join("");
   }
 
   function extractJsonPath(body, path) {
@@ -565,6 +617,7 @@
     bpOverlay.classList.add("hidden");
   }
 
+  // --- Breakpoint List ---
   function renderBpList() {
     if (bpStore.length === 0) {
       bpListBody.innerHTML = '<div class="empty">Нет точек останова</div>';
@@ -573,14 +626,14 @@
     var html = "";
     for (var i = 0; i < bpStore.length; i++) {
       var bp = bpStore[i];
+      var extractCount = (bp.breakpoint.extracts || []).length;
       html += '<div class="bp-item">';
       html += '<input type="checkbox" class="bp-toggle" data-idx="' + i + '"' + (bp.enabled ? " checked" : "") + ">";
-      html += '<select class="bp-phase-select" data-idx="' + i + '">';
-      html += '<option value="request"' + (bp.breakpoint.phase === "request" ? " selected" : "") + ">Запрос</option>";
-      html += '<option value="response"' + (bp.breakpoint.phase === "response" ? " selected" : "") + ">Ответ</option>";
-      html += "</select>";
-      html += '<input type="text" class="bp-url-input" data-idx="' + i + '" value="' + escapeHtml(bp.match.urlPattern) + '" placeholder="*/api/*">';
-      html += '<button class="dt-btn bp-del" data-idx="' + i + '" style="font-size:14px;padding:2px 8px">×</button>';
+      html += '<span class="bp-item-phase">' + (bp.breakpoint.phase === "request" ? "REQ" : "RESP") + "</span>";
+      html += '<span class="bp-item-url">' + escapeHtml(bp.match.urlPattern) + "</span>";
+      if (extractCount > 0) html += '<span class="bp-extract-badge">' + extractCount + " var</span>";
+      html += '<button class="dt-btn bp-edit" data-idx="' + i + '" style="font-size:11px;padding:2px 8px">&#9998;</button>';
+      html += '<button class="dt-btn bp-del" data-idx="' + i + '" style="font-size:14px;padding:2px 8px">&times;</button>';
       html += "</div>";
     }
     bpListBody.innerHTML = html;
@@ -590,16 +643,12 @@
         saveBpStore(); updateBpButton();
       });
     });
-    bpListBody.querySelectorAll(".bp-url-input").forEach(function(inp) {
-      inp.addEventListener("change", function() {
-        bpStore[parseInt(this.dataset.idx)].match.urlPattern = this.value;
-        saveBpStore();
-      });
-    });
-    bpListBody.querySelectorAll(".bp-phase-select").forEach(function(sel) {
-      sel.addEventListener("change", function() {
-        bpStore[parseInt(this.dataset.idx)].breakpoint.phase = this.value;
-        saveBpStore();
+    bpListBody.querySelectorAll(".bp-edit").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var idx = parseInt(this.dataset.idx);
+        var bp = bpStore[idx];
+        bpListOverlay.classList.add("hidden");
+        openBpConfig(bp.match.urlPattern, bp.match.method, bp.breakpoint.phase, idx);
       });
     });
     bpListBody.querySelectorAll(".bp-del").forEach(function(btn) {
@@ -611,14 +660,9 @@
   }
 
   document.getElementById("bpAddBtn").addEventListener("click", function() {
-    var bp = {
-      id: "bp_" + Date.now().toString(36), type: "breakpoint", name: "Breakpoint", enabled: true,
-      match: { urlPattern: "*/api/*", method: "ANY" },
-      breakpoint: { phase: "response", autoResume: 0 }
-    };
-    bpStore.push(bp); saveBpStore(); renderBpList(); updateBpButton();
+    bpListOverlay.classList.add("hidden");
+    openBpConfig("", "ANY", "response");
   });
-
   bpBtn.addEventListener("click", function() {
     renderBpList();
     bpListOverlay.classList.remove("hidden");
