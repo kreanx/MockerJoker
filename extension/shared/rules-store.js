@@ -331,12 +331,12 @@ function initRulesListDnD() {
     }
   });
 
-  list.addEventListener("dragover", function (e) {
+  document.addEventListener("dragover", function (e) {
+    if (!_dragId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
-    var target = e.target.closest(".rule-item");
-    // Below all items → treat as "drop after last"
+    var target = e.target.closest && e.target.closest(".rule-item");
     if (!target) {
       var all = list.querySelectorAll(".rule-item");
       if (all.length === 0 || !dragEl) return;
@@ -357,11 +357,10 @@ function initRulesListDnD() {
     target.classList.toggle("drop-below", !above);
   });
 
-  list.addEventListener("drop", function (e) {
-    e.preventDefault();
+  document.addEventListener("drop", function (e) {
     if (!_dragId) return;
-    var target = e.target.closest(".rule-item");
-    // Drop below all items → move to end
+    e.preventDefault();
+    var target = e.target.closest && e.target.closest(".rule-item");
     if (!target) {
       var all = list.querySelectorAll(".rule-item");
       if (all.length > 0) {
@@ -376,9 +375,7 @@ function initRulesListDnD() {
     reorderRules(_dragId, target.dataset.id, e.clientY < rect.top + rect.height / 2);
   });
 
-  // Re-init after renderRules replaces innerHTML (DnD listeners on list survive,
-  // but cached elements are stale — reset on next interaction)
-  list.addEventListener("dragenter", function (e) {
+  document.addEventListener("dragenter", function (e) {
     if (!_dragId) return;
     e.preventDefault();
   });
