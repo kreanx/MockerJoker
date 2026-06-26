@@ -58,7 +58,15 @@
         </div>
       </div>
       <div id="detailRight">
-        <div class="section-label">Ответ</div>
+        <div class="resp-header">
+          <span class="section-label">Ответ</span>
+          <div class="resp-search-bar">
+            <input type="text" id="respSearchInput" placeholder="Поиск..." />
+            <span id="respSearchCount" class="resp-search-count"></span>
+            <button id="respSearchPrev" class="resp-search-btn" title="Назад">&lsaquo;</button>
+            <button id="respSearchNext" class="resp-search-btn" title="Вперёд">&rsaquo;</button>
+          </div>
+        </div>
         <div id="responseView" class="response-view">
           <span class="empty">— выберите запрос —</span>
         </div>
