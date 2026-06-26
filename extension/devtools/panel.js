@@ -520,13 +520,47 @@
       html += prettyBody(data.body);
       html += '</div>';
     }
+    html += '<div class="bp-extract"><label>Извлечь переменную</label>';
+    html += '<div class="bp-extract-row"><input type="text" id="bpVarName" placeholder="$varName" class="bp-url-input" style="max-width:120px">';
+    html += '<input type="text" id="bpVarPath" placeholder="$.field.path (JSON path)" class="bp-url-input">';
+    html += '<button id="bpVarAdd" class="dt-btn dt-btn-accent" style="font-size:11px;padding:4px 10px">+</button></div>';
+    html += '<div id="bpVarsList" class="bp-vars-list"></div>';
+    html += '</div>';
     bpModalBody.innerHTML = html;
+    bpExtractedVars = {};
+    renderBpVars();
     bpOverlay.classList.remove("hidden");
+    document.getElementById("bpVarAdd").addEventListener("click", function() {
+      var name = document.getElementById("bpVarName").value.trim();
+      var path = document.getElementById("bpVarPath").value.trim();
+      if (!name || !path || !data.body) return;
+      var val = extractJsonPath(data.body, path);
+      if (val != null) { bpExtractedVars[name] = val; renderBpVars(); }
+    });
+  }
+
+  var bpExtractedVars = {};
+  function renderBpVars() {
+    var el = document.getElementById("bpVarsList");
+    if (!el) return;
+    var keys = Object.keys(bpExtractedVars);
+    el.innerHTML = keys.length === 0 ? "" : keys.map(function(k) {
+      return '<div class="bp-var-item"><span class="json-key">' + escapeHtml(k) + "</span> = <span class=\"json-str\">" + escapeHtml(String(bpExtractedVars[k]).substring(0, 100)) + "</span></div>";
+    }).join("");
+  }
+
+  function extractJsonPath(body, path) {
+    try {
+      var obj = JSON.parse(body);
+      var parts = path.replace(/^\$\./, "").split(".");
+      for (var i = 0; i < parts.length; i++) obj = obj[parts[i]];
+      return obj;
+    } catch (e) { return null; }
   }
 
   function resumeBreakpoint(action) {
     if (!currentBpMsgId) return;
-    port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: { action: action } });
+    port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: { action: action, vars: bpExtractedVars } });
     currentBpMsgId = null;
     bpOverlay.classList.add("hidden");
   }

@@ -233,7 +233,7 @@ function _filterRules(list) {
 function renderRules() {
   var list = $("rulesList");
   if (!list) return;
-  var filtered = _filterRules(rules);
+  var filtered = _filterRules(rules.filter(function (r) { return r.type !== "breakpoint"; }));
   if (filtered.length === 0) {
     list.innerHTML = _rulesSearchQuery
       ? '<div class="empty-state"><p class="empty-title">Ничего не найдено</p></div>'

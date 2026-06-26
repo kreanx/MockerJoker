@@ -70,6 +70,7 @@
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
       if (!rule.enabled) continue;
+      if (rule.type === "breakpoint") continue;
       if (!rule.match || !rule.match.urlPattern) continue;
       var regex = globToRegex(rule.match.urlPattern);
       var urlMatch = regex.test(url);
@@ -1201,7 +1202,11 @@
       var bpResolve = _pendingBreakpoints[event.data.bpMsgId];
       if (bpResolve) {
         delete _pendingBreakpoints[event.data.bpMsgId];
-        bpResolve(event.data.result || { action: "resume" });
+        var result = event.data.result || { action: "resume" };
+        if (result.vars) {
+          for (var vk in result.vars) tabVars[vk.startsWith("$") ? vk : "$" + vk] = result.vars[vk];
+        }
+        bpResolve(result);
       }
     }
   });
