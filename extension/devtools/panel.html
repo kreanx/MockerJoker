@@ -100,6 +100,48 @@
       <div class="bp-modal-body" id="bpListBody"></div>
     </div>
   </div>
+  <div id="bpConfigOverlay" class="bp-overlay hidden">
+    <div class="bp-modal bp-modal-wide">
+      <div class="bp-modal-header">
+        <span id="bpConfigTitle">Новая точка останова</span>
+      </div>
+      <div class="bp-modal-body" id="bpConfigBody">
+        <div class="bp-field">
+          <label>URL-паттерн</label>
+          <input type="text" id="bpCfgUrl" class="bp-url-input" placeholder="*/api/*">
+        </div>
+        <div class="bp-cfg-row">
+          <div class="bp-field" style="flex:1">
+            <label>Фаза</label>
+            <select id="bpCfgPhase" class="bp-phase-select" style="width:100%">
+              <option value="request">Запрос</option>
+              <option value="response">Ответ</option>
+            </select>
+          </div>
+          <div class="bp-field" style="flex:1">
+            <label>Метод</label>
+            <select id="bpCfgMethod" class="bp-phase-select" style="width:100%">
+              <option value="ANY">ANY</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+              <option value="PATCH">PATCH</option>
+            </select>
+          </div>
+        </div>
+        <div class="bp-extract">
+          <label>Извлечение переменных</label>
+          <div id="bpCfgExtracts"></div>
+          <button id="bpCfgAddExtract" class="dt-btn" style="font-size:11px;padding:3px 10px;margin-top:6px">+ Переменная</button>
+        </div>
+      </div>
+      <div class="bp-modal-actions">
+        <button id="bpCfgSave" class="dt-btn dt-btn-accent">Сохранить</button>
+        <button id="bpCfgCancel" class="dt-btn">Отмена</button>
+      </div>
+    </div>
+  </div>
   <script src="panel.js"></script>
 </body>
 </html>
