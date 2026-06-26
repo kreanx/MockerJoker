@@ -27,6 +27,7 @@
   var seenRequests = [];
   var tabVars = {};
   var _currentReq = {};
+  var _bpSkip = false;
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
   var origXhrOpen = OrigXHR.prototype.open;
@@ -451,16 +452,42 @@
     processVarSavers(url, reqBody, reqHeadersObj, null, "request");
     var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     reportInterception({ url: url, method: method, matched: false, pending: true }, reqId);
+    var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(url, method) : null;
+    if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
+      return waitForBreakpoint({
+        phase: "request", url: url, method: method, headers: reqHeadersObj, body: reqBody
+      }).then(function (result) {
+        if (result.action === "abort") {
+          reportInterception({ url: url, method: method, matched: false, status: 0, body: null }, reqId);
+          throw new DOMException("Aborted", "AbortError");
+        }
+        _bpSkip = true;
+        return window.fetch(input, init);
+      });
+    }
+    _bpSkip = false;
 
     var matched = findAllRules(url, method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {
+      var needBpResp = bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "response";
       return origFetch.apply(this, arguments).then(function (response) {
         var hdrs = {};
         response.headers.forEach(function(v,k) { hdrs[k] = v; });
-        response.clone().text().then(function(text) {
+        if (!needBpResp) {
+          response.clone().text().then(function(text) {
+            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
+          });
+          return response;
+        }
+        return response.clone().text().then(function(text) {
           reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
+          return waitForBreakpoint({
+            phase: "response", url: url, method: method, status: response.status, headers: hdrs, body: text
+          }).then(function(result) {
+            if (result.action === "abort") throw new DOMException("Aborted", "AbortError");
+            return response;
+          });
         });
-        return response;
       });
     }
     if (matched.length === 0) {
@@ -743,12 +770,36 @@
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
     var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, pending: true }, reqId);
+    var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(self.__rm.url, self.__rm.method) : null;
+    _bpSkip = false;
+
+    if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
+      waitForBreakpoint({
+        phase: "request", url: self.__rm.url, method: self.__rm.method, headers: self.__rmReqHeaders || {}, body: reqBody
+      }).then(function(result) {
+        if (result.action === "abort") {
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
+          return;
+        }
+        _bpSkip = true;
+        origXhrSend.call(self, body);
+      });
+      return;
+    }
+
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {
+      var needBpResp = bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "response";
       var origOLEpt = self.onloadend;
       self.onloadend = function (evt) {
         reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
-        if (origOLEpt) origOLEpt.call(self, evt);
+        if (needBpResp) {
+          waitForBreakpoint({
+            phase: "response", url: self.__rm.url, method: self.__rm.method, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self)
+          }).then(function() { if (origOLEpt) origOLEpt.call(self, evt); });
+        } else {
+          if (origOLEpt) origOLEpt.call(self, evt);
+        }
       };
       return origXhrSend.apply(this, arguments);
     }
@@ -1101,6 +1152,29 @@
     }, delay || CONST.DEFAULT_DELAY);
   }
 
+  // === BREAKPOINTS ===
+
+  var _pendingBreakpoints = {};
+
+  function findBreakpointRule(url, method) {
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i];
+      if (r.type !== "breakpoint" || r.enabled === false) continue;
+      if (!globToRegex(r.match.urlPattern).test(url)) continue;
+      if (r.match.method && r.match.method !== "ANY" && r.match.method !== method) continue;
+      return r;
+    }
+    return null;
+  }
+
+  function waitForBreakpoint(data) {
+    var bpMsgId = "bp_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    return new Promise(function (resolve) {
+      _pendingBreakpoints[bpMsgId] = resolve;
+      window.postMessage({ type: CONST.PAGE_MSG.BREAKPOINT_HIT, bpMsgId: bpMsgId, data: data }, "*");
+    });
+  }
+
   // === COMMUNICATION ===
 
   window.addEventListener("message", function (event) {
@@ -1122,6 +1196,13 @@
       }
       tabVars = cleaned;
       masterEnabled = event.data.masterEnabled !== false;
+    }
+    if (event.data && event.data.type === CONST.PAGE_MSG.BREAKPOINT_RESUME) {
+      var bpResolve = _pendingBreakpoints[event.data.bpMsgId];
+      if (bpResolve) {
+        delete _pendingBreakpoints[event.data.bpMsgId];
+        bpResolve(event.data.result || { action: "resume" });
+      }
     }
   });
 

@@ -97,16 +97,19 @@
     }
 
     if (data.type === CONST.PAGE_MSG.INTERCEPTION) {
-      safeSendMessage({
-        type: CONST.MSG.INTERCEPTION,
-        data: data.data
-      });
+      safeSendMessage({ type: CONST.MSG.INTERCEPTION, data: data.data });
+    }
+
+    if (data.type === CONST.PAGE_MSG.BREAKPOINT_HIT) {
+      safeSendMessage({ type: CONST.MSG.BREAKPOINT_HIT, bpMsgId: data.bpMsgId, data: data.data });
     }
   });
-
   chrome.runtime.onMessage.addListener(function (msg) {
     if (msg.type === CONST.MSG.RULES_UPDATED) {
       sendRulesToPage();
+    }
+    if (msg.type === CONST.MSG.BREAKPOINT_RESUME) {
+      window.postMessage({ type: CONST.PAGE_MSG.BREAKPOINT_RESUME, bpMsgId: msg.bpMsgId, result: msg.result }, "*");
     }
   });
 

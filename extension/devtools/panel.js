@@ -460,7 +460,114 @@
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") { if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]); applyFilter(); }
     else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
+    else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { showBreakpointHit(msg.bpMsgId, msg.data); }
   });
+
+  // --- Breakpoints ---
+  var bpStore = [];
+  var bpBtn = document.getElementById("bpBtn");
+  var bpOverlay = document.getElementById("bpOverlay");
+  var bpListOverlay = document.getElementById("bpListOverlay");
+  var bpModalTitle = document.getElementById("bpModalTitle");
+  var bpModalBody = document.getElementById("bpModalBody");
+  var bpListBody = document.getElementById("bpListBody");
+  var currentBpMsgId = null;
+
+  chrome.storage.local.get({ rules: [] }, function(data) {
+    bpStore = (data.rules || []).filter(function(r) { return r.type === "breakpoint"; });
+    updateBpButton();
+  });
+
+  function saveBpStore() {
+    chrome.storage.local.get({ rules: [] }, function(data) {
+      var allRules = data.rules || [];
+      var nonBp = allRules.filter(function(r) { return r.type !== "breakpoint"; });
+      var merged = nonBp.concat(bpStore);
+      chrome.storage.local.set({ rules: merged });
+    });
+  }
+
+  function updateBpButton() {
+    var activeCount = bpStore.filter(function(b) { return b.enabled; }).length;
+    bpBtn.textContent = activeCount > 0 ? "⛔ " + activeCount : "⛔";
+    bpBtn.classList.toggle("has-bp", activeCount > 0);
+  }
+
+  function showBreakpointHit(bpMsgId, data) {
+    currentBpMsgId = bpMsgId;
+    bpModalTitle.textContent = "⛔ " + (data.phase === "request" ? "Запрос" : "Ответ") + ": " + (data.method || "") + " " + shortUrl(data.url);
+    var html = '<div class="bp-field"><label>URL</label><input type="text" id="bpEditUrl" value="' + escapeHtml(data.url) + '" readonly></div>';
+    if (data.status != null) html += '<div class="bp-field"><label>Статус</label><input type="text" value="' + data.status + '" readonly></div>';
+    if (data.headers) {
+      html += '<div class="bp-field"><label>Заголовки</label><pre class="json-body" style="max-height:120px;overflow:auto">';
+      var hk = Object.keys(data.headers).sort();
+      for (var i = 0; i < hk.length; i++) html += '<span class="json-key">' + escapeHtml(hk[i]) + "</span>: " + escapeHtml(data.headers[hk[i]]) + "\n";
+      html += '</pre></div>';
+    }
+    if (data.body) {
+      html += '<div class="bp-field"><label>Тело ' + (data.phase === "response" ? "ответа" : "запроса") + '</label>';
+      html += prettyBody(data.body);
+      html += '</div>';
+    }
+    bpModalBody.innerHTML = html;
+    bpOverlay.classList.remove("hidden");
+  }
+
+  function resumeBreakpoint(action) {
+    if (!currentBpMsgId) return;
+    port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: { action: action } });
+    currentBpMsgId = null;
+    bpOverlay.classList.add("hidden");
+  }
+
+  function renderBpList() {
+    if (bpStore.length === 0) {
+      bpListBody.innerHTML = '<div class="empty">Нет точек останова</div>';
+      return;
+    }
+    var html = "";
+    for (var i = 0; i < bpStore.length; i++) {
+      var bp = bpStore[i];
+      html += '<div class="bp-item">';
+      html += '<input type="checkbox" class="bp-toggle" data-idx="' + i + '"' + (bp.enabled ? " checked" : "") + ">";
+      html += '<span class="bp-item-phase">' + (bp.breakpoint.phase === "request" ? "REQ" : "RESP") + "</span>";
+      html += '<span class="bp-item-url">' + escapeHtml(bp.match.urlPattern) + "</span>";
+      html += '<button class="dt-btn bp-del" data-idx="' + i + '" style="font-size:14px;padding:2px 8px">×</button>';
+      html += "</div>";
+    }
+    bpListBody.innerHTML = html;
+    bpListBody.querySelectorAll(".bp-toggle").forEach(function(cb) {
+      cb.addEventListener("change", function() {
+        bpStore[parseInt(this.dataset.idx)].enabled = this.checked;
+        saveBpStore(); updateBpButton();
+      });
+    });
+    bpListBody.querySelectorAll(".bp-del").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        bpStore.splice(parseInt(this.dataset.idx), 1);
+        saveBpStore(); renderBpList(); updateBpButton();
+      });
+    });
+  }
+
+  document.getElementById("bpAddBtn").addEventListener("click", function() {
+    var bp = {
+      id: "bp_" + Date.now().toString(36), type: "breakpoint", name: "Breakpoint", enabled: true,
+      match: { urlPattern: "*/api/*", method: "ANY" },
+      breakpoint: { phase: "response", autoResume: 0 }
+    };
+    bpStore.push(bp); saveBpStore(); renderBpList(); updateBpButton();
+  });
+
+  bpBtn.addEventListener("click", function() {
+    renderBpList();
+    bpListOverlay.classList.remove("hidden");
+  });
+  bpListOverlay.addEventListener("click", function(e) {
+    if (e.target === bpListOverlay) bpListOverlay.classList.add("hidden");
+  });
+  document.getElementById("bpResume").addEventListener("click", function() { resumeBreakpoint("resume"); });
+  document.getElementById("bpAbort").addEventListener("click", function() { resumeBreakpoint("abort"); });
 
   initColumnResize(); initHSplit(); initColumnSort();
 })();

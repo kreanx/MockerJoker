@@ -14,6 +14,7 @@ var tabVarsMap = {};
 var tabInterceptedCount = {};
 var interceptionLog = {};
 var devtoolsPort = null;
+var pendingBreakpoints = {};
 
 function updateBadge(tabId) {
   var count = tabInterceptedCount[tabId] || 0;
@@ -194,11 +195,38 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ success: true });
     return true;
   }
+  if (msg.type === CONST.MSG.BREAKPOINT_HIT) {
+    var bpTabId = sender.tab ? sender.tab.id : "unknown";
+    pendingBreakpoints[msg.bpMsgId] = bpTabId;
+    if (devtoolsPort) {
+      devtoolsPort.postMessage({ type: "breakpoint", tabId: bpTabId, bpMsgId: msg.bpMsgId, data: msg.data });
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+  if (msg.type === CONST.MSG.BREAKPOINT_RESUME) {
+    var resumeTabId = pendingBreakpoints[msg.bpMsgId];
+    if (resumeTabId != null) {
+      chrome.tabs.sendMessage(resumeTabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: msg.bpMsgId, result: msg.result });
+      delete pendingBreakpoints[msg.bpMsgId];
+    }
+    sendResponse({ success: true });
+    return true;
+  }
 });
 chrome.runtime.onConnect.addListener(function (port) {
   if (port.name === "devtools") {
     devtoolsPort = port;
     port.postMessage({ type: "backlog", data: interceptionLog });
+    port.onMessage.addListener(function(msg) {
+      if (msg.type === "breakpointResume") {
+        var tabId = pendingBreakpoints[msg.bpMsgId];
+        if (tabId != null) {
+          chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: msg.bpMsgId, result: msg.result });
+          delete pendingBreakpoints[msg.bpMsgId];
+        }
+      }
+    });
     port.onDisconnect.addListener(function () {
       if (devtoolsPort === port) devtoolsPort = null;
     });
