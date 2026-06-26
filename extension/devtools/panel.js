@@ -68,6 +68,42 @@
     if (pageOrigin && url.indexOf(pageOrigin) === 0) { var p = url.substring(pageOrigin.length); return p || "/"; }
     return url;
   }
+
+  function isDynamicSegment(s) {
+    if (/^\d+$/.test(s)) return true;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) return true;
+    if (/^[0-9a-f]{16,}$/i.test(s)) return true;
+    if (s.length >= 20 && /[0-9]/.test(s) && /[a-zA-Z]/.test(s)) return true;
+    return false;
+  }
+
+  function renderUrl(url) {
+    if (!url) return "";
+    var origin = "", path = url;
+    if (pageOrigin && url.indexOf(pageOrigin) === 0) {
+      path = url.substring(pageOrigin.length) || "/";
+    } else {
+      var m = url.match(/^(\w+:)?\/\/[^/]+(.*)/);
+      if (m) { origin = m[0].replace(m[2], ""); path = m[2] || "/"; }
+    }
+    var html = "";
+    if (origin) {
+      var host = origin.replace(/^(\w+:)?\/\//, "");
+      html += '<span class="url-host">' + escapeHtml(host) + "</span>";
+    }
+    var qi = path.indexOf("?");
+    var query = "";
+    if (qi >= 0) { query = path.substring(qi); path = path.substring(0, qi); }
+    var segs = path.split("/");
+    for (var i = 0; i < segs.length; i++) {
+      if (i > 0) html += "/";
+      if (!segs[i]) continue;
+      if (isDynamicSegment(segs[i])) html += '<span class="url-dyn">' + escapeHtml(segs[i]) + "</span>";
+      else html += escapeHtml(segs[i]);
+    }
+    if (query) html += '<span class="url-query">' + escapeHtml(query) + "</span>";
+    return html;
+  }
   function highlightJson(str) {
     var s = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return s.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (m) {
@@ -140,8 +176,8 @@
       var sc = e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
       var al = e.actionType === "mockResponse" ? "MOCK" : e.actionType === "modifyResponse" ? "MOD-RESP" : (e.actionType === "modifyRequest" || e.actionType === "modifyBody") ? "MOD-REQ" : e.matched ? "matched" : "—";
       var rc = (e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
-      var du = shortUrl(e.url), mc = methodClass(e.method);
-      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="' + (du === e.url ? "col-url cross-origin" : "col-url") + '" title="' + escapeHtml(e.url) + '">' + escapeHtml(du) + '</td><td class="' + sc + '">' + (e.status != null ? e.status : "-") + '</td><td>' + formatSize(e.body, e.headers) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
+      var mc = methodClass(e.method);
+      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (e.status != null ? e.status : "-") + '</td><td>' + formatSize(e.body, e.headers) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
     }
     if (countLabel) countLabel.textContent = list.length + " зап." + (mc2 > 0 ? " · " + mc2 + " перехв." : "");
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
@@ -210,25 +246,25 @@
     if (entry.ruleName) g += '<tr><td class="hdr-key">Правило</td><td>' + escapeHtml(entry.ruleName) + '</td></tr>';
     if (entry.actionType) g += '<tr><td class="hdr-key">Действие</td><td>' + escapeHtml(entry.actionType) + '</td></tr>';
     if (entry.delay) g += '<tr><td class="hdr-key">Задержка</td><td>' + entry.delay + 'ms</td></tr>';
-    g += '</table><div class="detail-actions"><button class="dt-btn" id="btnCopyUrl">URL</button><button class="dt-btn" id="btnCopyCurl">cURL</button>';
+    g += '</table>';
+    if (entry.reqBody) {
+      g += '<div class="section-label">Тело запроса</div>';
+      g += prettyBody(entry.reqBody);
+    }
+    g += '<div class="detail-actions"><button class="dt-btn" id="btnCopyUrl">URL</button><button class="dt-btn" id="btnCopyCurl">cURL</button>';
     if (entry.body) g += '<button class="dt-btn" id="btnCopyBody">Тело</button>';
     g += '<button class="dt-btn" id="btnMockReq">Замокать</button></div>';
     document.getElementById("tab-general").innerHTML = g;
 
-    // Left: Headers
-    document.getElementById("tab-headers").innerHTML = formatHeaders(entry.headers);
-
-    // Left: Payload (request data)
-    var p = '<table class="hdr-table">';
-    p += '<tr><td class="hdr-key">URL</td><td style="word-break:break-all">' + escapeHtml(entry.url) + '</td></tr>';
-    p += '<tr><td class="hdr-key">Метод</td><td>' + escapeHtml(entry.method) + '</td></tr></table>';
-    p += '<div style="margin-top:10px;font-size:11px;color:var(--ctp-overlay0);font-weight:500;text-transform:uppercase;margin-bottom:4px">Заголовки запроса</div>';
-    p += formatHeaders(entry.reqHeaders);
-    if (entry.reqBody) {
-      p += '<div style="margin-top:10px;font-size:11px;color:var(--ctp-overlay0);font-weight:500;text-transform:uppercase;margin-bottom:4px">Тело запроса</div>';
-      p += prettyBody(entry.reqBody);
+    // Left: Headers — request + response combined
+    var h = "";
+    if (entry.reqHeaders && Object.keys(entry.reqHeaders).length) {
+      h += '<div class="section-label">Запрос</div>';
+      h += formatHeaders(entry.reqHeaders);
     }
-    document.getElementById("tab-payload").innerHTML = p;
+    h += '<div class="section-label">Ответ</div>';
+    h += formatHeaders(entry.headers);
+    document.getElementById("tab-headers").innerHTML = h;
 
     // Left: Original (only if modified)
     var origTab = document.querySelector('.dt-tab-orig');
