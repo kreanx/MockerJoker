@@ -362,6 +362,7 @@
 
   function reportInterception(data) {
     data.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    data.timestamp = Date.now();
     data.reqHeaders = _currentReq.headers;
     data.reqBody = _currentReq.body;
     window.postMessage({ type: CONST.PAGE_MSG.INTERCEPTION, data: data }, "*");
@@ -908,6 +909,7 @@
       respHandled = true;
       var respObj = needBody ? parseRespObj(self.responseText) : null;
       var curText = self.responseText;
+    var origText = curText;
       var mocked = false;
 
       if (mockRule && hasRespBC(mockRule) && matchBodyConditions(respObj, mockRule.match.bodyConditions)) {
@@ -939,7 +941,7 @@
           status: ms,
           body: mb,
           headers: mh,
-          originalBody: self.responseText
+          originalBody: origText
         });
       }
 
@@ -1011,7 +1013,8 @@
         actionType: CONST.ACTION_TYPES.MODIFY_RESPONSE,
         status: self.status,
         headers: xhHdrsFinal,
-        body: curText
+        body: curText,
+        originalBody: origText
       });
       processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");
     }
