@@ -435,8 +435,19 @@
   ctxMenu.addEventListener("click", function (e) {
     e.stopPropagation();
     var url = ctxMenu.dataset.url, method = ctxMenu.dataset.method;
+    var action = e.target.dataset.action;
     ctxMenu.classList.add("hidden");
-    if (url) chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method) });
+    if (!url || !action) return;
+    if (action === "mock") {
+      chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(url) + "&mockMethod=" + encodeURIComponent(method) });
+    } else if (action === "bpReq" || action === "bpResp") {
+      var bp = {
+        id: "bp_" + Date.now().toString(36), type: "breakpoint", name: "BP: " + shortUrl(url), enabled: true,
+        match: { urlPattern: url, method: method },
+        breakpoint: { phase: action === "bpReq" ? "request" : "response", autoResume: 0 }
+      };
+      bpStore.push(bp); saveBpStore(); updateBpButton();
+    }
   });
   document.querySelectorAll(".sf-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
