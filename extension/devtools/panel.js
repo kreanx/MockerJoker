@@ -541,8 +541,11 @@
       var bp = bpStore[i];
       html += '<div class="bp-item">';
       html += '<input type="checkbox" class="bp-toggle" data-idx="' + i + '"' + (bp.enabled ? " checked" : "") + ">";
-      html += '<span class="bp-item-phase">' + (bp.breakpoint.phase === "request" ? "REQ" : "RESP") + "</span>";
-      html += '<span class="bp-item-url">' + escapeHtml(bp.match.urlPattern) + "</span>";
+      html += '<select class="bp-phase-select" data-idx="' + i + '">';
+      html += '<option value="request"' + (bp.breakpoint.phase === "request" ? " selected" : "") + ">Запрос</option>";
+      html += '<option value="response"' + (bp.breakpoint.phase === "response" ? " selected" : "") + ">Ответ</option>";
+      html += "</select>";
+      html += '<input type="text" class="bp-url-input" data-idx="' + i + '" value="' + escapeHtml(bp.match.urlPattern) + '" placeholder="*/api/*">';
       html += '<button class="dt-btn bp-del" data-idx="' + i + '" style="font-size:14px;padding:2px 8px">×</button>';
       html += "</div>";
     }
@@ -551,6 +554,18 @@
       cb.addEventListener("change", function() {
         bpStore[parseInt(this.dataset.idx)].enabled = this.checked;
         saveBpStore(); updateBpButton();
+      });
+    });
+    bpListBody.querySelectorAll(".bp-url-input").forEach(function(inp) {
+      inp.addEventListener("change", function() {
+        bpStore[parseInt(this.dataset.idx)].match.urlPattern = this.value;
+        saveBpStore();
+      });
+    });
+    bpListBody.querySelectorAll(".bp-phase-select").forEach(function(sel) {
+      sel.addEventListener("change", function() {
+        bpStore[parseInt(this.dataset.idx)].breakpoint.phase = this.value;
+        saveBpStore();
       });
     });
     bpListBody.querySelectorAll(".bp-del").forEach(function(btn) {
