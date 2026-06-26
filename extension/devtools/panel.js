@@ -268,12 +268,12 @@
 
     // Left: Original (only if modified)
     var origTab = document.querySelector('.dt-tab-orig');
-    if (entry.originalBody != null) { origTab.classList.remove("hidden"); document.getElementById("tab-original").innerHTML = prettyBody(entry.originalBody); }
+    if (entry.originalBody != null) { origTab.classList.remove("hidden"); document.getElementById("origContent").innerHTML = prettyBody(entry.originalBody); if (document.getElementById("origSearchInput").value) origSearcher.run(document.getElementById("origSearchInput").value); }
     else { origTab.classList.add("hidden"); }
 
     // Right: Response (ALWAYS visible)
     responseView.innerHTML = prettyBody(entry.body, entry.originalBody);
-    if (respSearchInput.value) doRespSearch(respSearchInput.value);
+    if (document.getElementById("respSearchInput").value) respSearcher.run(document.getElementById("respSearchInput").value);
 
     // Buttons
     document.getElementById("btnCopyUrl").onclick = function () { copyText(entry.url); };
@@ -285,90 +285,73 @@
     switchTab("general");
   }
 
-  // --- Response search (like Chrome DevTools) ---
-  var respSearchInput = document.getElementById("respSearchInput");
-  var respSearchCount = document.getElementById("respSearchCount");
-  var _respMarks = [];
-  var _respMarkIdx = -1;
+  // --- Content search factory (response + original tabs) ---
+  function createContentSearcher(container, input, countEl) {
+    var marks = [];
+    var markIdx = -1;
+    var timer = null;
+    var prevBtn = document.getElementById(input.id.replace("Input", "Prev"));
+    var nextBtn = document.getElementById(input.id.replace("Input", "Next"));
 
-  function clearRespSearch() {
-    var marks = responseView.querySelectorAll("mark.search-hit");
-    for (var i = marks.length - 1; i >= 0; i--) {
-      var m = marks[i];
-      m.parentNode.replaceChild(document.createTextNode(m.textContent), m);
+    function clear() {
+      var old = container.querySelectorAll("mark.search-hit");
+      for (var i = old.length - 1; i >= 0; i--) old[i].parentNode.replaceChild(document.createTextNode(old[i].textContent), old[i]);
+      container.normalize();
+      marks = []; markIdx = -1; countEl.textContent = "";
     }
-    responseView.normalize();
-    _respMarks = [];
-    _respMarkIdx = -1;
-    respSearchCount.textContent = "";
-  }
-
-  function doRespSearch(q) {
-    clearRespSearch();
-    if (!q) return;
-    var ql = q.toLowerCase();
-    var walker = document.createTreeWalker(responseView, NodeFilter.SHOW_TEXT, null, false);
-    var nodes = [];
-    var node;
-    while (node = walker.nextNode()) nodes.push(node);
-    for (var ni = 0; ni < nodes.length; ni++) {
-      var tn = nodes[ni];
-      var text = tn.textContent;
-      var lower = text.toLowerCase();
-      var pos = 0, idx, frag = null;
-      while ((idx = lower.indexOf(ql, pos)) !== -1) {
-        if (!frag) frag = document.createDocumentFragment();
-        if (idx > pos) frag.appendChild(document.createTextNode(text.substring(pos, idx)));
-        var mark = document.createElement("mark");
-        mark.className = "search-hit";
-        mark.textContent = text.substring(idx, idx + ql.length);
-        frag.appendChild(mark);
-        _respMarks.push(mark);
-        pos = idx + ql.length;
+    function run(q) {
+      clear();
+      if (!q) return;
+      var ql = q.toLowerCase();
+      var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [], node;
+      while (node = walker.nextNode()) nodes.push(node);
+      for (var ni = 0; ni < nodes.length; ni++) {
+        var tn = nodes[ni], text = tn.textContent, lower = text.toLowerCase();
+        var pos = 0, idx, frag = null;
+        while ((idx = lower.indexOf(ql, pos)) !== -1) {
+          if (!frag) frag = document.createDocumentFragment();
+          if (idx > pos) frag.appendChild(document.createTextNode(text.substring(pos, idx)));
+          var mark = document.createElement("mark");
+          mark.className = "search-hit";
+          mark.textContent = text.substring(idx, idx + ql.length);
+          frag.appendChild(mark);
+          marks.push(mark);
+          pos = idx + ql.length;
+        }
+        if (frag) { if (pos < text.length) frag.appendChild(document.createTextNode(text.substring(pos))); tn.parentNode.replaceChild(frag, tn); }
       }
-      if (frag) {
-        if (pos < text.length) frag.appendChild(document.createTextNode(text.substring(pos)));
-        tn.parentNode.replaceChild(frag, tn);
+      if (marks.length > 0) { markIdx = 0; updateCurrent(); }
+      else countEl.textContent = "0/0";
+    }
+    function updateCurrent() {
+      marks.forEach(function(m) { m.classList.remove("current"); });
+      if (markIdx >= 0 && marks[markIdx]) {
+        marks[markIdx].classList.add("current");
+        marks[markIdx].scrollIntoView({ block: "center", behavior: "smooth" });
       }
+      countEl.textContent = marks.length > 0 ? (markIdx + 1) + "/" + marks.length : "0/0";
     }
-    if (_respMarks.length > 0) {
-      _respMarkIdx = 0;
-      updateRespSearchCurrent();
-    }
+    function next() { if (marks.length) { markIdx = (markIdx + 1) % marks.length; updateCurrent(); } }
+    function prev() { if (marks.length) { markIdx = (markIdx - 1 + marks.length) % marks.length; updateCurrent(); } }
+
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      var v = input.value;
+      timer = setTimeout(function () { run(v); }, 200);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); e.shiftKey ? prev() : next(); }
+      else if (e.key === "Escape") { input.value = ""; run(""); input.blur(); }
+    });
+    if (prevBtn) prevBtn.addEventListener("click", prev);
+    if (nextBtn) nextBtn.addEventListener("click", next);
+
+    return { run: run, clear: clear };
   }
 
-  function updateRespSearchCurrent() {
-    _respMarks.forEach(function(m) { m.classList.remove("current"); });
-    if (_respMarkIdx >= 0 && _respMarks[_respMarkIdx]) {
-      _respMarks[_respMarkIdx].classList.add("current");
-      _respMarks[_respMarkIdx].scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-    respSearchCount.textContent = _respMarks.length > 0 ? (_respMarkIdx + 1) + "/" + _respMarks.length : "0/0";
-  }
-
-  function respSearchNext() {
-    if (_respMarks.length === 0) return;
-    _respMarkIdx = (_respMarkIdx + 1) % _respMarks.length;
-    updateRespSearchCurrent();
-  }
-  function respSearchPrev() {
-    if (_respMarks.length === 0) return;
-    _respMarkIdx = (_respMarkIdx - 1 + _respMarks.length) % _respMarks.length;
-    updateRespSearchCurrent();
-  }
-
-  var _respSearchTimer = null;
-  respSearchInput.addEventListener("input", function () {
-    clearTimeout(_respSearchTimer);
-    var v = respSearchInput.value;
-    _respSearchTimer = setTimeout(function () { doRespSearch(v); }, 200);
-  });
-  respSearchInput.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); e.shiftKey ? respSearchPrev() : respSearchNext(); }
-    else if (e.key === "Escape") { respSearchInput.value = ""; doRespSearch(""); respSearchInput.blur(); }
-  });
-  document.getElementById("respSearchNext").addEventListener("click", respSearchNext);
-  document.getElementById("respSearchPrev").addEventListener("click", respSearchPrev);
+  var respSearcher = createContentSearcher(responseView, document.getElementById("respSearchInput"), document.getElementById("respSearchCount"));
+  var origSearcher = createContentSearcher(document.getElementById("origContent"), document.getElementById("origSearchInput"), document.getElementById("origSearchCount"));
 
   function buildCurl(e) {
     var cmd = "curl -X " + (e.method || "GET");
