@@ -21,6 +21,7 @@
     </div>
     <span id="countLabel"></span>
     <button id="clearBtn">Очистить</button>
+    <button id="bpBtn" class="bp-btn" title="Точки останова">⛔</button>
   </div>
   <div id="tableWrap">
     <table id="interceptionTable">
@@ -75,6 +76,27 @@
   </div>
   <div id="ctxMenu" class="ctx-menu hidden">
     <div>Замокать запрос</div>
+  </div>
+  <div id="bpOverlay" class="bp-overlay hidden">
+    <div class="bp-modal">
+      <div class="bp-modal-header">
+        <span id="bpModalTitle">⛔ Breakpoint</span>
+      </div>
+      <div class="bp-modal-body" id="bpModalBody"></div>
+      <div class="bp-modal-actions">
+        <button id="bpResume" class="dt-btn dt-btn-accent">Продолжить</button>
+        <button id="bpAbort" class="dt-btn">Отменить</button>
+      </div>
+    </div>
+  </div>
+  <div id="bpListOverlay" class="bp-overlay hidden">
+    <div class="bp-modal bp-modal-wide">
+      <div class="bp-modal-header">
+        <span>⛔ Точки останова</span>
+        <button id="bpAddBtn" class="dt-btn dt-btn-accent" style="font-size:11px;padding:3px 10px">+ Добавить</button>
+      </div>
+      <div class="bp-modal-body" id="bpListBody"></div>
+    </div>
   </div>
   <script src="panel.js"></script>
 </body>

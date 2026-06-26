@@ -149,3 +149,25 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 [data-theme="light"] mark.search-hit { background: rgba(254,100,11,0.25); }
 [data-theme="light"] mark.search-hit.current { color: #fff; }
 [data-theme="light"] .ctx-menu { background: rgba(255,255,255,0.98); box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+
+/* Breakpoints */
+.bp-btn { background: var(--ctp-surface0); color: var(--ctp-text); border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 14px; flex-shrink: 0; transition: background 0.12s; }
+.bp-btn:hover { background: var(--ctp-surface1); }
+.bp-btn.has-bp { background: var(--ctp-red); color: #fff; }
+.bp-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.bp-overlay.hidden { display: none; }
+.bp-modal { background: var(--ctp-mantle); border: 0.5px solid var(--ctp-surface1); border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+.bp-modal-wide { max-width: 500px; }
+.bp-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--sep); font-size: 13px; font-weight: 600; color: var(--ctp-text); }
+.bp-modal-body { padding: 12px 16px; overflow: auto; flex: 1; }
+.bp-modal-actions { display: flex; gap: 8px; padding: 10px 16px; border-top: 0.5px solid var(--sep); justify-content: flex-end; }
+.dt-btn-accent { background: var(--ctp-blue); color: #fff; }
+.dt-btn-accent:hover { filter: brightness(1.1); }
+.bp-field { margin-bottom: 10px; }
+.bp-field label { display: block; font-size: 11px; color: var(--ctp-overlay0); text-transform: uppercase; margin-bottom: 3px; }
+.bp-field input, .bp-field select { width: 100%; padding: 5px 8px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 12px; }
+.bp-field input:focus, .bp-field select:focus { border-color: var(--ctp-blue); outline: none; }
+.bp-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--sep); }
+.bp-item-url { flex: 1; font-size: 12px; color: var(--ctp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bp-item-phase { font-size: 10px; color: var(--ctp-overlay0); padding: 2px 6px; background: var(--ctp-surface0); border-radius: 3px; }
+.bp-toggle { cursor: pointer; }
