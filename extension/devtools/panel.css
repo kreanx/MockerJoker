@@ -86,6 +86,7 @@ th.sort-desc::after { content: " \25BC"; color: var(--ctp-blue); font-size: 9px;
 #detailContent { flex: 1; overflow: auto; padding: 8px 10px; }
 .dt-pane { display: none; }
 .dt-pane.active { display: block; }
+#tab-original.active { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 /* Right: response + search */
 .resp-header { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; border-bottom: 0.5px solid var(--sep); flex-shrink: 0; gap: 8px; }
@@ -99,9 +100,10 @@ th.sort-desc::after { content: " \25BC"; color: var(--ctp-blue); font-size: 9px;
 mark.search-hit { background: rgba(250,179,135,0.3); color: inherit; border-radius: 2px; }
 mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); }
 .response-view { flex: 1; overflow: auto; padding: 8px 10px; }
-.orig-search-bar { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-bottom: 0.5px solid var(--sep); }
+.orig-search-bar { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-bottom: 0.5px solid var(--sep); flex-shrink: 0; }
 .orig-search-bar input { flex: 1; padding: 3px 8px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 12px; }
 .orig-search-bar input:focus { border-color: var(--ctp-blue); outline: none; }
+#origContent { flex: 1; overflow: auto; }
 
 .hdr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .hdr-table td { padding: 4px 8px; vertical-align: top; word-break: break-all; border-bottom: 0.5px solid var(--sep); }
