@@ -181,7 +181,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     var tabId = sender.tab ? sender.tab.id : "unknown";
     if (!interceptionLog[tabId]) interceptionLog[tabId] = [];
     var log = interceptionLog[tabId];
-    log.push(msg.data);
+    var existing = null;
+    for (var li = log.length - 1; li >= 0; li--) {
+      if (log[li].id === msg.data.id) { existing = log[li]; break; }
+    }
+    if (existing) { for (var dk in msg.data) existing[dk] = msg.data[dk]; msg.data = existing; }
+    else { log.push(msg.data); }
     if (log.length > CONST.INTERCEPTION_LIMIT) log.shift();
     if (devtoolsPort) {
       devtoolsPort.postMessage({ type: "interception", tabId: tabId, data: msg.data });

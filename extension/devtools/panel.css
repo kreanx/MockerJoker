@@ -53,6 +53,9 @@ th.sort-desc::after { content: " \25BC"; color: var(--ctp-blue); font-size: 9px;
 .url-dyn { color: var(--ctp-yellow); font-weight: 500; }
 .url-query { color: var(--ctp-overlay0); }
 #detailContent .section-label { padding: 8px 8px 4px; font-size: 10px; font-weight: 600; color: var(--ctp-overlay0); text-transform: uppercase; letter-spacing: 0.5px; }
+.row-pending { opacity: 0.6; }
+.status-pending { color: var(--ctp-overlay0); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 .row-matched { background: rgba(137,180,250,0.05); }
 .row-matched .col-action { color: var(--ctp-blue); font-weight: 500; }
 .row-passthrough { opacity: 0.5; }

@@ -173,11 +173,12 @@
     for (var i = list.length - 1; i >= 0; i--) {
       var e = list[i];
       if (e.matched) mc2++;
-      var sc = e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
-      var al = e.actionType === "mockResponse" ? "MOCK" : e.actionType === "modifyResponse" ? "MOD-RESP" : (e.actionType === "modifyRequest" || e.actionType === "modifyBody") ? "MOD-REQ" : e.matched ? "matched" : "—";
-      var rc = (e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
+      var isPending = e.pending === true;
+      var sc = isPending ? "status-pending" : e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
+      var al = isPending ? "..." : e.actionType === "mockResponse" ? "MOCK" : e.actionType === "modifyResponse" ? "MOD-RESP" : (e.actionType === "modifyRequest" || e.actionType === "modifyBody") ? "MOD-REQ" : e.matched ? "matched" : "—";
+      var rc = (isPending ? "row-pending" : e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
       var mc = methodClass(e.method);
-      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (e.status != null ? e.status : "-") + '</td><td>' + formatSize(e.body, e.headers) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
+      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (isPending ? "..." : e.status != null ? e.status : "-") + '</td><td>' + (isPending ? "..." : formatSize(e.body, e.headers)) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
     }
     if (countLabel) countLabel.textContent = list.length + " зап." + (mc2 > 0 ? " · " + mc2 + " перехв." : "");
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
@@ -458,7 +459,7 @@
   });
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") { if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]); applyFilter(); }
-    else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { entries.push(msg.data); applyFilter(); } }
+    else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
   });
 
   initColumnResize(); initHSplit(); initColumnSort();

@@ -360,8 +360,8 @@
     flushTabVars();
   }
 
-  function reportInterception(data) {
-    data.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  function reportInterception(data, id) {
+    data.id = id || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
     data.timestamp = Date.now();
     data.reqHeaders = _currentReq.headers;
     data.reqBody = _currentReq.body;
@@ -448,6 +448,8 @@
     }
     _currentReq = { headers: reqHeadersObj, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(url, reqBody, reqHeadersObj, null, "request");
+    var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    reportInterception({ url: url, method: method, matched: false, pending: true }, reqId);
 
     var matched = findAllRules(url, method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {
@@ -455,7 +457,7 @@
         var hdrs = {};
         response.headers.forEach(function(v,k) { hdrs[k] = v; });
         response.clone().text().then(function(text) {
-          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
+          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
         });
         return response;
       });
@@ -466,7 +468,7 @@
           var hdrs = {};
           response.headers.forEach(function(v,k) { hdrs[k] = v; });
           response.clone().text().then(function(text) {
-            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
+            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
           });
           return response;
         });
@@ -476,7 +478,7 @@
         response.headers.forEach(function(v,k) { hdrs[k] = v; });
         response.clone().text().then(function(text) {
           processVarSavers(url, parseRespObj(text), hdrs, response.status, "response");
-          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text });
+          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
         });
         return response;
       });
@@ -563,7 +565,7 @@
         headers: mockRule.action.headers || {},
         body: mockRespBody,
         delay: mockRule.action.delay || CONST.DEFAULT_DELAY
-      });
+      }, reqId);
 
       return new Promise(function (resolve) {
         setTimeout(function () {
@@ -610,7 +612,7 @@
               body: curText,
               headers: mockRule.action.headers || {},
               originalBody: responseText
-            });
+            }, reqId);
           }
 
           if (!mocked) {
@@ -651,7 +653,7 @@
             headers: hdrObjFinal,
             body: curText,
             originalBody: responseText
-          });
+          }, reqId);
           return new Response(curText, { status: curStatus, statusText: curStatusText, headers: curHeaders });
         });
       });
@@ -676,7 +678,7 @@
           status: response.status,
           headers: hdrObj,
           body: null
-        });
+        }, reqId);
         return new Response(response.body, { status: response.status, statusText: response.statusText, headers: newHeaders });
       });
     } else if (respRules.length === 0) {
@@ -693,7 +695,7 @@
             ruleName: reqRules.length ? reqRules[0].name : null,
             actionType: reqRules.length ? reqRules[0].action.type : null,
             status: response.status, headers: hdrObj2, body: text
-          });
+          }, reqId);
         });
         return response;
       });
@@ -738,11 +740,13 @@
     var reqBody = parseReqBody(body);
     _currentReq = { headers: self.__rmReqHeaders || {}, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
+    var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, pending: true }, reqId);
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
     if (matched.length === 0 && varSavers.length === 0) {
       var origOLEpt = self.onloadend;
       self.onloadend = function (evt) {
-        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) });
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
         if (origOLEpt) origOLEpt.call(self, evt);
       };
       return origXhrSend.apply(this, arguments);
@@ -751,7 +755,7 @@
       if (!hasMatchingResponseVarSaver(self.__rm.url)) {
         var origOLEvs = self.onloadend;
         self.onloadend = function (evt) {
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) });
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
           if (origOLEvs) origOLEvs.call(self, evt);
         };
         return origXhrSend.apply(this, arguments);
@@ -861,7 +865,7 @@
           ruleName: reqRules.length ? reqRules[0].name : null,
           actionType: reqRules.length ? reqRules[0].action.type : null,
           status: self.status, headers: hdrs, body: safeRespText(self)
-        });
+        }, reqId);
         if (origOLE) origOLE.call(self, evt);
       };
       return origXhrSend.call(self, sendBody);
@@ -892,7 +896,7 @@
           headers: mockRule.action.headers || {},
           body: mockRule.action.body || CONST.DEFAULT_BODY,
           delay: mockRule.action.delay || CONST.DEFAULT_DELAY
-        });
+        }, reqId);
       mockXhrResponse(self, mockRule, mockRule.action.delay || CONST.DEFAULT_DELAY);
       return;
     }
@@ -942,7 +946,7 @@
           body: mb,
           headers: mh,
           originalBody: origText
-        });
+        }, reqId);
       }
 
       if (!mocked && modRespRules.length > 0) {
@@ -1015,7 +1019,7 @@
         headers: xhHdrsFinal,
         body: curText,
         originalBody: origText
-      });
+      }, reqId);
       processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");
     }
 
