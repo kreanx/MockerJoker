@@ -174,3 +174,8 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .bp-phase-select { padding: 3px 6px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 11px; }
 .bp-phase-select:focus { border-color: var(--ctp-blue); outline: none; }
 .bp-toggle { cursor: pointer; }
+.bp-extract { margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--sep); }
+.bp-extract > label { display: block; font-size: 11px; color: var(--ctp-overlay0); text-transform: uppercase; margin-bottom: 6px; }
+.bp-extract-row { display: flex; gap: 6px; align-items: center; }
+.bp-vars-list { margin-top: 8px; }
+.bp-var-item { padding: 3px 0; font-size: 12px; font-family: "SF Mono", Menlo, Consolas, monospace; }
