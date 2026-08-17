@@ -26,7 +26,7 @@ sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" manifest.firefox.j
 
 bash build-zip.sh
 
-git add extension/manifest.json manifest.firefox.json dist/
+git add extension/manifest.json manifest.firefox.json
 git commit -m "release: $TAG"
 git tag "$TAG"
 git push origin "$BRANCH"
