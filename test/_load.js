@@ -75,4 +75,77 @@ function loadRulesStore() {
   return factory(function () { return null; }, {});
 }
 
-module.exports = { loadJsonEditor, loadInjected, loadRulesStore, EXT };
+// --- background/background.js — service worker logic over stubbed chrome.* ---
+// Returns { bg, chrome } where `chrome` exposes spies: storage state,
+// sendMessage recordings (runtime + tabs), captured onMessage/onConnect listeners.
+function loadBackground(initialStorage) {
+  const store = Object.assign({ rules: [], varSavers: [], masterEnabled: true }, initialStorage || {});
+  const state = {
+    runtimeMessages: [],   // messages sent via chrome.runtime.sendMessage
+    tabMessages: [],       // messages sent via chrome.tabs.sendMessage
+    runtimeListeners: [],
+    connectListeners: [],
+    tabsRemovedListeners: [],
+    tabsUpdatedListeners: []
+  };
+  function makePort(name) {
+    const port = {
+      name: name,
+      posted: [],
+      msgListeners: [],
+      disconnectListeners: [],
+      postMessage(m) { port.posted.push(m); },
+      onMessage: { addListener(fn) { port.msgListeners.push(fn); } },
+      onDisconnect: { addListener(fn) { port.disconnectListeners.push(fn); } },
+      disconnect() {
+        port.disconnectListeners.forEach((fn) => fn());
+      }
+    };
+    return port;
+  }
+  const chrome = {
+    runtime: {
+      lastError: null,
+      onMessage: { addListener(fn) { state.runtimeListeners.push(fn); } },
+      onConnect: { addListener(fn) { state.connectListeners.push(fn); } },
+      sendMessage(msg, cb) { state.runtimeMessages.push(msg); if (cb) cb({ success: true }); }
+    },
+    storage: {
+      local: {
+        get(defs, cb) {
+          const out = {};
+          for (const k of Object.keys(defs)) out[k] = store[k] !== undefined ? store[k] : defs[k];
+          cb(out);
+        },
+        set(obj, cb) { Object.assign(store, obj); if (cb) cb(); }
+      }
+    },
+    tabs: {
+      sendMessage(tabId, msg, cb) { state.tabMessages.push({ tabId, msg }); if (cb) cb(); },
+      query(_, cb) { cb([]); },
+      onRemoved: { addListener(fn) { state.tabsRemovedListeners.push(fn); } },
+      onUpdated: { addListener(fn) { state.tabsUpdatedListeners.push(fn); } }
+    },
+    action: {
+      setBadgeText() {}, setBadgeBackgroundColor() {}, setBadgeTextColor() {}
+    }
+  };
+  const src = read("shared/constants.js") + "\n" +
+    read("background/background.js").replace(/^importScripts\([^)]*\);/m, "");
+  const factory = new Function("chrome", src);
+  factory(chrome);
+  return { chrome, state, store, makePort,
+    send(msg, sender) {
+      let response = null;
+      const keepOpen = state.runtimeListeners.some((fn) => fn(msg, sender || {}, (r) => { response = r; }));
+      return keepOpen === true ? response : response; // sync handlers respond immediately
+    },
+    connect(name) {
+      const port = makePort(name);
+      state.connectListeners.forEach((fn) => fn(port));
+      return port;
+    }
+  };
+}
+
+module.exports = { loadJsonEditor, loadInjected, loadRulesStore, loadBackground, EXT };

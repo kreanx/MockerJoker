@@ -17,7 +17,9 @@
     PAGE_MSG: {
       RULES: "REQUEST_MOCKER_RULES", INIT: "REQUEST_MOCKER_INIT",
       HIT: "REQUEST_MOCKER_HIT", SEEN: "REQUEST_MOCKER_SEEN",
-      TAB_VARS: "REQUEST_MOCKER_TAB_VARS", INTERCEPTION: "REQUEST_MOCKER_INTERCEPTION"
+      TAB_VARS: "REQUEST_MOCKER_TAB_VARS", INTERCEPTION: "REQUEST_MOCKER_INTERCEPTION",
+      BREAKPOINT_HIT: "REQUEST_MOCKER_BP_HIT",
+      BREAKPOINT_RESUME: "REQUEST_MOCKER_BP_RESUME"
     }
   };
 
@@ -28,6 +30,7 @@
   var tabVars = {};
   var _currentReq = {};
   var _bpSkip = false;
+  var _bpReqId = null; // re-entry after a request-phase bp resume reuses the log entry
   var origFetch = window.fetch;
   var OrigXHR = window.XMLHttpRequest;
   var origXhrOpen = OrigXHR.prototype.open;
@@ -469,8 +472,12 @@
     }
     _currentReq = { headers: reqHeadersObj, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(url, reqBody, reqHeadersObj, null, "request", reqBody);
-    var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    reportInterception({ url: url, method: method, matched: false, pending: true }, reqId);
+    var reqId = _bpReqId || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
+    if (_bpReqId) {
+      _bpReqId = null; // re-entry after a request-phase bp resume: keep one log entry
+    } else {
+      reportInterception({ url: url, method: method, matched: false, pending: true }, reqId);
+    }
     var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(url, method) : null;
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
       return waitForBreakpoint({
@@ -480,54 +487,39 @@
           reportInterception({ url: url, method: method, matched: false, status: 0, body: null }, reqId);
           throw new DOMException("Aborted", "AbortError");
         }
+        var m = applyBpRequestMods(input, init, result.mods);
+        _bpReqId = reqId;
         _bpSkip = true;
-        return window.fetch(input, init);
+        return window.fetch(m.input, m.init);
       });
     }
     _bpSkip = false;
 
     var matched = findAllRules(url, method, reqBody);
-    if (matched.length === 0 && varSavers.length === 0) {
+    if (matched.length === 0) {
+      // No rules matched: report, run response varSavers (gated), and pause on a
+      // response-phase breakpoint. Reporting stays off the critical path unless
+      // a breakpoint needs the body.
       var needBpResp = bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "response";
+      var needRespVars = hasMatchingResponseVarSaver(url);
       return origFetch.apply(this, arguments).then(function (response) {
         var hdrs = {};
         response.headers.forEach(function(v,k) { hdrs[k] = v; });
-        if (!needBpResp) {
-          response.clone().text().then(function(text) {
-            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
-          });
-          return response;
-        }
-        return response.clone().text().then(function(text) {
+        var textReady = response.clone().text().then(function(text) {
+          if (needRespVars) processVarSavers(url, parseRespObj(text), hdrs, response.status, "response", reqBody);
           reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
+          return text;
+        });
+        if (!needBpResp) { textReady.catch(function(){}); return response; }
+        return textReady.then(function(text) {
           return waitForBreakpoint({
             phase: "response", url: url, method: method, status: response.status, headers: hdrs, body: text
           }).then(function(result) {
             if (result.action === "abort") throw new DOMException("Aborted", "AbortError");
-            return response;
+            var mod = buildBpResponse(response.status, hdrs, text, result.mods);
+            return mod || response;
           });
         });
-      });
-    }
-    if (matched.length === 0) {
-      if (!hasMatchingResponseVarSaver(url)) {
-        return origFetch.apply(this, arguments).then(function (response) {
-          var hdrs = {};
-          response.headers.forEach(function(v,k) { hdrs[k] = v; });
-          response.clone().text().then(function(text) {
-            reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
-          });
-          return response;
-        });
-      }
-      return origFetch.apply(this, arguments).then(function (response) {
-        var hdrs = {};
-        response.headers.forEach(function(v,k) { hdrs[k] = v; });
-        response.clone().text().then(function(text) {
-          processVarSavers(url, parseRespObj(text), hdrs, response.status, "response", reqBody);
-          reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
-        });
-        return response;
       });
     }
 
@@ -796,49 +788,85 @@
       waitForBreakpoint({
         phase: "request", url: self.__rm.url, method: self.__rm.method, headers: self.__rmReqHeaders || {}, body: reqBody
       }).then(function(result) {
+        var finishWrap = function () {
+          var origOLEpt = self.onloadend;
+          self.onloadend = function (evt) {
+            reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
+            if (origOLEpt) origOLEpt.call(self, evt);
+          };
+        };
         if (result.action === "abort") {
           reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
           return;
         }
-        _bpSkip = true;
+        var mods = result.mods || {};
+        if (mods.url || mods.method || (mods.body !== undefined && mods.body !== null)) {
+          // open() resets headers set via setRequestHeader — replay them after re-open
+          self.__rm = {
+            method: String(mods.method || self.__rm.method).toUpperCase(),
+            url: mods.url || self.__rm.url
+          };
+          origXhrOpen.call(self, self.__rm.method, self.__rm.url);
+          var savedHdrs = self.__rmReqHeaders || {};
+          for (var shk in savedHdrs) origXhrSetHeader.call(self, shk, savedHdrs[shk]);
+          finishWrap();
+          origXhrSend.call(self, mods.body !== undefined && mods.body !== null ? String(mods.body) : body);
+          return;
+        }
+        finishWrap();
         origXhrSend.call(self, body);
       });
       return;
     }
 
     var matched = findAllRules(self.__rm.url, self.__rm.method, reqBody);
-    if (matched.length === 0 && varSavers.length === 0) {
-      var needBpResp = bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "response";
-      var origOLEpt = self.onloadend;
-      self.onloadend = function (evt) {
-        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
-        if (needBpResp) {
-          waitForBreakpoint({
-            phase: "response", url: self.__rm.url, method: self.__rm.method, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self)
-          }).then(function() { if (origOLEpt) origOLEpt.call(self, evt); });
-        } else {
-          if (origOLEpt) origOLEpt.call(self, evt);
-        }
-      };
-      return origXhrSend.apply(this, arguments);
-    }
     if (matched.length === 0) {
-      if (!hasMatchingResponseVarSaver(self.__rm.url)) {
-        var origOLEvs = self.onloadend;
-        self.onloadend = function (evt) {
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
-          if (origOLEvs) origOLEvs.call(self, evt);
-        };
-        return origXhrSend.apply(this, arguments);
-      }
-      var self2 = this;
-      var origOLE2 = this.onloadend;
-      this.onloadend = function(evt) {
-        var hdrs2 = {};
-        try { self2.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs2[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status, "response", reqBody);
-        if (origOLE2) origOLE2.call(self2, evt);
+      var needBpResp = bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "response";
+      var needRespVars = hasMatchingResponseVarSaver(self.__rm.url);
+      // Pause BOTH onload and onloadend on one shared gate so the page cannot
+      // observe the response before the breakpoint resumes. Note: response body
+      // edits are fetch-only — XHR responseText is read-only.
+      var bpGatePromise = null;
+      var ensureBpGate = function () {
+        if (!bpGatePromise) {
+          bpGatePromise = waitForBreakpoint({
+            phase: "response", url: self.__rm.url, method: self.__rm.method, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self)
+          });
+        }
+        return bpGatePromise;
       };
+      var origOLoad = self.onload;
+      var origOLEnd = self.onloadend;
+      self.onload = function (evt) {
+        if (!needBpResp) { if (origOLoad) origOLoad.call(self, evt); return; }
+        ensureBpGate().then(function (result) {
+          if (result && result.action === "abort") return; // swallow: response already arrived
+          if (origOLoad) origOLoad.call(self, evt);
+        });
+      };
+      self.onloadend = function (evt) {
+        var proceed = function () {
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self) }, reqId);
+          if (origOLEnd) origOLEnd.call(self, evt);
+        };
+        if (!needBpResp) { proceed(); return; }
+        ensureBpGate().then(function (result) {
+          if (result && result.action === "abort") {
+            reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
+            return;
+          }
+          proceed();
+        });
+      };
+      if (needRespVars) {
+        var self2 = this;
+        var wrappedOnLoadEnd = self.onloadend; // the bp-gated wrapper above
+        self.onloadend = function (evt) {
+          var hdrs2 = self2.$rmHdrs();
+          processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status, "response", reqBody);
+          wrappedOnLoadEnd.call(self2, evt);
+        };
+      }
       return origXhrSend.apply(this, arguments);
     }
 
@@ -1175,10 +1203,19 @@
 
   var _pendingBreakpoints = {};
 
+  function waitForBreakpoint(data) {
+    var bpMsgId = "bp_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    return new Promise(function (resolve) {
+      _pendingBreakpoints[bpMsgId] = resolve;
+      window.postMessage({ type: CONST.PAGE_MSG.BREAKPOINT_HIT, bpMsgId: bpMsgId, data: data }, "*");
+    });
+  }
+
   function findBreakpointRule(url, method) {
     for (var i = 0; i < rules.length; i++) {
       var r = rules[i];
       if (r.type !== "breakpoint" || r.enabled === false) continue;
+      if (!r.match || !r.match.urlPattern) continue; // malformed rule must not break fetch
       if (!globToRegex(r.match.urlPattern).test(url)) continue;
       if (r.match.method && r.match.method !== "ANY" && r.match.method !== method) continue;
       return r;
@@ -1186,12 +1223,46 @@
     return null;
   }
 
-  function waitForBreakpoint(data) {
-    var bpMsgId = "bp_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-    return new Promise(function (resolve) {
-      _pendingBreakpoints[bpMsgId] = resolve;
-      window.postMessage({ type: CONST.PAGE_MSG.BREAKPOINT_HIT, bpMsgId: bpMsgId, data: data }, "*");
-    });
+  // Applies user edits from a resumed request-phase breakpoint to fetch args.
+  // Pure: no side effects, returns new {input, init}.
+  function applyBpRequestMods(input, init, mods) {
+    if (!mods) return { input: input, init: init };
+    init = init ? Object.assign({}, init) : {};
+    if (init.headers && typeof init.headers.forEach !== "function") {
+      init.headers = Object.assign({}, init.headers);
+    }
+    if (mods.method) init.method = String(mods.method).toUpperCase();
+    if (mods.body !== undefined && mods.body !== null) init.body = String(mods.body);
+    if (mods.url) {
+      if (typeof input === "string") {
+        input = mods.url;
+      } else if (typeof Request !== "undefined" && typeof input === "object" && input !== null && input instanceof Request) {
+        // Request url is immutable; rebuild with edited url. Body/headers come
+        // from init (init overrides Request in fetch(input, init)).
+        try { input = new Request(mods.url, { method: init.method || input.method }); } catch (e) {}
+      }
+    }
+    return { input: input, init: init };
+  }
+
+  // Builds a replacement Response from user edits of a response-phase
+  // breakpoint. Returns null when nothing effectively changed — the caller
+  // then keeps the original response object.
+  function buildBpResponse(origStatus, origHeaders, origBody, mods) {
+    if (!mods) return null;
+    var status = origStatus;
+    if (mods.status !== undefined && mods.status !== null && String(mods.status).trim() !== "") {
+      var parsed = parseInt(mods.status, 10);
+      if (parsed >= 200 && parsed <= 599) status = parsed; // Response ctor range
+    }
+    var body = (mods.body !== undefined && mods.body !== null) ? String(mods.body) : origBody;
+    if (status === origStatus && body === origBody) return null;
+    if (status === 204 || status === 205 || status === 304) body = null; // bodyless statuses
+    try {
+      return new Response(body, { status: status, headers: new Headers(origHeaders || {}) });
+    } catch (e) {
+      return null;
+    }
   }
 
   // === COMMUNICATION ===
@@ -1248,6 +1319,9 @@
       saveVariables: saveVariables,
       processVarSavers: processVarSavers,
       hasMatchingResponseVarSaver: hasMatchingResponseVarSaver,
+      findBreakpointRule: findBreakpointRule,
+      applyBpRequestMods: applyBpRequestMods,
+      buildBpResponse: buildBpResponse,
       _setRuntime: function (r, vs, tv, me) { rules = r || []; varSavers = vs || []; tabVars = tv || {}; masterEnabled = me !== false; }
     });
   }

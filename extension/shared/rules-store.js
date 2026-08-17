@@ -150,7 +150,10 @@ function deleteRuleById(id) {
 }
 
 function exportRules() {
-  var blob = new Blob([JSON.stringify(rules, null, 2)], { type: "application/json" });
+  // Breakpoints are DevTools session tools, not shareable mock rules — and
+  // they would fail validateRule() on import.
+  var exportable = rules.filter(function (r) { return r.type !== "breakpoint"; });
+  var blob = new Blob([JSON.stringify(exportable, null, 2)], { type: "application/json" });
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "request-mocker-rules.json";

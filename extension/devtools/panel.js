@@ -1,6 +1,6 @@
 (function () {
   var inspectedTabId = chrome.devtools.inspectedWindow.tabId;
-  var port = chrome.runtime.connect({ name: "devtools" });
+  var port = chrome.runtime.connect({ name: "devtools:" + inspectedTabId });
   var tbody = document.getElementById("logBody");
   var filterInput = document.getElementById("filterInput");
   var clearBtn = document.getElementById("clearBtn");
@@ -464,9 +464,9 @@
     responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
   });
   port.onMessage.addListener(function (msg) {
-    if (msg.type === "backlog") { if (msg.data[inspectedTabId]) entries = entries.concat(msg.data[inspectedTabId]); applyFilter(); }
+    if (msg.type === "backlog") { entries = entries.concat(msg.data || []); applyFilter(); }
     else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
-    else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { showBreakpointHit(msg.bpMsgId, msg.data); }
+    else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { queueBreakpointHit(msg.bpMsgId, msg.data); }
   });
 
   // --- Breakpoints ---
@@ -482,18 +482,16 @@
   var bpExtractedVars = {};
   var bpConfigEditIdx = -1;
 
-  chrome.storage.local.get({ rules: [] }, function(data) {
-    bpStore = (data.rules || []).filter(function(r) { return r.type === "breakpoint"; });
+  chrome.runtime.sendMessage({ type: "getRules" }, function (res) {
+    if (res && res.rules) bpStore = res.rules.filter(function (r) { return r.type === "breakpoint"; });
     updateBpButton();
   });
 
   function saveBpStore() {
-    chrome.storage.local.get({ rules: [] }, function(data) {
-      var allRules = data.rules || [];
-      var nonBp = allRules.filter(function(r) { return r.type !== "breakpoint"; });
-      var merged = nonBp.concat(bpStore);
-      chrome.storage.local.set({ rules: merged });
-    });
+    // MUST go through the background: it owns the in-memory rules and pushes
+    // RULES_UPDATED to all tabs, making the breakpoint active immediately.
+    // (Direct chrome.storage writes left the page without the new rule.)
+    chrome.runtime.sendMessage({ type: "saveBreakpoints", breakpoints: bpStore });
   }
 
   function updateBpButton() {
@@ -559,9 +557,33 @@
     if (e.target === bpConfigOverlay) bpConfigOverlay.classList.add("hidden");
   });
 
-  // --- Hit Overlay ---
-  function showBreakpointHit(bpMsgId, data) {
-    currentBpMsgId = bpMsgId;
+  // --- Hit Overlay (queue: multiple pauses stack, one shown at a time) ---
+  var bpQueue = [];
+
+  function queueBreakpointHit(bpMsgId, data) {
+    bpQueue.push({ bpMsgId: bpMsgId, data: data });
+    if (bpOverlay.classList.contains("hidden")) showCurrentBpHit();
+    else {
+      var shown = bpQueue[0];
+      updateBpQueueTitle(shown.data, bpQueue.length - 1);
+    }
+  }
+
+  function updateBpQueueTitle(data, queued) {
+    var suffix = queued > 0 ? ' <span style="color:var(--ctp-yellow)">+' + queued + ' в очереди</span>' : "";
+    bpModalTitle.innerHTML = "⛔ " + (data.phase === "request" ? "Запрос" : "Ответ") + ": " + escapeHtml((data.method || "") + " " + shortUrl(data.url)) + suffix;
+  }
+
+  function prettyText(body) {
+    try { return JSON.stringify(JSON.parse(body), null, 2); } catch (e) { return body || ""; }
+  }
+
+  // Renders bpQueue[0] without dequeuing it; resumeBreakpoint() pops it.
+  function showCurrentBpHit() {
+    var hit = bpQueue[0];
+    if (!hit) { bpOverlay.classList.add("hidden"); return; }
+    var data = hit.data;
+    currentBpMsgId = hit.bpMsgId;
     bpExtractedVars = {};
     for (var i = 0; i < bpStore.length; i++) {
       var bp = bpStore[i];
@@ -575,25 +597,35 @@
         }
       }
     }
-    bpModalTitle.textContent = "⛔ " + (data.phase === "request" ? "Запрос" : "Ответ") + ": " + (data.method || "") + " " + shortUrl(data.url);
-    var html = '<div class="bp-field"><label>URL</label><input type="text" value="' + escapeHtml(data.url) + '" readonly></div>';
-    if (data.status != null) html += '<div class="bp-field"><label>Статус</label><input type="text" value="' + data.status + '" readonly></div>';
+    updateBpQueueTitle(data, bpQueue.length - 1);
+    var isReq = data.phase === "request";
+    var html = "";
+    if (isReq) {
+      html += '<div class="bp-cfg-row"><div class="bp-field" style="flex:0 0 90px"><label>Метод</label>' +
+        '<input type="text" id="bpEditMethod" value="' + escapeHtml(data.method || "GET") + '"></div>' +
+        '<div class="bp-field" style="flex:1"><label>URL</label>' +
+        '<input type="text" id="bpEditUrl" value="' + escapeHtml(data.url || "") + '"></div></div>';
+    } else {
+      html += '<div class="bp-field" style="max-width:120px"><label>Статус</label>' +
+        '<input type="text" id="bpEditStatus" value="' + escapeHtml(String(data.status != null ? data.status : "")) + '"></div>';
+    }
     if (data.headers) {
       html += '<div class="bp-field"><label>Заголовки</label><pre class="json-body" style="max-height:120px;overflow:auto">';
       var hk = Object.keys(data.headers).sort();
-      for (var i = 0; i < hk.length; i++) html += '<span class="json-key">' + escapeHtml(hk[i]) + "</span>: " + escapeHtml(data.headers[hk[i]]) + "\n";
+      for (var h = 0; h < hk.length; h++) html += '<span class="json-key">' + escapeHtml(hk[h]) + "</span>: " + escapeHtml(data.headers[hk[h]]) + "\n";
       html += '</pre></div>';
     }
-    if (data.body) {
-      html += '<div class="bp-field"><label>Тело ' + (data.phase === "response" ? "ответа" : "запроса") + '</label>';
-      html += prettyBody(data.body);
+    if (data.body != null) {
+      html += '<div class="bp-field"><label>Тело ' + (isReq ? "запроса" : "ответа") +
+        ' <span style="text-transform:none">(редактируется' + (isReq ? "" : ", только fetch") + ')</span></label>';
+      html += '<textarea id="bpEditBody" rows="10" spellcheck="false">' + escapeHtml(prettyText(data.body)) + '</textarea>';
       html += '</div>';
     }
     var vk = Object.keys(bpExtractedVars);
     if (vk.length > 0) {
       html += '<div class="bp-extract"><label>Извлечённые переменные</label>';
-      for (var i = 0; i < vk.length; i++) {
-        html += '<div class="bp-var-item"><span class="json-key">' + escapeHtml(vk[i]) + '</span> = <span class="json-str">' + escapeHtml(String(bpExtractedVars[vk[i]]).substring(0, 200)) + '</span></div>';
+      for (var v = 0; v < vk.length; v++) {
+        html += '<div class="bp-var-item"><span class="json-key">' + escapeHtml(vk[v]) + '</span> = <span class="json-str">' + escapeHtml(String(bpExtractedVars[vk[v]]).substring(0, 200)) + '</span></div>';
       }
       html += '</div>';
     }
@@ -610,11 +642,32 @@
     } catch (e) { return null; }
   }
 
+  function collectMods(data) {
+    // Report only fields the user actually changed.
+    var mods = {};
+    var urlEl = document.getElementById("bpEditUrl");
+    var methodEl = document.getElementById("bpEditMethod");
+    var statusEl = document.getElementById("bpEditStatus");
+    var bodyEl = document.getElementById("bpEditBody");
+    if (urlEl && urlEl.value.trim() !== (data.url || "")) mods.url = urlEl.value.trim();
+    if (methodEl && methodEl.value.trim().toUpperCase() !== (data.method || "GET")) mods.method = methodEl.value.trim().toUpperCase();
+    if (statusEl && String(statusEl.value).trim() !== String(data.status != null ? data.status : "")) mods.status = String(statusEl.value).trim();
+    if (bodyEl && bodyEl.value !== prettyText(data.body)) mods.body = bodyEl.value;
+    return mods;
+  }
+
   function resumeBreakpoint(action) {
     if (!currentBpMsgId) return;
-    port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: { action: action, vars: bpExtractedVars } });
+    var hit = bpQueue.shift(); // the currently shown hit
+    var result = { action: action, vars: bpExtractedVars };
+    if (action !== "abort" && hit) {
+      var mods = collectMods(hit.data);
+      if (Object.keys(mods).length > 0) result.mods = mods;
+    }
+    port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: result });
     currentBpMsgId = null;
-    bpOverlay.classList.add("hidden");
+    if (bpQueue.length > 0) showCurrentBpHit();
+    else bpOverlay.classList.add("hidden");
   }
 
   // --- Breakpoint List ---
