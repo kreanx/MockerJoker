@@ -214,9 +214,11 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === CONST.MSG.BREAKPOINT_HIT) {
     var bpTabId = sender.tab ? sender.tab.id : "unknown";
     pendingBreakpoints[msg.bpMsgId] = bpTabId;
+    persistPendingBreakpoints();
     var panel = devtoolsPorts[bpTabId];
     if (panel) {
       panel.postMessage({ type: "breakpoint", tabId: bpTabId, bpMsgId: msg.bpMsgId, data: msg.data });
+      ensureBpKeepalive();
     } else {
       // No DevTools panel inspecting this tab: resume immediately. A paused
       // request nobody can see would hang the page forever.
@@ -225,26 +227,69 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ success: true });
     return true;
   }
-  if (msg.type === CONST.MSG.BREAKPOINT_RESUME) {
-    resumeBreakpoint(msg.bpMsgId, msg.result || { action: "resume" });
+  if (msg.type === CONST.MSG.BREAKPOINT_RESUME || msg.type === CONST.MSG.BP_KEEPALIVE) {
+    if (msg.type === CONST.MSG.BREAKPOINT_RESUME) {
+      resumeBreakpoint(msg.bpMsgId, msg.result || { action: "resume" });
+    }
+    // Keepalive echo (panel replies to our ping): receiving a message resets
+    // the MV3 idle timer, so the SW — and with it pendingBreakpoints — survives
+    // pauses longer than 30s. Opening a port alone does NOT (Chrome 114+).
     sendResponse({ success: true });
     return true;
   }
 });
-
-function broadcastToPanels(message) {
-  for (var tabId in devtoolsPorts) {
-    try { devtoolsPorts[tabId].postMessage(message); } catch (e) {}
-  }
-}
-
 function resumeBreakpoint(bpMsgId, result) {
   var tabId = pendingBreakpoints[bpMsgId];
   if (tabId == null) return;
   delete pendingBreakpoints[bpMsgId];
+  persistPendingBreakpoints();
+  if (Object.keys(pendingBreakpoints).length === 0) stopBpKeepalive();
   chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: bpMsgId, result: result }, function () {
     if (chrome.runtime.lastError) {}
   });
+}
+
+// --- Pause survival across MV3 service-worker idle kills ---
+// Pendings are mirrored into chrome.storage.session; on SW (re)start any
+// persisted pendings are orphans (their ports died with the SW) and are
+// auto-resumed so paused requests can never hang forever.
+function persistPendingBreakpoints() {
+  try { chrome.storage.session.set({ pendingBreakpoints: pendingBreakpoints }); } catch (e) {}
+}
+
+function resumeOrphanPendings() {
+  try {
+    chrome.storage.session.get({ pendingBreakpoints: {} }, function (data) {
+      var orphaned = data.pendingBreakpoints || {};
+      // NOT via resumeBreakpoint: this SW instance's in-memory map is empty
+      // (the pauses belonged to the previous instance); the tabId comes from
+      // the persisted record itself.
+      for (var id in orphaned) {
+        var tabId = orphaned[id];
+        chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: id, result: { action: "resume" } }, function () {
+          if (chrome.runtime.lastError) {}
+        });
+      }
+      if (Object.keys(orphaned).length > 0) {
+        pendingBreakpoints = {};
+        persistPendingBreakpoints();
+      }
+    });
+  } catch (e) {}
+}
+
+var bpKeepaliveTimer = null;
+function ensureBpKeepalive() {
+  if (bpKeepaliveTimer || Object.keys(pendingBreakpoints).length === 0) return;
+  // Ping the panels every 20s while a pause is open; the panel's echo is an
+  // inbound runtime message, which resets the SW idle timer.
+  bpKeepaliveTimer = setInterval(function () {
+    if (Object.keys(pendingBreakpoints).length === 0) { stopBpKeepalive(); return; }
+    broadcastToPanels({ type: "bpPing" });
+  }, 20000);
+}
+function stopBpKeepalive() {
+  if (bpKeepaliveTimer) { clearInterval(bpKeepaliveTimer); bpKeepaliveTimer = null; }
 }
 
 function resumeAllForTab(tabId) {
@@ -290,3 +335,4 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
 });
 
 loadRules();
+resumeOrphanPendings(); // pauses persisted by a previous SW instance are orphans — release them
