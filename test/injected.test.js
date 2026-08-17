@@ -8,7 +8,7 @@ const api = loadInjected();
 const {
   globToRegex, parseGraphQL, splitPath, getByPath, setByPath,
   matchBodyConditions, resolveVarsInString, applyBodyTransforms,
-  parseValue, matchVarConditions, saveVariables, findAllRules,
+  parseValue, matchVarConditions, saveVariables, processVarSavers, findAllRules,
   hasMatchingResponseVarSaver, _setRuntime
 } = api;
 
@@ -149,6 +149,66 @@ test("saveVariables: extracts from body / header / status", () => {
   assert.equal(resolveVarsInString("$bid"), "42");
   assert.equal(resolveVarsInString("$hid"), "abc");
   assert.equal(resolveVarsInString("$sid"), "404");
+});
+
+// ---------- processVarSavers (GraphQL operation filter) ----------
+test("processVarSavers: graphql filter matches operationName from request body", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "request", path: "variables.input.id", varName: "$reqId", graphql: true, graphqlOperation: "CreateBucket", enabled: true }
+  ], {});
+  const reqBody = { query: "mutation CreateBucket($input: CreateBucketInput!) { createBucket(input: $input) { id } }", variables: { input: { id: "bucket-1" } }, operationName: "CreateBucket" };
+  processVarSavers("https://x/graphql", reqBody, {}, null, "request", reqBody);
+  assert.equal(resolveVarsInString("$reqId"), "bucket-1");
+});
+
+test("processVarSavers: graphql filter skips other operations and plain JSON", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "request", path: "variables.input.id", varName: "$reqId", graphql: true, graphqlOperation: "CreateBucket", enabled: true }
+  ], {});
+  const other = { query: "query GetUser { user { id } }", variables: { input: { id: "bucket-2" } }, operationName: "GetUser" };
+  processVarSavers("https://x/graphql", other, {}, null, "request", other);
+  assert.equal(resolveVarsInString("$reqId"), "$reqId", "other operation must not save");
+  processVarSavers("https://x/graphql", { foo: "bar" }, {}, null, "request", { foo: "bar" });
+  assert.equal(resolveVarsInString("$reqId"), "$reqId", "non-GraphQL body must not save");
+});
+
+test("processVarSavers: graphql without operation matches any GraphQL operation", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "request", path: "operationName", varName: "$gqlOp", graphql: true, graphqlOperation: "", enabled: true }
+  ], {});
+  processVarSavers("https://x/graphql", { query: "{ x }", operationName: "GetX" }, {}, null, "request", { query: "{ x }", operationName: "GetX" });
+  assert.equal(resolveVarsInString("$gqlOp"), "GetX");
+  processVarSavers("https://x/graphql", { foo: "bar" }, {}, null, "request", { foo: "bar" });
+  assert.equal(resolveVarsInString("$gqlOp"), "GetX", "non-GraphQL body must not update");
+});
+
+test("processVarSavers: graphql operation supports glob patterns", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "request", path: "operationName", varName: "$gqlGlob", graphql: true, graphqlOperation: "*Bucket*", enabled: true }
+  ], {});
+  processVarSavers("https://x/graphql", { query: "mutation CreateBucket { x }", operationName: "CreateBucket" }, {}, null, "request", { query: "mutation CreateBucket { x }", operationName: "CreateBucket" });
+  assert.equal(resolveVarsInString("$gqlGlob"), "CreateBucket");
+});
+
+test("processVarSavers: response-target saver matches operation from the triggering request", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "response", path: "data.bucketId", varName: "$respBucket", graphql: true, graphqlOperation: "CreateBucket", enabled: true }
+  ], {});
+  const respBody = { data: { bucketId: "b-777" } };
+  const reqCreate = { query: "mutation CreateBucket { x }", operationName: "CreateBucket" };
+  processVarSavers("https://x/graphql", respBody, {}, 200, "response", reqCreate);
+  assert.equal(resolveVarsInString("$respBucket"), "b-777");
+  const reqOther = { query: "query GetUser { x }", operationName: "GetUser" };
+  processVarSavers("https://x/graphql", respBody, {}, 200, "response", reqOther);
+  assert.equal(resolveVarsInString("$respBucket"), "b-777", "mismatched operation must keep previous value");
+});
+
+test("processVarSavers: legacy savers without graphql field keep working", () => {
+  runtime([], [
+    { urlPattern: "*", source: "body", target: "request", path: "id", varName: "$legacy", enabled: true }
+  ], {});
+  processVarSavers("https://x/api", { id: 5 }, {}, null, "request", { id: 5 });
+  assert.equal(resolveVarsInString("$legacy"), "5");
 });
 
 // ---------- findAllRules ----------
