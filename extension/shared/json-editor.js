@@ -309,11 +309,24 @@ function setupSearch(textareaId, highlightId, inputId, countId, prevId, nextId) 
 
   function scrollToMatch() {
     if (currentIdx < 0 || currentIdx >= matches.length) return;
-    var start = matches[currentIdx];
-    var before = ta.value.substring(0, start);
-    var lines = before.split("\n").length;
-    var lh = parseFloat(getComputedStyle(ta).lineHeight) || 18;
-    ta.scrollTop = Math.max(0, (lines - 3) * lh);
+    // The highlight <pre> mirrors the textarea 1:1 (same font/padding/width),
+    // so the rendered position of the current <mark> — INCLUDING soft-wrapped
+    // rows (white-space: pre-wrap; overflow-wrap: anywhere) — is the match's
+    // true position. The old (lines - 3) * lineHeight math assumed one visual
+    // row per logical line and drifted thousands of px on long wrapped bodies.
+    var code = $(highlightId);
+    var mark = code ? code.querySelector(".search-match.current") : null;
+    if (mark && mark.getBoundingClientRect) {
+      var pre = code.parentElement;
+      var y = mark.getBoundingClientRect().top - pre.getBoundingClientRect().top + pre.scrollTop;
+      ta.scrollTop = Math.max(0, y - ta.clientHeight / 2);
+    } else {
+      var start = matches[currentIdx];
+      var before = ta.value.substring(0, start);
+      var lines = before.split("\n").length;
+      var lh = (typeof getComputedStyle === "function" ? parseFloat(getComputedStyle(ta).lineHeight) : 18) || 18;
+      ta.scrollTop = Math.max(0, (lines - 3) * lh);
+    }
     syncBodyScroll(textareaId, highlightId);
   }
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MockerJoker",
-  "version": "5.9.0",
+  "version": "6.0.0",
   "description": "Mock and modify HTTP requests for testing — intercept, delay, modify responses",
   "permissions": [
     "storage",
@@ -12,19 +12,33 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background/background.js"]
+    "scripts": [
+      "background/background.js"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["shared/constants.js", "content/content.js"],
-      "run_at": "document_start"
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "shared/constants.js",
+        "content/content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content/injected.js", "shared/constants.js", "panel/panel.html"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "content/injected.js",
+        "shared/constants.js",
+        "panel/panel.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "devtools_page": "devtools/devtools.html",
@@ -44,7 +58,9 @@
     "gecko": {
       "id": "mockerjoker@extension",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   }

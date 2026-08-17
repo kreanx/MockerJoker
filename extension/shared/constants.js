@@ -49,6 +49,7 @@ var CONST = {
     GET_SEEN_REQUESTS: "getSeenRequests",
     TAB_VARS: "tabVars",
     INTERCEPTION: "interception",
+    SAVE_BREAKPOINTS: "saveBreakpoints",
     BREAKPOINT_HIT: "breakpointHit",
     BREAKPOINT_RESUME: "breakpointResume"
   },

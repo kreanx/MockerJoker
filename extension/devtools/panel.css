@@ -165,8 +165,8 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .dt-btn-accent:hover { filter: brightness(1.1); }
 .bp-field { margin-bottom: 10px; }
 .bp-field label { display: block; font-size: 11px; color: var(--ctp-overlay0); text-transform: uppercase; margin-bottom: 3px; }
-.bp-field input, .bp-field select { width: 100%; padding: 5px 8px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 12px; }
-.bp-field input:focus, .bp-field select:focus { border-color: var(--ctp-blue); outline: none; }
+.bp-field input, .bp-field select, .bp-field textarea { width: 100%; padding: 5px 8px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 12px; }
+.bp-field input:focus, .bp-field select:focus, .bp-field textarea:focus { border-color: var(--ctp-blue); outline: none; }
 .bp-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--sep); }
 .bp-item-url { flex: 1; font-size: 12px; color: var(--ctp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bp-url-input { flex: 1; padding: 3px 8px; border: 0.5px solid var(--ctp-surface1); border-radius: 4px; background: var(--ctp-crust); color: var(--ctp-text); font-size: 12px; min-width: 0; }
@@ -183,3 +183,5 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .bp-item-phase { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--ctp-surface0); color: var(--ctp-overlay1); font-family: "SF Mono", Menlo, Consolas, monospace; }
 .bp-extract-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--ctp-mauve); color: var(--ctp-base); white-space: nowrap; }
 .bp-extract-row { margin-bottom: 6px; display: flex; gap: 6px; align-items: center; }
+
+.bp-field textarea { font-family: "SF Mono", Menlo, Consolas, monospace; resize: vertical; min-height: 120px; line-height: 1.45; white-space: pre; }

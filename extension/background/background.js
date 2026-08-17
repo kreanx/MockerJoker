@@ -13,7 +13,10 @@ var tabSeenRequests = {};
 var tabVarsMap = {};
 var tabInterceptedCount = {};
 var interceptionLog = {};
-var devtoolsPort = null;
+// DevTools panel ports, keyed by the tab they inspect ("devtools:<tabId>").
+// Breakpoint hits are routed ONLY to the panel inspecting that tab; if there
+// is none, the request is auto-resumed so it never hangs.
+var devtoolsPorts = {};
 var pendingBreakpoints = {};
 
 function updateBadge(tabId) {
@@ -91,11 +94,15 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse({ success: true });
     return true;
   }
-
   if (msg.type === CONST.MSG.SAVE_RULES) {
     hitCounters = {};
     lastHitTime = {};
-    saveRules(msg.rules, msg.masterEnabled);
+    // Popup/panel rule editors keep a stale copy of the rules array; a save
+    // from them must not wipe breakpoints created meanwhile in DevTools.
+    var preservedBps = currentRules.filter(function (r) {
+      return r.type === "breakpoint" && !(msg.rules || []).some(function (m) { return m.id === r.id; });
+    });
+    saveRules((msg.rules || []).concat(preservedBps), msg.masterEnabled);
     sendResponse({ success: true });
     return true;
   }
@@ -189,56 +196,90 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     if (existing) { for (var dk in msg.data) existing[dk] = msg.data[dk]; msg.data = existing; }
     else { log.push(msg.data); }
     if (log.length > CONST.INTERCEPTION_LIMIT) log.shift();
-    if (devtoolsPort) {
-      devtoolsPort.postMessage({ type: "interception", tabId: tabId, data: msg.data });
-    }
+    broadcastToPanels({ type: "interception", tabId: tabId, data: msg.data });
+    sendResponse({ success: true });
+    return true;
+  }
+  if (msg.type === CONST.MSG.SAVE_BREAKPOINTS) {
+    // Breakpoints MUST go through the background (not direct storage writes):
+    // saveRules() updates the in-memory rules AND pushes RULES_UPDATED to all
+    // tabs, so a breakpoint becomes active immediately, without a page reload.
+    // Direct storage writes left the SW's stale rules in place forever while
+    // the open DevTools port kept the SW alive — breakpoints never fired.
+    var nonBp = currentRules.filter(function (r) { return r.type !== "breakpoint"; });
+    saveRules(nonBp.concat(msg.breakpoints || []), masterEnabled);
     sendResponse({ success: true });
     return true;
   }
   if (msg.type === CONST.MSG.BREAKPOINT_HIT) {
     var bpTabId = sender.tab ? sender.tab.id : "unknown";
     pendingBreakpoints[msg.bpMsgId] = bpTabId;
-    if (devtoolsPort) {
-      devtoolsPort.postMessage({ type: "breakpoint", tabId: bpTabId, bpMsgId: msg.bpMsgId, data: msg.data });
+    var panel = devtoolsPorts[bpTabId];
+    if (panel) {
+      panel.postMessage({ type: "breakpoint", tabId: bpTabId, bpMsgId: msg.bpMsgId, data: msg.data });
+    } else {
+      // No DevTools panel inspecting this tab: resume immediately. A paused
+      // request nobody can see would hang the page forever.
+      resumeBreakpoint(msg.bpMsgId, { action: "resume" });
     }
     sendResponse({ success: true });
     return true;
   }
   if (msg.type === CONST.MSG.BREAKPOINT_RESUME) {
-    var resumeTabId = pendingBreakpoints[msg.bpMsgId];
-    if (resumeTabId != null) {
-      chrome.tabs.sendMessage(resumeTabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: msg.bpMsgId, result: msg.result });
-      delete pendingBreakpoints[msg.bpMsgId];
-    }
+    resumeBreakpoint(msg.bpMsgId, msg.result || { action: "resume" });
     sendResponse({ success: true });
     return true;
   }
 });
-chrome.runtime.onConnect.addListener(function (port) {
-  if (port.name === "devtools") {
-    devtoolsPort = port;
-    port.postMessage({ type: "backlog", data: interceptionLog });
-    port.onMessage.addListener(function(msg) {
-      if (msg.type === "breakpointResume") {
-        var tabId = pendingBreakpoints[msg.bpMsgId];
-        if (tabId != null) {
-          chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: msg.bpMsgId, result: msg.result });
-          delete pendingBreakpoints[msg.bpMsgId];
-        }
-      }
-    });
-    port.onDisconnect.addListener(function () {
-      if (devtoolsPort === port) devtoolsPort = null;
-    });
+
+function broadcastToPanels(message) {
+  for (var tabId in devtoolsPorts) {
+    try { devtoolsPorts[tabId].postMessage(message); } catch (e) {}
   }
+}
+
+function resumeBreakpoint(bpMsgId, result) {
+  var tabId = pendingBreakpoints[bpMsgId];
+  if (tabId == null) return;
+  delete pendingBreakpoints[bpMsgId];
+  chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: bpMsgId, result: result }, function () {
+    if (chrome.runtime.lastError) {}
+  });
+}
+
+function resumeAllForTab(tabId) {
+  var ids = Object.keys(pendingBreakpoints).filter(function (id) {
+    return pendingBreakpoints[id] === tabId;
+  });
+  ids.forEach(function (id) { resumeBreakpoint(id, { action: "resume" }); });
+}
+
+chrome.runtime.onConnect.addListener(function (port) {
+  var m = /^devtools:(\d+)$/.exec(port.name || "");
+  if (!m) return;
+  var tabId = parseInt(m[1], 10);
+  devtoolsPorts[tabId] = port;
+  // A reconnecting panel takes over any pauses left by its predecessor.
+  port.postMessage({ type: "backlog", tabId: tabId, data: interceptionLog[tabId] || [] });
+  port.onMessage.addListener(function (msg) {
+    if (msg.type === "breakpointResume") {
+      resumeBreakpoint(msg.bpMsgId, msg.result || { action: "resume" });
+    }
+  });
+  port.onDisconnect.addListener(function () {
+    if (devtoolsPorts[tabId] === port) delete devtoolsPorts[tabId];
+    // Closing the DevTools panel releases its paused requests (Charles-like).
+    resumeAllForTab(tabId);
+  });
 });
 
-
 chrome.tabs.onRemoved.addListener(function (tabId) {
+  resumeAllForTab(tabId); // content script is gone; drop its pauses
   delete tabInterceptedCount[tabId];
   delete tabVarsMap[tabId];
   delete tabSeenRequests[tabId];
   delete interceptionLog[tabId];
+  delete devtoolsPorts[tabId];
 });
 
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {

@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome" alt="Chrome">
   <img src="https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefox" alt="Firefox">
   <img src="https://img.shields.io/github/v/tag/kreanx/MockerJoker?label=version&color=blue" alt="Version">
-  <img src="https://img.shields.io/badge/tests-39%20node%3Atest-success" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-69%20node%3Atest-success" alt="Tests">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
 </p>
 
@@ -114,7 +114,19 @@
 - Автодополнение URL и `$varName`
 - Экспорт/импорт правил
 
----
+
+### Breakpoints (Charles-style)
+
+Пауза на URL-паттерн прямо в DevTools-панели:
+
+- ПКМ по запросу → «Точка останова (запрос/ответ)» или ⛔ в тулбаре
+- Фаза **запрос**: редактируемые метод/URL/тело — применяются при «Продолжить»
+- Фаза **ответ**: редактируемые статус/тело (fetch) — страница получит отредактированный ответ
+- «Отменить» — запрос прерывается (AbortError)
+- Извлечение переменных (`$.data.token` → `$varName`) из тела при срабатывании
+- Очередь: несколько пауз стекаются, «+N в очереди»
+- Без открытой панели брейкпоинт автоматически пропускается — запросы не зависают
+- Закрытие панели/таба отпускает все паузы этого таба
 
 ## DevTools панель
 
@@ -159,16 +171,14 @@
 
 Правила применяются последовательно: Phase 1 (modifyRequest) → Phase 2 (mockResponse unconditional) → Phase 3 (real request + conditional mock + modifyResponse).
 
-
----
-
 ## Ограничения
 
-- Перехватываются только `fetch()` и `XMLHttpRequest`
+- Перехватываются только `fetch()` и `XMLHttpRequest` (top-frame и iframe)
 - Не перехватывает навигацию, `<script src>`, `<img>`, `<link>`
 - Трансформации работают только с JSON-телами
 - Переменные (`tabVars`) хранятся в runtime memory — не переживают перезапуск браузера
 - `fetch(new Request(...))` без отдельного объекта `init` — тело запроса недоступно синхронно, поэтому varSaver (в т.ч. GraphQL-фильтр) и условия на тело не сработают для такой формы вызова
+- Breakpoints: тело/статус ответа редактируются только для fetch (XHR `responseText` read-only); XHR-обработчики, повешенные через `addEventListener`, не удерживаются до resume; брейкпоинты активны только при открытой MockerJoker-панели DevTools для этого таба (иначе запрос пропускается)
 
 <details>
 <summary><b>Troubleshooting</b></summary>
