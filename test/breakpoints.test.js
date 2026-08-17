@@ -202,3 +202,74 @@ test("injected.js local CONST.PAGE_MSG covers every type in shared/constants.js"
     assert.equal(localConst.PAGE_MSG[key], sharedConst.PAGE_MSG[key], `PAGE_MSG.${key} value mismatch`);
   }
 });
+
+// ---------- payload seam: request-phase bodies MUST be strings ----------
+// Regression for the "[object Object]" bug: injected sent the parsed body
+// object to the panel; on a plain resume the panel's diff sent the literal
+// string "[object Object]" back and every request body was corrupted.
+test("bpRequestPayload stringifies object bodies", () => {
+  const api = loadInjected();
+  const p = api.bpRequestPayload("https://x.com/api", "POST", { a: "1" }, { token: 1 });
+  assert.equal(p.phase, "request");
+  assert.equal(typeof p.body, "string");
+  assert.equal(p.body, '{"token":1}');
+  assert.equal(p.headers.a, "1");
+  // string and null passthrough
+  assert.equal(api.bpRequestPayload("u", "GET", {}, "raw text").body, "raw text");
+  assert.equal(api.bpRequestPayload("u", "GET", {}, null).body, null);
+});
+
+test("applyBpRequestMods: URL edit of fetch(Request) rebuilds with headers/credentials and captured body", async () => {
+  const api = loadInjected();
+  const req = new Request("https://x.com/api", {
+    method: "POST",
+    headers: { authorization: "Bearer t", "content-type": "application/json" },
+    body: '{"keep":1}',
+    credentials: "include"
+  });
+  // body arrives as text captured via clone().text() at pause time
+  const out = api.applyBpRequestMods(req, undefined, { url: "https://x.com/api/v2" }, '{"keep":1}');
+  assert.ok(out.input instanceof Request);
+  assert.equal(out.input.url, "https://x.com/api/v2");
+  assert.equal(await out.input.text(), '{"keep":1}');
+  assert.equal(out.input.headers.get("authorization"), "Bearer t");
+  assert.equal(out.input.credentials, "include");
+  // no captured body → headers/credentials still preserved, body absent
+  const out2 = api.applyBpRequestMods(req, undefined, { url: "https://x.com/api/v3" }, null);
+  assert.equal(out2.input.url, "https://x.com/api/v3");
+  assert.equal(out2.input.headers.get("authorization"), "Bearer t");
+});
+
+test("applyBpRequestMods: untouched resume sends no body mod", () => {
+  // Producer now sends strings; the panel only diffs strings against the
+  // textarea. Assert the consumer side: no mods → identical output.
+  const api = loadInjected();
+  const init = { method: "POST", body: '{"a":1}' };
+  const out = api.applyBpRequestMods("https://x.com/api", init, {});
+  assert.equal(out.input, "https://x.com/api");
+  assert.equal(out.init.body, '{"a":1}');
+  assert.equal(out.init.method, "POST");
+});
+
+// ---------- background: keepalive + orphan resume ----------
+test("background: hit with panel starts keepalive; resume stops it; orphan pendings resume on SW start", () => {
+  const bg = loadBackground();
+  const port7 = bg.connect("devtools:7");
+  bg.send({ type: "breakpointHit", bpMsgId: "bp_k1", data: {} }, { tab: { id: 7 } });
+  assert.equal(bg.store.pendingBreakpoints.bp_k1, 7, "pending persisted to storage.session");
+  // keepalive interval is active — simulate a ping echo (resets SW idle)
+  bg.send({ type: "bpKeepalive" });
+  assert.equal(bg.state.runtimeMessages.filter((m) => m.type === "bpKeepalive").length, 0); // echo path is inbound-only
+  // release the pause — stops the keepalive interval so node:test can exit
+  bg.send({ type: "breakpointResume", bpMsgId: "bp_k1", result: { action: "resume" } });
+  assert.equal(bg.store.pendingBreakpoints.bp_k1, undefined, "pending cleared from storage.session after resume");
+
+  // orphan resume: a fresh SW start reads persisted pendings and releases them
+  const bg2 = loadBackground({ pendingBreakpoints: { bp_orphan: 9 } });
+  // loadBackground runs the SW body → resumeOrphanPendings() fires on startup
+  const resumed = bg2.state.tabMessages.find((t) => t.msg.bpMsgId === "bp_orphan");
+  assert.ok(resumed, "orphan pending auto-resumed on SW start: " + JSON.stringify(bg2.state.tabMessages));
+  assert.equal(resumed.tabId, 9);
+  assert.equal(resumed.msg.result.action, "resume");
+  assert.deepEqual(bg2.store.pendingBreakpoints, {}, "persisted pendings cleared after orphan resume");
+});

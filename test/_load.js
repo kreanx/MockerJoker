@@ -118,6 +118,14 @@ function loadBackground(initialStorage) {
           cb(out);
         },
         set(obj, cb) { Object.assign(store, obj); if (cb) cb(); }
+      },
+      session: {
+        get(defs, cb) {
+          const out = {};
+          for (const k of Object.keys(defs)) out[k] = store[k] !== undefined ? store[k] : defs[k];
+          cb(out);
+        },
+        set(obj, cb) { Object.assign(store, obj); if (cb) cb(); }
       }
     },
     tabs: {

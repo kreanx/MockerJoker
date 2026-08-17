@@ -480,14 +480,28 @@
     }
     var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(url, method) : null;
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
-      return waitForBreakpoint({
-        phase: "request", url: url, method: method, headers: reqHeadersObj, body: reqBody
-      }).then(function (result) {
+      var bpPayload = bpRequestPayload(url, method, reqHeadersObj, reqBody);
+      // fetch(new Request(...)) without init: the body is not synchronously
+      // reachable, but clone() lets us read it before the original is sent.
+      // The text is shown in the panel AND used to rebuild the Request on a
+      // URL edit (Request-from-Request construction is broken in Chromium —
+      // it disturbs the input and the clone fails to send).
+      var bpBodyText = null;
+      var bpBodyRead = null;
+      if (!reqBody && typeof input === "object" && input !== null && typeof Request !== "undefined" && input instanceof Request) {
+        try {
+          bpBodyRead = input.clone().text();
+        } catch (e) {}
+      }
+      var bpWait = bpBodyRead
+        ? bpBodyRead.then(function (t) { bpPayload.body = t; return waitForBreakpoint(bpPayload); })
+        : Promise.resolve().then(function () { return waitForBreakpoint(bpPayload); });
+      return bpWait.then(function (result) {
         if (result.action === "abort") {
           reportInterception({ url: url, method: method, matched: false, status: 0, body: null }, reqId);
           throw new DOMException("Aborted", "AbortError");
         }
-        var m = applyBpRequestMods(input, init, result.mods);
+        var m = applyBpRequestMods(input, init, result.mods, bpPayload.body);
         _bpReqId = reqId;
         _bpSkip = true;
         return window.fetch(m.input, m.init);
@@ -785,9 +799,9 @@
     _bpSkip = false;
 
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
-      waitForBreakpoint({
-        phase: "request", url: self.__rm.url, method: self.__rm.method, headers: self.__rmReqHeaders || {}, body: reqBody
-      }).then(function(result) {
+      waitForBreakpoint(
+        bpRequestPayload(self.__rm.url, self.__rm.method, self.__rmReqHeaders || {}, reqBody)
+      ).then(function(result) {
         var finishWrap = function () {
           var origOLEpt = self.onloadend;
           self.onloadend = function (evt) {
@@ -797,6 +811,13 @@
         };
         if (result.action === "abort") {
           reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
+          // Nothing was sent (readyState 1), so native abort() stays silent —
+          // dispatch the spec abort sequence (abort + loadend, no load) so the
+          // page observes the cancellation instead of hanging forever.
+          try {
+            self.dispatchEvent(new ProgressEvent("abort"));
+            self.dispatchEvent(new ProgressEvent("loadend"));
+          } catch (e) {}
           return;
         }
         var mods = result.mods || {};
@@ -1211,6 +1232,10 @@
     });
   }
 
+  // Builds the request-phase breakpoint payload sent to the panel. The body
+  // MUST be a string: the panel renders it as text and diffs it verbatim on
+  // resume. Sending the parsed object corrupted untouched bodies to
+  // "[object Object]" on every plain resume.
   function findBreakpointRule(url, method) {
     for (var i = 0; i < rules.length; i++) {
       var r = rules[i];
@@ -1223,9 +1248,18 @@
     return null;
   }
 
+  function bpRequestPayload(url, method, headers, reqBody) {
+    return {
+      phase: "request", url: url, method: method, headers: headers || {},
+      body: reqBody == null ? null : (typeof reqBody === "string" ? reqBody : JSON.stringify(reqBody))
+    };
+  }
+
   // Applies user edits from a resumed request-phase breakpoint to fetch args.
   // Pure: no side effects, returns new {input, init}.
-  function applyBpRequestMods(input, init, mods) {
+  // `origBodyText` is the body captured at pause time (Request-form calls);
+  // used to rebuild the Request when only the URL is edited.
+  function applyBpRequestMods(input, init, mods, origBodyText) {
     if (!mods) return { input: input, init: init };
     init = init ? Object.assign({}, init) : {};
     if (init.headers && typeof init.headers.forEach !== "function") {
@@ -1237,9 +1271,22 @@
       if (typeof input === "string") {
         input = mods.url;
       } else if (typeof Request !== "undefined" && typeof input === "object" && input !== null && input instanceof Request) {
-        // Request url is immutable; rebuild with edited url. Body/headers come
-        // from init (init overrides Request in fetch(input, init)).
-        try { input = new Request(mods.url, { method: init.method || input.method }); } catch (e) {}
+        // Request url is immutable. Rebuild from plain options: headers,
+        // credentials and mode carry over; body only when captured (a string
+        // is the one thing a sync seam can pass). `new Request(url, request)`
+        // is NOT used: Chromium disturbs the input there and the clone then
+        // fails to send ("Failed to fetch"). init edits (method/body from the
+        // panel) still win at the subsequent fetch(input, init) per spec.
+        var opts = {
+          method: init.method || input.method,
+          headers: new Headers(input.headers),
+          credentials: input.credentials,
+          mode: input.mode,
+          cache: input.cache,
+          redirect: input.redirect
+        };
+        if (origBodyText != null) opts.body = origBodyText;
+        try { input = new Request(mods.url, opts); } catch (e) {}
       }
     }
     return { input: input, init: init };
@@ -1320,6 +1367,7 @@
       processVarSavers: processVarSavers,
       hasMatchingResponseVarSaver: hasMatchingResponseVarSaver,
       findBreakpointRule: findBreakpointRule,
+      bpRequestPayload: bpRequestPayload,
       applyBpRequestMods: applyBpRequestMods,
       buildBpResponse: buildBpResponse,
       _setRuntime: function (r, vs, tv, me) { rules = r || []; varSavers = vs || []; tabVars = tv || {}; masterEnabled = me !== false; }

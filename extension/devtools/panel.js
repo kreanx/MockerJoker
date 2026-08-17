@@ -463,10 +463,22 @@
     detailPanel.classList.add("hidden"); hSplitHandle.classList.remove("visible");
     responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
   });
+  var portDead = false;
   port.onMessage.addListener(function (msg) {
     if (msg.type === "backlog") { entries = entries.concat(msg.data || []); applyFilter(); }
     else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
     else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { queueBreakpointHit(msg.bpMsgId, msg.data); }
+    else if (msg.type === "bpPing") {
+      // Echo the keepalive: the inbound reply resets the SW idle timer so
+      // pendings survive pauses longer than 30s (Chrome 114+ kills idle SWs).
+      chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
+    }
+  });
+  port.onDisconnect.addListener(function () {
+    // SW died (MV3 idle kill) or extension reloaded. Pauses it owned are
+    // auto-resumed by the SW on restart; wake it right now via any message.
+    portDead = true;
+    chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
   });
 
   // --- Breakpoints ---
@@ -575,7 +587,9 @@
   }
 
   function prettyText(body) {
-    try { return JSON.stringify(JSON.parse(body), null, 2); } catch (e) { return body || ""; }
+    if (body == null) return "";
+    var s = typeof body === "string" ? body : JSON.stringify(body, null, 2);
+    try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; }
   }
 
   // Renders bpQueue[0] without dequeuing it; resumeBreakpoint() pops it.
@@ -712,6 +726,28 @@
     });
   }
 
+  function resumeBreakpoint(action) {
+    if (!currentBpMsgId) return;
+    var hit = bpQueue.shift(); // the currently shown hit
+    var result = { action: action, vars: bpExtractedVars };
+    if (action !== "abort" && hit) {
+      var mods = collectMods(hit.data);
+      if (Object.keys(mods).length > 0) result.mods = mods;
+    }
+    if (portDead) {
+      // Port died with the SW; pendings were auto-resumed on its restart.
+      chrome.runtime.sendMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: result }, function () { void chrome.runtime.lastError; });
+    } else {
+      try { port.postMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: result }); }
+      catch (e) {
+        portDead = true;
+        chrome.runtime.sendMessage({ type: "breakpointResume", bpMsgId: currentBpMsgId, result: result }, function () { void chrome.runtime.lastError; });
+      }
+    }
+    currentBpMsgId = null;
+    if (bpQueue.length > 0) showCurrentBpHit();
+    else bpOverlay.classList.add("hidden");
+  }
   document.getElementById("bpAddBtn").addEventListener("click", function() {
     bpListOverlay.classList.add("hidden");
     openBpConfig("", "ANY", "response");

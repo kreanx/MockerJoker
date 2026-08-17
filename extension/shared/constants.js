@@ -51,6 +51,7 @@ var CONST = {
     INTERCEPTION: "interception",
     SAVE_BREAKPOINTS: "saveBreakpoints",
     BREAKPOINT_HIT: "breakpointHit",
+    BP_KEEPALIVE: "bpKeepalive",
     BREAKPOINT_RESUME: "breakpointResume"
   },
 
