@@ -614,7 +614,8 @@ function renderVarSavers() {
     html += '<input type="checkbox" class="vs-toggle" data-id="' + vs.id + '"' + (vs.enabled ? " checked" : "") + '>';
     html += '<div class="vs-info">';
     html += '<span class="vs-name">' + escapeHtml(vs.varName) + '</span>';
-    html += '<span class="vs-detail">' + escapeHtml(vs.urlPattern || "*") + ' &middot; ' + sourceLabel + ' &middot; ' + targetLabel + (vs.path ? ' &middot; ' + escapeHtml(vs.path) : '') + '</span>';
+    var gqlLabel = vs.graphql ? " · GraphQL" + (vs.graphqlOperation ? ": " + escapeHtml(vs.graphqlOperation) : "") : "";
+    html += '<span class="vs-detail">' + escapeHtml(vs.urlPattern || "*") + gqlLabel + ' &middot; ' + sourceLabel + ' &middot; ' + targetLabel + (vs.path ? ' &middot; ' + escapeHtml(vs.path) : '') + '</span>';
     html += '</div>';
     html += '<div class="vs-actions">';
     html += '<button class="vs-edit" data-id="' + vs.id + '" title="Редактировать">&#9998;</button>';
@@ -636,6 +637,12 @@ function openVarSaverEditor(id) {
   if (editVsTarget) editVsTarget.value = vs.target || "response";
   $("editVsPath").value = vs.source === "status" ? "" : (vs.path || "");
   $("editVsVarName").value = (vs.varName || "").replace(/^\$/, "");
+  var vsGqlChk = $("editVsGraphql");
+  if (vsGqlChk) vsGqlChk.checked = !!vs.graphql;
+  var vsGqlOp = $("editVsGraphqlOp");
+  if (vsGqlOp) vsGqlOp.value = vs.graphqlOperation || "";
+  var vsGqlOpWrap = $("editVsGraphqlOpWrap");
+  if (vsGqlOpWrap) vsGqlOpWrap.classList.toggle("hidden", !vsGqlChk || !vsGqlChk.checked);
   var pathGroup = $("editVsPathGroup");
   if (pathGroup) pathGroup.style.display = vs.source === "status" ? "none" : "";
   modal.dataset.editId = id || "";
@@ -658,6 +665,10 @@ function saveVarSaver() {
   vs.target = editVsTarget ? editVsTarget.value : "response";
   vs.path = vs.source === "status" ? "" : $("editVsPath").value.trim();
   vs.varName = "$" + $("editVsVarName").value.trim().replace(/^\$/, "");
+  var vsGqlChk = $("editVsGraphql");
+  vs.graphql = vsGqlChk ? vsGqlChk.checked : false;
+  var vsGqlOp = $("editVsGraphqlOp");
+  vs.graphqlOperation = vs.graphql ? (vsGqlOp ? vsGqlOp.value.trim() : "") : "";
   if (!vs.varName || vs.varName === "$") {
     alert("Укажите имя переменной");
     return;
@@ -747,6 +758,14 @@ function bindVarSaversEvents() {
     editVsUrlEl.addEventListener("input", function () { showVsUrlDropdown(this.value); });
     editVsUrlEl.addEventListener("focus", function () { showVsUrlDropdown(this.value); });
     editVsUrlEl.addEventListener("blur", function () { var dd = $("vsUrlDropdown"); if (dd) dd.classList.add("hidden"); });
+  }
+
+  var editVsGraphqlEl = $("editVsGraphql");
+  if (editVsGraphqlEl) {
+    editVsGraphqlEl.addEventListener("change", function () {
+      var wrap = $("editVsGraphqlOpWrap");
+      if (wrap) wrap.classList.toggle("hidden", !this.checked);
+    });
   }
 
   var editVsVarNameEl = $("editVsVarName");

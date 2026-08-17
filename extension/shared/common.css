@@ -1564,6 +1564,58 @@ button.json-search-btn:hover {
   box-sizing: border-box;
 }
 
+/* Custom checkbox for the "GraphQL only" varSaver toggle.
+   Overrides .vs-modal-body input { width: 100% } — a native checkbox
+   stretched to full modal width looks centered and broken. */
+.vs-modal-body label.vs-gql-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: var(--input-fs);
+}
+.vs-modal-body label.vs-gql-check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--ctp-surface2);
+  border-radius: 4px;
+  background: var(--bg-input);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s, border-color 0.12s;
+}
+.vs-modal-body label.vs-gql-check input[type="checkbox"]:hover {
+  border-color: var(--ctp-blue);
+}
+.vs-modal-body label.vs-gql-check input[type="checkbox"]:checked {
+  background: var(--ctp-blue);
+  border-color: var(--ctp-blue);
+}
+.vs-modal-body label.vs-gql-check input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--ctp-crust);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.vs-modal-body label.vs-gql-check input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--ctp-blue);
+  outline-offset: 2px;
+}
+
 .vs-modal-footer {
   display: flex;
   justify-content: flex-end;

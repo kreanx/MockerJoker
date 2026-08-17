@@ -1,6 +1,5 @@
 node_modules/
-dist/*.zip
-build/firefox/
+dist/
+build/
 .DS_Store
 AGENTS.md
-build/chrome/

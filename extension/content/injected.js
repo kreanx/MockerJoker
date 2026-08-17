@@ -336,7 +336,12 @@
     return false;
   }
 
-  function processVarSavers(url, body, headers, statusCode, target) {
+  // reqBody: the parsed body of the triggering REQUEST. Required for
+  // GraphQL filtering (operationName lives in the request body, GraphQL
+  // responses carry none). EVERY call site must pass it — a dropped arg
+  // fails silently (parseGraphQL(null) → skip), which the test suite
+  // cannot detect because it drives processVarSavers directly.
+  function processVarSavers(url, body, headers, statusCode, target, reqBody) {
     if (!varSavers || !varSavers.length) return;
     for (var i = 0; i < varSavers.length; i++) {
       var vs = varSavers[i];
@@ -345,6 +350,19 @@
       if (vs.target !== "request" && target === "request") continue;
       var regex = globToRegex(vs.urlPattern);
       if (!regex.test(url)) continue;
+      // GraphQL-only filter: operationName lives in the request body, so for
+      // response-target savers we match against the body of the triggering request.
+      if (vs.graphql) {
+        var gql = parseGraphQL(target === "request" ? body : reqBody);
+        if (!gql) continue;
+        if (vs.graphqlOperation && vs.graphqlOperation !== "*") {
+          if (gql.operationName) {
+            if (!globToRegex(vs.graphqlOperation).test(gql.operationName)) continue;
+          } else {
+            continue;
+          }
+        }
+      }
       var val;
       if (vs.source === "status") {
         val = statusCode;
@@ -450,7 +468,7 @@
       }
     }
     _currentReq = { headers: reqHeadersObj, body: reqBody ? JSON.stringify(reqBody) : null };
-    processVarSavers(url, reqBody, reqHeadersObj, null, "request");
+    processVarSavers(url, reqBody, reqHeadersObj, null, "request", reqBody);
     var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     reportInterception({ url: url, method: method, matched: false, pending: true }, reqId);
     var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(url, method) : null;
@@ -506,7 +524,7 @@
         var hdrs = {};
         response.headers.forEach(function(v,k) { hdrs[k] = v; });
         response.clone().text().then(function(text) {
-          processVarSavers(url, parseRespObj(text), hdrs, response.status, "response");
+          processVarSavers(url, parseRespObj(text), hdrs, response.status, "response", reqBody);
           reportInterception({ url: url, method: method, matched: false, status: response.status, headers: hdrs, body: text }, reqId);
         });
         return response;
@@ -577,7 +595,7 @@
         var mockHeaders = mockRule.action.headers || {};
         saveVariables(mockRule.action.saveVars, mockBody, mockHeaders, mockRule.action.status || CONST.DEFAULT_STATUS);
       }
-      processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || CONST.DEFAULT_STATUS, "response");
+      processVarSavers(url, mockBody, mockHeaders, mockRule.action.status || CONST.DEFAULT_STATUS, "response", reqBody);
       var mockRespBody = resolveVarsInString(mockRule.action.body || "");
       if (mockRule.action.transforms && mockRule.action.transforms.length > 0) {
         var mockObj = parseRespObj(mockRespBody);
@@ -672,7 +690,7 @@
 
            var hdrObjFinal = {};
           curHeaders.forEach(function(v, k) { hdrObjFinal[k] = v; });
-          processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus, "response");
+          processVarSavers(url, parseRespObj(curText), hdrObjFinal, curStatus, "response", reqBody);
           reportInterception({
             url: url, method: method, matched: true,
             ruleId: modRespRules.length ? modRespRules[0].id : null,
@@ -698,7 +716,7 @@
           reportHit(dr.id, url, method);
           logAction("#9b59b6", "FETCH modifyResponse", method, url, dr, { removeHeaders: dr.action.removeResponseHeaders, setHeaders: dr.action.setResponseHeaders });
         }
-        processVarSavers(url, null, hdrObj, response.status, "response");
+        processVarSavers(url, null, hdrObj, response.status, "response", reqBody);
         reportInterception({
           url: url, method: method, matched: true,
           ruleId: modRespRules.length ? modRespRules[0].id : null,
@@ -714,7 +732,7 @@
       fetchPromise = fetchPromise.then(function (response) {
         var hdrObj = {};
         response.headers.forEach(function (v, k) { hdrObj[k] = v; });
-        processVarSavers(url, null, hdrObj, response.status, "response");
+        processVarSavers(url, null, hdrObj, response.status, "response", reqBody);
         var hdrObj2 = {};
         response.headers.forEach(function (v, k) { hdrObj2[k] = v; });
         response.clone().text().then(function(text) {
@@ -768,7 +786,7 @@
 
     var reqBody = parseReqBody(body);
     _currentReq = { headers: self.__rmReqHeaders || {}, body: reqBody ? JSON.stringify(reqBody) : null };
-    processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request");
+    processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request", reqBody);
     var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, pending: true }, reqId);
     var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(self.__rm.url, self.__rm.method) : null;
@@ -818,7 +836,7 @@
       this.onloadend = function(evt) {
         var hdrs2 = {};
         try { self2.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs2[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status, "response");
+        processVarSavers(self2.__rm.url, parseRespObj(self2.responseText), hdrs2, self2.status, "response", reqBody);
         if (origOLE2) origOLE2.call(self2, evt);
       };
       return origXhrSend.apply(this, arguments);
@@ -911,7 +929,7 @@
       self.onloadend = function(evt) {
         var hdrs = {};
         try { self.getAllResponseHeaders().split("\r\n").forEach(function(line) { var p = line.split(": "); if (p[0]) hdrs[p[0].toLowerCase()] = p.slice(1).join(": "); }); } catch(e) {}
-        processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status, "response");
+        processVarSavers(self.__rm.url, parseRespObj(self.responseText), hdrs, self.status, "response", reqBody);
         reportInterception({
           url: self.__rm.url, method: self.__rm.method, matched: reqRules.length > 0,
           ruleId: reqRules.length ? reqRules[0].id : null,
@@ -940,7 +958,7 @@
       if (mockRule.action.saveVars) {
         saveVariables(mockRule.action.saveVars, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS);
       }
-      processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS, "response");
+      processVarSavers(self.__rm.url, tryParseBody(mockRule.action.body || CONST.DEFAULT_BODY), mockRule.action.headers || {}, mockRule.action.status || CONST.DEFAULT_STATUS, "response", reqBody);
         reportInterception({
           url: self.__rm.url, method: self.__rm.method, matched: true,
           ruleId: mockRule.id, ruleName: mockRule.name,
@@ -1073,7 +1091,7 @@
         body: curText,
         originalBody: origText
       }, reqId);
-      processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response");
+      processVarSavers(self.__rm.url, parseRespObj(self.responseText), xhHdrsFinal, self.status, "response", reqBody);
     }
 
     self.onreadystatechange = function(evt) {
@@ -1228,6 +1246,7 @@
       parseValue: parseValue,
       matchVarConditions: matchVarConditions,
       saveVariables: saveVariables,
+      processVarSavers: processVarSavers,
       hasMatchingResponseVarSaver: hasMatchingResponseVarSaver,
       _setRuntime: function (r, vs, tv, me) { rules = r || []; varSavers = vs || []; tabVars = tv || {}; masterEnabled = me !== false; }
     });
