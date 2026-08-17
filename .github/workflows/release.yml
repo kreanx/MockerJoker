@@ -20,11 +20,13 @@ jobs:
 
       - name: Build Chrome ZIP
         run: |
+          mkdir -p dist   # dist/ is gitignored — no committed zips since the hygiene cleanup
           cd extension
           zip -r ../dist/mock-extention-chrome.zip . -x "*.DS_Store" -x "__MACOSX/*"
 
       - name: Build Firefox ZIP
         run: |
+          mkdir -p dist
           BUILD="$(mktemp -d)"
           cp -r extension/* "$BUILD/"
           cp manifest.firefox.json "$BUILD/manifest.json"
