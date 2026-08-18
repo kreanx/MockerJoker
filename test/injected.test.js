@@ -8,7 +8,7 @@ const api = loadInjected();
 const {
   globToRegex, parseGraphQL, splitPath, getByPath, setByPath,
   matchBodyConditions, resolveVarsInString, applyBodyTransforms,
-  parseValue, matchVarConditions, saveVariables, processVarSavers, findAllRules,
+  parseValue, bpInfo, matchVarConditions, saveVariables, processVarSavers, findAllRules,
   hasMatchingResponseVarSaver, _setRuntime
 } = api;
 
@@ -146,6 +146,13 @@ test("applyBodyTransforms: sets values, quoted literals stay strings, $var keeps
   assert.strictEqual(body.num, 7);
   assert.strictEqual(body.nested.x, "5");
   assert.strictEqual(body.label, "5");
+});
+
+test("bpInfo: outcome for the interception-log column", () => {
+  assert.deepEqual(bpInfo("request", { action: "abort" }), { phase: "request", outcome: "aborted" });
+  assert.deepEqual(bpInfo("request", { action: "resume", mods: { body: "x" } }), { phase: "request", outcome: "edited" });
+  assert.deepEqual(bpInfo("response", { action: "resume", mods: {} }), { phase: "response", outcome: "passed" });
+  assert.deepEqual(bpInfo("response", { action: "resume" }), { phase: "response", outcome: "passed" });
 });
 
 test("matchVarConditions: checks tabVars", () => {

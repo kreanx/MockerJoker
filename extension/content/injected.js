@@ -1,4 +1,8 @@
 (function () {
+  // Re-injection guard: background re-injects content scripts when a DevTools
+  // panel attaches to a tab that loaded before the extension was ready.
+  // Without this the fetch/XHR hooks would wrap twice.
+  if (window.fetch && window.fetch.__rmWrapped) return;
   // Constants defined locally — no dependency on shared/constants.js or
   // window globals. The page (e.g. Jira) may define its own window.CONST
   // which caused name collisions. This is the only reliable approach for
@@ -153,6 +157,14 @@
     var sq = /^'([\s\S]*)'$/.exec(str);
     if (sq) return sq[1];
     return str;
+  }
+
+  // Breakpoint outcome for the interception log column: paused -> edited /
+  // passed / aborted on resume.
+  function bpInfo(phase, result) {
+    var outcome = result && result.action === "abort" ? "aborted"
+      : (result && result.mods && Object.keys(result.mods).length > 0) ? "edited" : "passed";
+    return { phase: phase, outcome: outcome };
   }
 
   function splitPath(path) {
@@ -493,6 +505,7 @@
     var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(url, method) : null;
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
       var bpPayload = bpRequestPayload(url, method, reqHeadersObj, reqBody);
+      reportInterception({ url: url, method: method, matched: false, bp: { phase: "request", outcome: "paused" } }, reqId);
       // fetch(new Request(...)) without init: the body is not synchronously
       // reachable, but clone() lets us read it before the original is sent.
       // The text is shown in the panel AND used to rebuild the Request on a
@@ -510,9 +523,10 @@
         : Promise.resolve().then(function () { return waitForBreakpoint(bpPayload); });
       return bpWait.then(function (result) {
         if (result.action === "abort") {
-          reportInterception({ url: url, method: method, matched: false, status: 0, body: null }, reqId);
+          reportInterception({ url: url, method: method, matched: false, status: 0, body: null, bp: bpInfo("request", result) }, reqId);
           throw new DOMException("Aborted", "AbortError");
         }
+        reportInterception({ url: url, method: method, matched: false, bp: bpInfo("request", result) }, reqId);
         var m = applyBpRequestMods(input, init, result.mods, bpPayload.body);
         _bpReqId = reqId;
         _bpSkip = true;
@@ -538,10 +552,15 @@
         });
         if (!needBpResp) { textReady.catch(function(){}); return response; }
         return textReady.then(function(text) {
+          reportInterception({ url: url, method: method, matched: false, bp: { phase: "response", outcome: "paused" } }, reqId);
           return waitForBreakpoint({
             phase: "response", url: url, method: method, status: response.status, headers: hdrs, body: text
           }).then(function(result) {
-            if (result.action === "abort") throw new DOMException("Aborted", "AbortError");
+            if (result.action === "abort") {
+              reportInterception({ url: url, method: method, matched: false, status: 0, body: null, bp: bpInfo("response", result) }, reqId);
+              throw new DOMException("Aborted", "AbortError");
+            }
+            reportInterception({ url: url, method: method, matched: false, bp: bpInfo("response", result) }, reqId);
             var mod = buildBpResponse(response.status, hdrs, text, result.mods);
             return mod || response;
           });
@@ -768,6 +787,8 @@
 
     return fetchPromise;
   };
+  window.fetch.__rmWrapped = true;
+
 
   // === XHR ===
 
@@ -805,12 +826,8 @@
     var reqBody = parseReqBody(body);
     _currentReq = { headers: self.__rmReqHeaders || {}, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request", reqBody);
-    var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, pending: true }, reqId);
-    var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(self.__rm.url, self.__rm.method) : null;
-    _bpSkip = false;
-
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
+      reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: { phase: "request", outcome: "paused" } }, reqId);
       waitForBreakpoint(
         bpRequestPayload(self.__rm.url, self.__rm.method, self.__rmReqHeaders || {}, reqBody)
       ).then(function(result) {
@@ -822,7 +839,7 @@
           };
         };
         if (result.action === "abort") {
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null, bp: bpInfo("request", result) }, reqId);
           // Nothing was sent (readyState 1), so native abort() stays silent —
           // dispatch the spec abort sequence (abort + loadend, no load) so the
           // page observes the cancellation instead of hanging forever.
@@ -832,6 +849,7 @@
           } catch (e) {}
           return;
         }
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("request", result) }, reqId);
         var mods = result.mods || {};
         if (mods.url || mods.method || (mods.body !== undefined && mods.body !== null)) {
           // open() resets headers set via setRequestHeader — replay them after re-open
@@ -862,6 +880,7 @@
       var bpGatePromise = null;
       var ensureBpGate = function () {
         if (!bpGatePromise) {
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: { phase: "response", outcome: "paused" } }, reqId);
           bpGatePromise = waitForBreakpoint({
             phase: "response", url: self.__rm.url, method: self.__rm.method, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self)
           });
@@ -885,9 +904,10 @@
         if (!needBpResp) { proceed(); return; }
         ensureBpGate().then(function (result) {
           if (result && result.action === "abort") {
-            reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null }, reqId);
+            reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null, bp: bpInfo("response", result) }, reqId);
             return;
           }
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("response", result) }, reqId);
           proceed();
         });
       };
@@ -1269,7 +1289,6 @@
 
   // Applies user edits from a resumed request-phase breakpoint to fetch args.
   // Pure: no side effects, returns new {input, init}.
-  // `origBodyText` is the body captured at pause time (Request-form calls);
   // used to rebuild the Request when only the URL is edited.
   function applyBpRequestMods(input, init, mods, origBodyText) {
     if (!mods) return { input: input, init: init };
@@ -1364,6 +1383,7 @@
   // undefined in the browser, so this never runs outside the Node test harness.
   if (typeof globalThis !== "undefined" && typeof globalThis.__RM_TEST_EXPORT === "function") {
     globalThis.__RM_TEST_EXPORT({
+      bpInfo: bpInfo,
       globToRegex: globToRegex,
       parseGraphQL: parseGraphQL,
       findAllRules: findAllRules,

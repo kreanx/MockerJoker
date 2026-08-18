@@ -176,12 +176,18 @@
       var isPending = e.pending === true;
       var sc = isPending ? "status-pending" : e.status >= 400 ? "status-error" : e.status >= 300 ? "status-redirect" : e.status >= 200 ? "status-ok" : "";
       var al = isPending ? "..." : e.actionType === "mockResponse" ? "MOCK" : e.actionType === "modifyResponse" ? "MOD-RESP" : (e.actionType === "modifyRequest" || e.actionType === "modifyBody") ? "MOD-REQ" : e.matched ? "matched" : "—";
+      var bpCell = "—";
+      if (e.bp) {
+        var bpLabels = { paused: "BP ⏸", edited: "BP ✏", aborted: "BP ⛔", passed: "BP ✓" };
+        var bpTitles = { paused: "Остановлен, ждёт Продолжить", edited: "Изменён через точку останова", aborted: "Отменён через точку останова", passed: "Прошёл точку останова без правок" };
+        bpCell = '<span class="bp-badge bp-' + e.bp.outcome + '" title="' + (e.bp.phase === "request" ? "Запрос" : "Ответ") + ": " + (bpTitles[e.bp.outcome] || "") + '">' + (bpLabels[e.bp.outcome] || "BP") + "</span>";
+      }
       var rc = (isPending ? "row-pending" : e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
       var mc = methodClass(e.method);
-      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (isPending ? "..." : e.status != null ? e.status : "-") + '</td><td>' + (isPending ? "..." : formatSize(e.body, e.headers)) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td></tr>';
+      html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (isPending ? "..." : e.status != null ? e.status : "-") + '</td><td>' + (isPending ? "..." : formatSize(e.body, e.headers)) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td><td class="col-bp">' + bpCell + '</td></tr>';
     }
     if (countLabel) countLabel.textContent = list.length + " зап." + (mc2 > 0 ? " · " + mc2 + " перехв." : "");
-    tbody.innerHTML = html || '<tr><td colspan="7" class="empty-state">Нет запросов</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="8" class="empty-state">Нет запросов</td></tr>';
     updateSortIndicators();
     autoSizeColumns();
   }
@@ -515,8 +521,7 @@
   // --- Config Dialog ---
   function openBpConfig(url, method, phase, editIdx) {
     bpConfigEditIdx = editIdx != null ? editIdx : -1;
-    document.getElementById("bpConfigTitle").textContent = editIdx != null ? "Редактировать" : "Новая точка останова";
-    document.getElementById("bpCfgUrl").value = url || "*/api/*";
+    document.getElementById("bpCfgUrl").value = url || "";
     document.getElementById("bpCfgPhase").value = phase || "response";
     document.getElementById("bpCfgMethod").value = method || "ANY";
     var extractsEl = document.getElementById("bpCfgExtracts");

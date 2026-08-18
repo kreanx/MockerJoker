@@ -184,4 +184,12 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .bp-extract-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--ctp-mauve); color: var(--ctp-base); white-space: nowrap; }
 .bp-extract-row { margin-bottom: 6px; display: flex; gap: 6px; align-items: center; }
 
+/* Interception log: breakpoint column badges */
+.bp-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace; }
+.bp-paused { background: var(--ctp-yellow); color: var(--ctp-base); animation: pulse 1.2s ease-in-out infinite; }
+.bp-edited { background: var(--ctp-mauve); color: var(--ctp-base); }
+.bp-aborted { background: var(--ctp-red); color: var(--ctp-base); }
+.bp-passed { background: var(--ctp-surface1); color: var(--ctp-text); }
+.col-bp { white-space: nowrap; }
+
 .bp-field textarea { font-family: "SF Mono", Menlo, Consolas, monospace; resize: vertical; min-height: 120px; line-height: 1.45; white-space: pre; }

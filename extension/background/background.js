@@ -17,6 +17,16 @@ var interceptionLog = {};
 // Breakpoint hits are routed ONLY to the panel inspecting that tab; if there
 // is none, the request is auto-resumed so it never hangs.
 var devtoolsPorts = {};
+
+// Live push to every connected DevTools panel. Lost in the v6.0.1 refactor
+// (27cb929): call sites stayed, the definition went — interception updates and
+// keepalive pings threw ReferenceError, so the panel log only ever filled
+// from the connect-time backlog ("requests not showing until refresh").
+function broadcastToPanels(msg) {
+  Object.keys(devtoolsPorts).forEach(function (id) {
+    try { devtoolsPorts[id].postMessage(msg); } catch (e) {}
+  });
+}
 var pendingBreakpoints = {};
 
 function updateBadge(tabId) {
@@ -304,6 +314,15 @@ chrome.runtime.onConnect.addListener(function (port) {
   if (!m) return;
   var tabId = parseInt(m[1], 10);
   devtoolsPorts[tabId] = port;
+  // Tabs that loaded before the extension registered (browser start restores
+  // sessions before MV3 extensions wake) have no content script — the panel
+  // would show nothing until a manual page reload. Inject now; injected.js
+  // guards itself against double-wrapping fetch/XHR.
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ["shared/constants.js", "content/content.js"],
+    injectImmediately: true
+  }, function () { void chrome.runtime.lastError; });
   // A reconnecting panel takes over any pauses left by its predecessor.
   port.postMessage({ type: "backlog", tabId: tabId, data: interceptionLog[tabId] || [] });
   port.onMessage.addListener(function (msg) {

@@ -134,6 +134,11 @@ function loadBackground(initialStorage) {
       onRemoved: { addListener(fn) { state.tabsRemovedListeners.push(fn); } },
       onUpdated: { addListener(fn) { state.tabsUpdatedListeners.push(fn); } }
     },
+    scripting: {
+      // background re-injects content scripts when a DevTools panel attaches;
+      // in tests this is a no-op recording the call.
+      executeScript(opts, cb) { state.scriptCalls = state.scriptCalls || []; state.scriptCalls.push(opts); if (cb) cb(); }
+    },
     action: {
       setBadgeText() {}, setBadgeBackgroundColor() {}, setBadgeTextColor() {}
     }
