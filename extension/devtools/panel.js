@@ -236,7 +236,8 @@
           for (var ci = 0; ci < e.bp.changes.length; ci++) {
             var chg = e.bp.changes[ci];
             var fname = bpFieldNames[chg.f] || chg.f;
-            bpCell += '<span class="bp-chip" title="' + escapeHtml(fname + ":\n" + (chg.from || "") + "\n→\n" + (chg.to || "")) + '">✏ ' + escapeHtml(fname) + "</span>";
+            function clipTip(s) { s = s == null ? "" : String(s); return s.length > 160 ? s.slice(0, 160) + "…" : s; }
+            bpCell += '<span class="bp-chip" title="' + escapeHtml(fname + ":\n" + clipTip(chg.from) + "\n→\n" + clipTip(chg.to)) + '">✏ ' + escapeHtml(fname) + "</span>";
           }
         }
       }
@@ -314,12 +315,15 @@
     g += '</table>';
     if (entry.bp && entry.bp.changes && entry.bp.changes.length) {
       g += '<div class="section-label">Изменения точки останова</div>';
-      g += '<table class="detail-table bp-changes">';
       for (var ci = 0; ci < entry.bp.changes.length; ci++) {
         var chg = entry.bp.changes[ci];
-        g += '<tr><td class="hdr-key">' + escapeHtml(chg.f) + '</td><td class="bp-from">' + escapeHtml(chg.from || "") + '</td><td class="bp-arrow">→</td><td class="bp-to">' + escapeHtml(chg.to || "") + '</td></tr>';
+        if (chg.f === "body") {
+          g += '<div class="bp-change-label">✏ тело <span class="bp-diff-hint">(было → стало, изменённые строки подсвечены)</span></div>';
+          g += prettyBody(chg.to, chg.from);
+        } else {
+          g += '<div class="bp-change-line"><span class="bp-change-field">✏ ' + escapeHtml(chg.f) + '</span> <span class="bp-from">' + escapeHtml(chg.from || "") + '</span> <span class="bp-arrow">→</span> <span class="bp-to">' + escapeHtml(chg.to || "") + '</span></div>';
+        }
       }
-      g += '</table>';
     }
     if (entry.reqBody) {
       g += '<div class="section-label">Тело запроса</div>';
@@ -695,7 +699,7 @@
     }
     if (data.body != null) {
       html += '<div class="bp-field"><label>Тело ' + (isReq ? "запроса" : "ответа") +
-        ' <span style="text-transform:none">(редактируется' + (isReq ? "" : ", только fetch") + ')</span></label>';
+        ' <span style="text-transform:none">(правки применяются при «Продолжить», поддерживаются $переменные)</span></label>';
       html += '<textarea id="bpEditBody" rows="10" spellcheck="false">' + escapeHtml(prettyText(data.body)) + '</textarea>';
       html += '</div>';
     }

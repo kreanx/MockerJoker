@@ -29,6 +29,7 @@ function broadcastToPanels(msg) {
 }
 var pendingBreakpoints = {};
 var clearLogOnReload = false; // panel toggle: wipe the log on page reload
+var tabNavState = {}; // per-tab "loading" | "complete" — guards the reload-clear
 
 function updateBadge(tabId) {
   var count = tabInterceptedCount[tabId] || 0;
@@ -341,6 +342,7 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 chrome.tabs.onRemoved.addListener(function (tabId) {
   resumeAllForTab(tabId); // content script is gone; drop its pauses
+  delete tabNavState[tabId];
   delete tabInterceptedCount[tabId];
   delete tabVarsMap[tabId];
   delete tabSeenRequests[tabId];
@@ -362,10 +364,18 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
   if (changeInfo.status === "loading") {
     tabInterceptedCount[tabId] = 0;
     updateBadge(tabId);
-    if (clearLogOnReload) {
-      delete interceptionLog[tabId];
-      broadcastToPanels({ type: "clearLog", tabId: tabId });
+    // One navigation can emit loading twice (initial commit + SPA redirect).
+    // Clearing on the second one would wipe the first batch of requests that
+    // already arrived — clear only on the FIRST loading of a navigation.
+    if (tabNavState[tabId] !== "loading") {
+      tabNavState[tabId] = "loading";
+      if (clearLogOnReload) {
+        delete interceptionLog[tabId];
+        broadcastToPanels({ type: "clearLog", tabId: tabId });
+      }
     }
+  } else if (changeInfo.status === "complete") {
+    tabNavState[tabId] = "complete";
   }
 });
 
