@@ -826,6 +826,10 @@
     var reqBody = parseReqBody(body);
     _currentReq = { headers: self.__rmReqHeaders || {}, body: reqBody ? JSON.stringify(reqBody) : null };
     processVarSavers(self.__rm.url, reqBody, self.__rmReqHeaders || {}, null, "request", reqBody);
+    var reqId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, pending: true }, reqId);
+    var bpRule = (!_bpSkip && masterEnabled) ? findBreakpointRule(self.__rm.url, self.__rm.method) : null;
+    _bpSkip = false;
     if (bpRule && bpRule.breakpoint && bpRule.breakpoint.phase === "request") {
       reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: { phase: "request", outcome: "paused" } }, reqId);
       waitForBreakpoint(
