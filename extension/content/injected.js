@@ -139,11 +139,19 @@
     return null;
   }
 
+  // Value typing (transforms + body conditions), in order:
+  // 1) Valid JSON literal -> its JSON type: bare 123 -> number, "123" ->
+  // STRING (quotes stripped), true/false/null -> boolean/null, [1,2]/{...}
+  // -> array/object. JSON wins over single quotes: "'123'" -> string '123'.
+  // 2) Bare number incl. leading zeros (007 -> 7) — legacy coercion kept.
+  // 3) 'Single-quoted' -> string, content verbatim.
+  // 4) Anything else -> plain string as typed.
   function parseValue(str) {
-    if (str === "true") return true;
-    if (str === "false") return false;
-    if (str === "null") return null;
+    if (typeof str !== "string") return str;
+    try { return JSON.parse(str); } catch (e) {}
     if (/^-?\d+(\.\d+)?$/.test(str)) return Number(str);
+    var sq = /^'([\s\S]*)'$/.exec(str);
+    if (sq) return sq[1];
     return str;
   }
 
@@ -259,7 +267,11 @@
     if (!transforms || !transforms.length) return body;
     for (var i = 0; i < transforms.length; i++) {
       var t = transforms[i];
-      setByPath(body, t.path, parseValue(resolveVarValue(t.value)));
+      var resolved = resolveVarValue(t.value);
+      // A resolved $var keeps its saved type (a string "007" must not become 7,
+      // and JSON-parse must not strip quotes inside the var's value); only
+      // bare literals go through parseValue auto-typing.
+      setByPath(body, t.path, resolved === t.value ? parseValue(t.value) : resolved);
     }
     return body;
   }
