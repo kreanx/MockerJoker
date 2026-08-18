@@ -390,6 +390,74 @@ test("background: clearLogOnReload — a late second loading cannot outrun the 3
   assert.deepEqual(backlog(), ["i1", "i2"], "late second loading does not re-clear the first batch");
 });
 
+test("background: clearLogOnReload — reload right after a breakpoint edit must NOT wipe the edited request", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  const load = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  const complete = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "complete" }));
+  const send = (id) => bg.send({ type: "interception", data: { id: id, url: "https://x/" + id, method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+
+  // User F5 (T+0) clears; the first batch arrives; a breakpoint pauses i2;
+  // the user edits it and resumes (T+3500 — well past the 3s gap from the
+  // navigation start); the page reloads itself right after (T+4500, < 3s
+  // after the resume). This app-initiated reload must NOT clear — i1 and the
+  // edited i2 belong to the batch the user wants to inspect.
+  const realNow = Date.now;
+  const steps = [0, 2000, 3500, 4500];
+  let step = 0;
+  Date.now = () => realNow() + steps[step++];
+  try {
+    load();            // T+0: user F5 → clear
+    complete();
+    send("i1");        // first batch of the new page
+    bg.send({ type: "breakpointHit", bpMsgId: "bp_e1", data: { url: "https://x/i2" } }, { tab: { id: 7 } }); // T+2000: bp pauses i2
+    bg.send({ type: "breakpointResume", bpMsgId: "bp_e1", result: { action: "resume" } }); // T+3500: user resumes with an edit
+    send("i2");        // the edited request lands in the log
+    complete();
+    load();            // T+4500: app reloads the page right after the edit → must NOT clear
+    send("i3");
+  } finally {
+    Date.now = realNow;
+  }
+  assert.deepEqual(backlog(), ["i1", "i2", "i3"], "app reload right after bp edit keeps first batch and the edited request");
+});
+
+test("background: clearLogOnReload — a real F5 more than 3s after bp activity clears again", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  const load = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  const complete = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "complete" }));
+  const send = (id) => bg.send({ type: "interception", data: { id: id, url: "https://x/" + id, method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+
+  const realNow = Date.now;
+  const steps = [0, 2000, 3500, 6500];
+  let step = 0;
+  Date.now = () => realNow() + steps[step++];
+  try {
+    load();            // T+0: user F5 → clear
+    complete();
+    send("i1");
+    bg.send({ type: "breakpointHit", bpMsgId: "bp_e2", data: { url: "https://x/i2" } }, { tab: { id: 7 } }); // T+2000
+    bg.send({ type: "breakpointResume", bpMsgId: "bp_e2", result: { action: "resume" } }); // T+3500
+    complete();
+    load();            // T+6500: 3s after resume → a genuine user F5 → clear
+    send("i2");
+  } finally {
+    Date.now = realNow;
+  }
+  assert.deepEqual(backlog(), ["i2"], "a user F5 later than the bp window clears the log again");
+});
+
 test("background: clearLogOnReload — SW restart restores the navigation gate from storage.session", () => {
   // First SW instance already saw the F5 loading (state persisted to session).
   const bg = loadBackground({ clearLogOnReload: true, tabNavState: { 7: "loading" }, lastNavStart: { 7: Date.now() } });

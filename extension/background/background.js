@@ -30,25 +30,31 @@ function broadcastToPanels(msg) {
 var pendingBreakpoints = {};
 var clearLogOnReload = false; // panel toggle: wipe the log on page reload
 // Reload-clear gating. `tabNavState` remembers the current navigation phase;
-// `lastNavStart` the moment the log was last wiped. Both survive SW restarts
-// via storage.session so a fresh SW cannot re-clear mid-navigation.
+// `lastNavStart` the moment the last navigation started; `lastBpActivity`
+// the moment of the last breakpoint hit/resume. All survive SW restarts via
+// storage.session so a fresh SW cannot re-clear mid-navigation.
 var tabNavState = {}; // per-tab "loading" | "complete"
-var lastNavStart = {}; // per-tab ms of the loading that last cleared the log
-// A second loading arriving sooner than this after the previous clear is a
-// redirect (JS location change after a full load, or a meta refresh), not a
-// new user reload — do NOT wipe the first batch of requests again.
+var lastNavStart = {}; // per-tab ms of the last navigation start
+var lastBpActivity = {}; // per-tab ms of the last breakpoint hit/resume
+// A second loading arriving sooner than this after the previous navigation
+// start or breakpoint activity is NOT a user's F5 — it is the tail of the
+// same navigation (redirect, second loading phase) or the page reloading
+// itself right after a breakpoint edit. Clearing there would wipe the first
+// batch of requests (including the just-edited one). A real user F5 happens
+// later than this window.
 var RELOAD_CLEAR_GAP_MS = 3000;
 
 function persistNavState() {
-  try { chrome.storage.session.set({ tabNavState: tabNavState, lastNavStart: lastNavStart }); } catch (e) {}
+  try { chrome.storage.session.set({ tabNavState: tabNavState, lastNavStart: lastNavStart, lastBpActivity: lastBpActivity }); } catch (e) {}
 }
 
 // Fresh SW (MV3 idle restart): restore the navigation-phase gate from the
 // session, otherwise a redirect's loading after a SW restart would clear the
 // log a second time.
-chrome.storage.session.get({ tabNavState: {}, lastNavStart: {} }, function (d) {
+chrome.storage.session.get({ tabNavState: {}, lastNavStart: {}, lastBpActivity: {} }, function (d) {
   tabNavState = d.tabNavState || {};
   lastNavStart = d.lastNavStart || {};
+  lastBpActivity = d.lastBpActivity || {};
 });
 
 function updateBadge(tabId) {
@@ -247,6 +253,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === CONST.MSG.BREAKPOINT_HIT) {
     var bpTabId = sender.tab ? sender.tab.id : "unknown";
     pendingBreakpoints[msg.bpMsgId] = bpTabId;
+    lastBpActivity[bpTabId] = Date.now();
+    persistNavState();
     persistPendingBreakpoints();
     var panel = devtoolsPorts[bpTabId];
     if (panel) {
@@ -275,6 +283,8 @@ function resumeBreakpoint(bpMsgId, result) {
   var tabId = pendingBreakpoints[bpMsgId];
   if (tabId == null) return;
   delete pendingBreakpoints[bpMsgId];
+  lastBpActivity[tabId] = Date.now();
+  persistNavState();
   persistPendingBreakpoints();
   if (Object.keys(pendingBreakpoints).length === 0) stopBpKeepalive();
   chrome.tabs.sendMessage(tabId, { type: CONST.MSG.BREAKPOINT_RESUME, bpMsgId: bpMsgId, result: result }, function () {
@@ -364,6 +374,7 @@ chrome.tabs.onRemoved.addListener(function (tabId) {
   resumeAllForTab(tabId); // content script is gone; drop its pauses
   delete tabNavState[tabId];
   delete lastNavStart[tabId];
+  delete lastBpActivity[tabId];
   delete tabInterceptedCount[tabId];
   delete tabVarsMap[tabId];
   delete tabSeenRequests[tabId];
@@ -394,15 +405,18 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
       return;
     }
     tabNavState[tabId] = "loading";
-    // 2) loading after a complete (JS location change, meta refresh): clear
-    //    ONLY if this is a fresh user reload — the gap since the previous
-    //    navigation start must exceed the redirect window. Otherwise the
-    //    first batch of requests of the original load would be wiped.
-    //    lastNavStart updates on EVERY navigation start (cleared or not) so
-    //    a late second loading cannot outrun the gap and re-clear.
+    // 2) loading after a complete: clear ONLY for a genuine user reload.
+    //    A loading inside the gap after the previous navigation start is the
+    //    tail of the same navigation (redirect / second phase); a loading
+    //    inside the gap after breakpoint activity is the page reloading
+    //    itself right after a breakpoint edit. Both must NOT wipe the first
+    //    batch (which includes the just-edited request). lastNavStart moves
+    //    on EVERY navigation start so a late second loading cannot outrun
+    //    the gap.
     var freshNav = typeof lastNavStart[tabId] !== "number" || now - lastNavStart[tabId] >= RELOAD_CLEAR_GAP_MS;
+    var bpCalm = typeof lastBpActivity[tabId] !== "number" || now - lastBpActivity[tabId] >= RELOAD_CLEAR_GAP_MS;
     lastNavStart[tabId] = now;
-    if (clearLogOnReload && freshNav) {
+    if (clearLogOnReload && freshNav && bpCalm) {
       delete interceptionLog[tabId];
       broadcastToPanels({ type: "clearLog", tabId: tabId });
     }
