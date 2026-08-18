@@ -8,7 +8,7 @@ const api = loadInjected();
 const {
   globToRegex, parseGraphQL, splitPath, getByPath, setByPath,
   matchBodyConditions, resolveVarsInString, applyBodyTransforms,
-  parseValue, bpInfo, matchVarConditions, saveVariables, processVarSavers, findAllRules,
+  parseValue, bpInfo, buildBpResponse, matchVarConditions, saveVariables, processVarSavers, findAllRules,
   hasMatchingResponseVarSaver, _setRuntime
 } = api;
 
@@ -289,4 +289,25 @@ test("hasMatchingResponseVarSaver: gated by URL, target, and enabled", () => {
   assert.equal(hasMatchingResponseVarSaver("https://x/api/unrelated"), false);
   assert.equal(hasMatchingResponseVarSaver("https://x/api/other"), false, "request-target excluded");
   assert.equal(hasMatchingResponseVarSaver("https://x/api/x"), false, "disabled excluded");
+});
+
+test("bpInfo: changes carry FULL old/new values for the detail diff", () => {
+  const longBody = JSON.stringify({ payload: "x".repeat(500) });
+  const info = bpInfo("request", { action: "resume", mods: { body: '{"v":2}', url: "https://x/2" } }, { url: "https://x/1", method: "GET", body: longBody });
+  assert.equal(info.outcome, "edited");
+  assert.equal(info.changes.length, 2);
+  const bodyChg = info.changes.find((c) => c.f === "body");
+  const urlChg = info.changes.find((c) => c.f === "url");
+  assert.equal(bodyChg.from, longBody, "full old body preserved");
+  assert.equal(bodyChg.to, '{"v":2}');
+  assert.equal(urlChg.from, "https://x/1");
+  assert.equal(urlChg.to, "https://x/2");
+});
+
+test("buildBpResponse: resolves $vars in the edited body", () => {
+  runtime([], [], { $token: "abc123" }, true);
+  const resp = buildBpResponse(200, { "content-type": "application/json" }, '{"ok":true}', { body: '{"token":"$token","ok":true}' });
+  return resp.text().then((t) => {
+    assert.equal(t, '{"token":"abc123","ok":true}');
+  });
 });

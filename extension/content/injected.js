@@ -174,10 +174,13 @@
   function bpChanges(orig, mods) {
     var ch = [];
     if (!mods) return ch;
-    function clip(s) { s = s == null ? "" : String(s); return s.length > 160 ? s.slice(0, 160) + "…" : s; }
-    if (mods.url && mods.url !== orig.url) ch.push({ f: "url", from: clip(orig.url), to: clip(mods.url) });
+    // Full values travel to the panel so the detail view can render a real
+    // diff; the ROW tooltip clips them locally. Bodies are capped to keep
+    // the message reasonable (the pause modal already showed the full body).
+    function bodyClip(s) { s = s == null ? "" : String(s); return s.length > 200000 ? s.slice(0, 200000) + "…" : s; }
+    if (mods.url && mods.url !== orig.url) ch.push({ f: "url", from: String(orig.url), to: String(mods.url) });
     if (mods.method && mods.method.toUpperCase() !== (orig.method || "GET").toUpperCase()) ch.push({ f: "method", from: orig.method || "GET", to: String(mods.method).toUpperCase() });
-    if (mods.body !== undefined && mods.body !== null && mods.body !== orig.body) ch.push({ f: "body", from: clip(orig.body), to: clip(mods.body) });
+    if (mods.body !== undefined && mods.body !== null && mods.body !== orig.body) ch.push({ f: "body", from: bodyClip(orig.body), to: bodyClip(mods.body) });
     if (mods.status !== undefined && mods.status !== null && String(mods.status) !== String(orig.status != null ? orig.status : "")) ch.push({ f: "status", from: String(orig.status != null ? orig.status : ""), to: String(mods.status) });
     return ch;
   }
@@ -880,7 +883,7 @@
           var savedHdrs = self.__rmReqHeaders || {};
           for (var shk in savedHdrs) origXhrSetHeader.call(self, shk, savedHdrs[shk]);
           finishWrap();
-          origXhrSend.call(self, mods.body !== undefined && mods.body !== null ? String(mods.body) : body);
+          origXhrSend.call(self, mods.body !== undefined && mods.body !== null ? resolveVarsInString(String(mods.body)) : body);
           return;
         }
         finishWrap();
@@ -897,8 +900,10 @@
       // observe the response before the breakpoint resumes. Note: response body
       // edits are fetch-only — XHR responseText is read-only.
       var bpGatePromise = null;
+      var bpOrig = null; // response state at hit time — for the changes payload
       var ensureBpGate = function () {
         if (!bpGatePromise) {
+          bpOrig = { url: self.__rm.url, method: self.__rm.method, status: self.status, body: safeRespText(self) };
           reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: { phase: "response", outcome: "paused" } }, reqId);
           bpGatePromise = waitForBreakpoint({
             phase: "response", url: self.__rm.url, method: self.__rm.method, status: self.status, headers: self.$rmHdrs(), body: safeRespText(self)
@@ -906,12 +911,31 @@
         }
         return bpGatePromise;
       };
+      // Apply panel edits to the XHR response before the page observes it.
+      // responseText/status are read-only accessors, but overriding them on
+      // the instance is exactly what the mock path already does.
+      var applyXhrRespMods = function (result) {
+        if (!result || !result.mods) return;
+        if (result.mods.status !== undefined && result.mods.status !== null) {
+          var parsed = parseInt(result.mods.status, 10);
+          if (parsed >= 200 && parsed <= 599) {
+            try { Object.defineProperty(self, "status", { value: parsed, configurable: true, writable: true }); } catch (e) {}
+            try { Object.defineProperty(self, "statusText", { value: "", configurable: true, writable: true }); } catch (e) {}
+          }
+        }
+        if (result.mods.body !== undefined && result.mods.body !== null) {
+          var nb = resolveVarsInString(String(result.mods.body));
+          try { Object.defineProperty(self, "responseText", { value: nb, configurable: true, writable: true }); } catch (e) {}
+          try { Object.defineProperty(self, "response", { value: nb, configurable: true, writable: true }); } catch (e) {}
+        }
+      };
       var origOLoad = self.onload;
       var origOLEnd = self.onloadend;
       self.onload = function (evt) {
         if (!needBpResp) { if (origOLoad) origOLoad.call(self, evt); return; }
         ensureBpGate().then(function (result) {
           if (result && result.action === "abort") return; // swallow: response already arrived
+          applyXhrRespMods(result);
           if (origOLoad) origOLoad.call(self, evt);
         });
       };
@@ -926,7 +950,8 @@
             reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, status: 0, body: null, bp: bpInfo("response", result) }, reqId);
             return;
           }
-          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("response", result) }, reqId);
+          applyXhrRespMods(result);
+          reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("response", result, bpOrig) }, reqId);
           proceed();
         });
       };
@@ -1316,7 +1341,7 @@
       init.headers = Object.assign({}, init.headers);
     }
     if (mods.method) init.method = String(mods.method).toUpperCase();
-    if (mods.body !== undefined && mods.body !== null) init.body = String(mods.body);
+    if (mods.body !== undefined && mods.body !== null) init.body = resolveVarsInString(String(mods.body));
     if (mods.url) {
       if (typeof input === "string") {
         input = mods.url;
@@ -1352,7 +1377,7 @@
       var parsed = parseInt(mods.status, 10);
       if (parsed >= 200 && parsed <= 599) status = parsed; // Response ctor range
     }
-    var body = (mods.body !== undefined && mods.body !== null) ? String(mods.body) : origBody;
+    var body = (mods.body !== undefined && mods.body !== null) ? resolveVarsInString(String(mods.body)) : origBody;
     if (status === origStatus && body === origBody) return null;
     if (status === 204 || status === 205 || status === 304) body = null; // bodyless statuses
     try {

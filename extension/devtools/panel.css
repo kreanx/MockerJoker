@@ -196,10 +196,13 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .sf-toggle input { margin: 0; accent-color: var(--ctp-blue); }
 .row-bp-edited { background: rgba(203,166,247,0.10); }
 [data-theme="light"] .row-bp-edited { background: rgba(136,57,239,0.07); }
-.bp-changes { width: 100%; table-layout: fixed; }
-.bp-changes td { vertical-align: top; padding: 3px 6px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11px; word-break: break-all; }
-.bp-changes .bp-arrow { width: 24px; color: var(--ctp-overlay1); text-align: center; }
-.bp-changes .bp-from { color: var(--ctp-red); }
-.bp-changes .bp-to { color: var(--ctp-green); }
+.bp-change-label { font-size: 11px; font-weight: 600; color: var(--ctp-mauve); margin: 6px 0 4px; }
+.bp-change-label .bp-diff-hint { font-weight: 400; color: var(--ctp-overlay1); }
+.bp-change-line { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11px; padding: 2px 0; word-break: break-all; }
+.bp-change-field { font-weight: 600; color: var(--ctp-mauve); margin-right: 6px; }
+.bp-change-line .bp-from { color: var(--ctp-red); }
+.bp-change-line .bp-to { color: var(--ctp-green); }
+.bp-change-line .bp-arrow { color: var(--ctp-overlay1); margin: 0 6px; }
+
 
 .bp-field textarea { font-family: "SF Mono", Menlo, Consolas, monospace; resize: vertical; min-height: 120px; line-height: 1.45; white-space: pre; }

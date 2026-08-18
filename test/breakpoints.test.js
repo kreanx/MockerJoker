@@ -299,3 +299,24 @@ test("background: clearLogOnReload=false keeps the log across reloads", () => {
   const backlog = (port7b.posted.find((m) => m.type === "backlog") || {}).data || [];
   assert.deepEqual(backlog, [{ id: "i1", url: "https://x/api", method: "GET" }], "log kept when the toggle is off");
 });
+
+// ---------- background: reload-clear fires only once per navigation ----------
+test("background: clearLogOnReload clears once per navigation — redirect's second loading must NOT wipe the first batch", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  const load = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  const complete = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "complete" }));
+  const send = (id) => bg.send({ type: "interception", data: { id: id, url: "https://x/" + id, method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+
+  send("i1");
+  load();          // F5 start → clear (i1 gone)
+  send("i2");      // first batch of the new page
+  load();          // SPA redirect's second loading → must NOT clear
+  send("i3");      // second batch
+  assert.deepEqual(backlog(), ["i2", "i3"], "redirect's loading does not wipe the first batch");
+});
