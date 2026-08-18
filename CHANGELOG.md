@@ -37,6 +37,8 @@
 - 73 теста (+4): bpRequestPayload (строковое тело), Request-rebuild с
   сохранением headers/credentials/body, keepalive + orphan-resume на старте SW.
 
+## v6.0.0 (2026-08-17) — Брейкпоинты Charles-стиля: реворк до рабочего состояния
+
 Брейкпоинты Charles-стиля в DevTools-панели, переписанные до рабочего состояния.
 Предыдущая реализация не срабатывала end-to-end: правила не доходили до страницы
 (панель писала их в storage напрямую, минуя in-memory правила background'а),
@@ -61,6 +63,8 @@
 ### Также в релизе
 - **Поиск в JSON-редакторе: дрейф скролла на длинных телах** — навигация по матчам считала `(строки−3)×lineHeight`, но редактор использует soft-wrap: на 10k строк матч уезжал на тысячи px ниже вьюпорта (замер: нужно 9395px, ставилось 4653px). Теперь позиция берётся из реального `<mark>` в highlight-оверлее, матч центрируется
 - 69 тестов (+17): findBreakpointRule, applyBpRequestMods, buildBpResponse, роутинг background (merge/auto-resume/per-tab/disconnect), sync-guard локального CONST
+
+## v5.9.0 (2026-08-17) — GraphQL-фильтр для varSaver
 
 ### Добавлено
 - **«Только GraphQL запросы» в varSaver** — чекбокс в модалке создания/редактирования переменной (popup + panel). При включении varSaver реагирует только на GraphQL-запросы.
