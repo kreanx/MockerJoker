@@ -309,7 +309,7 @@
     }
     g += '<div class="detail-actions"><button class="dt-btn" id="btnCopyUrl">URL</button><button class="dt-btn" id="btnCopyCurl">cURL</button>';
     if (entry.body) g += '<button class="dt-btn" id="btnCopyBody">Тело</button>';
-    g += '<button class="dt-btn" id="btnMockReq">Замокать</button></div>';
+    g += '<button class="dt-btn" id="btnMockReq">Замокать</button><button class="dt-btn" id="btnBpReq" title="Создать точку останова из этого запроса">Точка</button></div>';
     document.getElementById("tab-general").innerHTML = g;
 
     // Left: Headers — request + response combined
@@ -337,6 +337,9 @@
     if (entry.body) document.getElementById("btnCopyBody").onclick = function () { copyText(entry.body); };
     document.getElementById("btnMockReq").onclick = function () {
       chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html") + "?mockUrl=" + encodeURIComponent(entry.url) + "&mockMethod=" + encodeURIComponent(entry.method) });
+    };
+    document.getElementById("btnBpReq").onclick = function () {
+      openBpConfig(entry.url, entry.method, "request");
     };
     switchTab("general");
   }
