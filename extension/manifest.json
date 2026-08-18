@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MockerJoker",
-  "version": "6.0.4",
+  "version": "6.0.5",
   "description": "Mock and modify HTTP requests for testing — intercept, delay, modify responses",
   "permissions": [
     "storage",
