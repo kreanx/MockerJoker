@@ -43,13 +43,31 @@ test("globToRegex: rejects empty and overlong patterns", () => {
 });
 
 // ---------- parseValue ----------
-test("parseValue: coerces scalar literals", () => {
+test("parseValue: JSON-literal semantics — bare scalars typed, quoted stay strings", () => {
   assert.strictEqual(parseValue("true"), true);
   assert.strictEqual(parseValue("false"), false);
   assert.strictEqual(parseValue("null"), null);
   assert.strictEqual(parseValue("42"), 42);
   assert.strictEqual(parseValue("-3.14"), -3.14);
   assert.strictEqual(parseValue("hello"), "hello");
+  // quoted -> string with quotes stripped (the "number as string" use case)
+  assert.strictEqual(parseValue('"123"'), "123");
+  assert.strictEqual(parseValue('"true"'), "true");
+  assert.strictEqual(parseValue('"null"'), "null");
+  // JSON literals become real arrays/objects
+  assert.deepEqual(parseValue("[1,2]"), [1, 2]);
+  assert.deepEqual(parseValue('{"a":1}'), { a: 1 });
+  // leading zeros: unquoted stays legacy number coercion, quoted is a string
+  assert.strictEqual(parseValue("007"), 7);
+  assert.strictEqual(parseValue('"007"'), "007");
+  // single quotes are string markers too (content verbatim); JSON wins over them
+  assert.strictEqual(parseValue("'123'"), "123");
+  assert.strictEqual(parseValue("'007'"), "007");
+  assert.strictEqual(parseValue("''"), "");
+  assert.strictEqual(parseValue("\"'123'\""), "'123'");
+  assert.strictEqual(parseValue(""), "");
+  // non-strings pass through untouched
+  assert.strictEqual(parseValue(7), 7);
 });
 
 // ---------- path utils ----------
@@ -93,7 +111,8 @@ test("setByPath: blocks prototype-pollution keys", () => {
 // ---------- matchBodyConditions ----------
 test("matchBodyConditions: equals / notEquals / contains / exists + array contains", () => {
   const body = { user: { id: 5, name: "Alice", tags: ["a", "b"] } };
-  assert.equal(matchBodyConditions(body, [{ path: "user.id", operator: "equals", value: "5" }]), true);
+  assert.equal(matchBodyConditions(body, [{ path: "user.id", operator: "equals", value: '"5"' }]), false);
+  assert.equal(matchBodyConditions(body, [{ path: "user.name", operator: "equals", value: '"Alice"' }]), true);
   assert.equal(matchBodyConditions(body, [{ path: "user.id", operator: "notEquals", value: "9" }]), true);
   assert.equal(matchBodyConditions(body, [{ path: "user.name", operator: "contains", value: "lic" }]), true);
   assert.equal(matchBodyConditions(body, [{ path: "user.name", operator: "contains", value: "zzz" }]), false);
@@ -112,15 +131,21 @@ test("resolveVarsInString: substitutes $var, objects become JSON, unknown left i
   assert.equal(resolveVarsInString("plain text"), "plain text");
 });
 
-test("applyBodyTransforms: sets values and resolves $var sources", () => {
-  runtime([], [], { $newId: "99" });
-  const body = { id: 1, nested: { x: 0 } };
+test("applyBodyTransforms: sets values, quoted literals stay strings, $var keeps its type", () => {
+  runtime([], [], { $newId: 99, $code: "007" });
+  const body = { id: 1, code: 0, num: null, nested: { x: 0 }, label: null };
   applyBodyTransforms(body, [
-    { path: "id", value: "$newId" },
-    { path: "nested.x", value: "5" }
+    { path: "id", value: "$newId" },      // number var -> number
+    { path: "code", value: "$code" },     // string var "007" stays string, not 7
+    { path: "num", value: "007" },        // bare literal keeps legacy coercion -> 7
+    { path: "nested.x", value: '"5"' },   // double-quoted literal -> string "5"
+    { path: "label", value: "'5'" }       // single-quoted literal -> string "5"
   ]);
   assert.strictEqual(body.id, 99);
-  assert.strictEqual(body.nested.x, 5);
+  assert.strictEqual(body.code, "007");
+  assert.strictEqual(body.num, 7);
+  assert.strictEqual(body.nested.x, "5");
+  assert.strictEqual(body.label, "5");
 });
 
 test("matchVarConditions: checks tabVars", () => {

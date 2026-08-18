@@ -265,7 +265,7 @@
               <button id="btnAddSetHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
             </div>
             <div class="form-group">
-                <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
+                <label>Трансформации тела запроса <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела запроса по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значение:<br><code>123</code> (в т.ч. <code>007</code>) → число<br><code>"123"</code> или <code>'123'</code> → строка<br><code>true</code> / <code>null</code> → булево / null<br><code>[1,2]</code>, <code>{"a":1}</code> → массив / объект<br>Другой текст → строка как есть<br><br>Переменные: <code>$varName</code> подставит значение переменной (тип сохраняется)</span></span></label>
               <div id="transformsEditor" class="key-value-editor"></div>
               <button id="btnAddTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
@@ -314,7 +314,7 @@
               <button id="btnAddSetRespHeader" class="btn btn-outline btn-sm">+ Добавить заголовок</button>
             </div>
             <div class="form-group">
-                <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значения авто-типизируются:<br><code>"true"</code> → true, <code>"123"</code> → 123, <code>"null"</code> → null<br><br>Переменные: <code>$varName</code> подставит значение переменной</span></span></label>
+                <label>Трансформации тела ответа <span class="help-tip">?<span class="help-tip-text">Изменение полей JSON-тела ответа сервера по dot notation:<br><code>user.name</code>, <code>items[0].id</code>, <code>items[*].status</code><br><br>Значение:<br><code>123</code> (в т.ч. <code>007</code>) → число<br><code>"123"</code> или <code>'123'</code> → строка<br><code>true</code> / <code>null</code> → булево / null<br><code>[1,2]</code>, <code>{"a":1}</code> → массив / объект<br>Другой текст → строка как есть<br><br>Переменные: <code>$varName</code> подставит значение переменной (тип сохраняется)</span></span></label>
               <div id="respTransformsEditor" class="key-value-editor"></div>
               <button id="btnAddRespTransform" class="btn btn-outline btn-sm">+ Трансформация</button>
             </div>
