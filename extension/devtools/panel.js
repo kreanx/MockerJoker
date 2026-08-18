@@ -1,6 +1,55 @@
 (function () {
   var inspectedTabId = chrome.devtools.inspectedWindow.tabId;
-  var port = chrome.runtime.connect({ name: "devtools:" + inspectedTabId });
+  // The MV3 service worker is idle-killed (Chrome 114+) even with this port
+  // open. On SW restart the old port is dead and broadcasts go nowhere —
+  // reconnect with backoff; the background re-sends the backlog on every
+  // connect, so nothing is lost. A periodic ping additionally keeps the SW
+  // alive while DevTools is open.
+  var port = null;
+  var portDead = false;
+  var portRetry = 0;
+  var portRetryTimer = null;
+  var panelClosing = false;
+  function connectPanel() {
+    var p = chrome.runtime.connect({ name: "devtools:" + inspectedTabId });
+    p.onMessage.addListener(function (msg) {
+      if (msg.type === "backlog") {
+        var known = {};
+        entries.forEach(function (e) { known[e.id] = true; });
+        (msg.data || []).forEach(function (e) { if (!known[e.id]) { known[e.id] = true; entries.push(e); } });
+        applyFilter();
+      }
+      else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
+      else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { queueBreakpointHit(msg.bpMsgId, msg.data); }
+      else if (msg.type === "bpPing") {
+        // Echo the keepalive: the inbound reply resets the SW idle timer so
+        // pendings survive pauses longer than 30s (Chrome 114+ kills idle SWs).
+        chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
+      }
+    });
+    p.onDisconnect.addListener(function () {
+      if (panelClosing) return; // DevTools window closing — never resurrect
+      portDead = true;
+      // SW died (MV3 idle kill) or extension reloaded. Wake it via any message
+      // and reconnect; the background answers with a fresh backlog.
+      chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
+      clearTimeout(portRetryTimer);
+      portRetryTimer = setTimeout(function () {
+        if (panelClosing) return;
+        connectPanel();
+      }, Math.min(1000 * Math.pow(2, Math.min(portRetry, 5)), 15000));
+      portRetry++;
+    });
+    port = p;
+    portDead = false;
+  }
+  connectPanel();
+  window.addEventListener("pagehide", function () { panelClosing = true; });
+  // Keep the SW alive while DevTools is open so live updates and breakpoint
+  // pauses survive idle periods (an open port alone does not).
+  setInterval(function () {
+    if (!portDead) chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
+  }, 20000);
   var tbody = document.getElementById("logBody");
   var filterInput = document.getElementById("filterInput");
   var clearBtn = document.getElementById("clearBtn");
@@ -469,24 +518,6 @@
     detailPanel.classList.add("hidden"); hSplitHandle.classList.remove("visible");
     responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
   });
-  var portDead = false;
-  port.onMessage.addListener(function (msg) {
-    if (msg.type === "backlog") { entries = entries.concat(msg.data || []); applyFilter(); }
-    else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
-    else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { queueBreakpointHit(msg.bpMsgId, msg.data); }
-    else if (msg.type === "bpPing") {
-      // Echo the keepalive: the inbound reply resets the SW idle timer so
-      // pendings survive pauses longer than 30s (Chrome 114+ kills idle SWs).
-      chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
-    }
-  });
-  port.onDisconnect.addListener(function () {
-    // SW died (MV3 idle kill) or extension reloaded. Pauses it owned are
-    // auto-resumed by the SW on restart; wake it right now via any message.
-    portDead = true;
-    chrome.runtime.sendMessage({ type: "bpKeepalive" }, function () { void chrome.runtime.lastError; });
-  });
-
   // --- Breakpoints ---
   var bpStore = [];
   var bpBtn = document.getElementById("bpBtn");
