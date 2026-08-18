@@ -47,10 +47,12 @@ function loadState() {
     if (mockUrl) {
       var rule = createDefaultRule();
       try {
+        // Exact full URL (query included, no wildcard stars): the user asked
+        // for the copied URL verbatim; globToRegex escapes it safely.
         var u = new URL(mockUrl);
-        rule.match.urlPattern = "*" + u.hostname + u.pathname + "*";
+        rule.match.urlPattern = u.origin + u.pathname + u.search;
       } catch (e) {
-        rule.match.urlPattern = "*" + mockUrl + "*";
+        rule.match.urlPattern = mockUrl;
       }
       var mockMethod = params.get("mockMethod");
       rule.match.method = mockMethod || "ANY";
