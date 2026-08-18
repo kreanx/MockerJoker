@@ -320,3 +320,87 @@ test("background: clearLogOnReload clears once per navigation — redirect's sec
   send("i3");      // second batch
   assert.deepEqual(backlog(), ["i2", "i3"], "redirect's loading does not wipe the first batch");
 });
+
+test("background: clearLogOnReload — second loading AFTER complete (plain F5 with a late loading event) must NOT re-clear; a later real F5 does", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  const load = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  const complete = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "complete" }));
+  const send = (id) => bg.send({ type: "interception", data: { id: id, url: "https://x/" + id, method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+
+  send("i0");
+  load();          // F5 start → clear (i0 gone)
+  send("i1");      // first batch of the new page
+  complete();      // navigation completes…
+  load();          // …then a second loading event arrives (no user reload):
+                   // must NOT wipe i1 — the gap since the last clear is < 3s
+  send("i2");
+  assert.deepEqual(backlog(), ["i1", "i2"], "late second loading does not wipe the first batch");
+
+  // A REAL later reload (gap ≥ RELOAD_CLEAR_GAP_MS) clears the log again.
+  const realNow = Date.now;
+  Date.now = () => realNow() + 3100;
+  try {
+    complete(); // the previous navigation finished long ago
+    load();
+  } finally {
+    Date.now = realNow;
+  }
+  send("i3");
+  assert.deepEqual(backlog(), ["i3"], "a later user reload clears the log again");
+});
+
+test("background: clearLogOnReload — a late second loading cannot outrun the 3s gap and re-clear", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  const load = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  const complete = () => bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "complete" }));
+  const send = (id) => bg.send({ type: "interception", data: { id: id, url: "https://x/" + id, method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+
+  // Navigation 1 starts at T: clears, sets lastNavStart = T.
+  // Navigation 2 (redirect) starts at T+2.5s: inside the gap → no clear, but
+  // lastNavStart moves to T+2.5s. Its second loading at T+4s (=T+1.5s after
+  // nav 2 started) must compare against T+2.5s, NOT against T — otherwise it
+  // would look like a fresh reload and wipe the first batch.
+  const realNow = Date.now;
+  const steps = [0, 2500, 4000];
+  let step = 0;
+  Date.now = () => realNow() + steps[step++];
+  try {
+    load();          // T: user reload → clear
+    complete();
+    load();          // T+2500: redirect start → no clear
+    send("i1");      // first batch of the redirected page
+    complete();
+    load();          // T+4000: redirect's second loading → still no clear
+    send("i2");
+  } finally {
+    Date.now = realNow;
+  }
+  assert.deepEqual(backlog(), ["i1", "i2"], "late second loading does not re-clear the first batch");
+});
+
+test("background: clearLogOnReload — SW restart restores the navigation gate from storage.session", () => {
+  // First SW instance already saw the F5 loading (state persisted to session).
+  const bg = loadBackground({ clearLogOnReload: true, tabNavState: { 7: "loading" }, lastNavStart: { 7: Date.now() } });
+  const port7 = bg.connect("devtools:7");
+  // Second loading after SW restart: restored gate must suppress re-clear.
+  bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading" }));
+  bg.send({ type: "interception", data: { id: "i1", url: "https://x/i1", method: "GET" } }, { tab: { id: 7 } });
+  const backlog = () => {
+    port7.disconnect();
+    const p = bg.connect("devtools:7");
+    return ((p.posted.find((m) => m.type === "backlog") || {}).data || []).map((e) => e.id);
+  };
+  assert.deepEqual(backlog(), ["i1"], "restored loading gate suppresses the re-clear after SW restart");
+});
