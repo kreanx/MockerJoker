@@ -273,3 +273,29 @@ test("background: hit with panel starts keepalive; resume stops it; orphan pendi
   assert.equal(resumed.msg.result.action, "resume");
   assert.deepEqual(bg2.store.pendingBreakpoints, {}, "persisted pendings cleared after orphan resume");
 });
+
+// ---------- background: clear log on page reload (panel toggle) ----------
+test("background: clearLogOnReload=true wipes the interception log on tab reload and pings panels", () => {
+  const bg = loadBackground({ clearLogOnReload: true });
+  const port7 = bg.connect("devtools:7");
+  // record an interception
+  bg.send({ type: "interception", data: { id: "i1", url: "https://x/api", method: "GET" } }, { tab: { id: 7 } });
+  // reload the tab → log for tab 7 must be gone
+  bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading", url: "https://x/api" }));
+  // a late interception for the same tab id must not merge into a stale entry
+  bg.send({ type: "interception", data: { id: "i2", url: "https://x/api2", method: "POST" } }, { tab: { id: 7 } });
+  // disconnect + reconnect the panel: backlog must contain only the post-reload entry
+  port7.disconnect();
+  const port7b = bg.connect("devtools:7");
+  const backlog = (port7b.posted.find((m) => m.type === "backlog") || {}).data || [];
+  assert.deepEqual(backlog, [{ id: "i2", url: "https://x/api2", method: "POST" }], "log cleared on reload, only new entry present");
+});
+
+test("background: clearLogOnReload=false keeps the log across reloads", () => {
+  const bg = loadBackground({ clearLogOnReload: false });
+  bg.send({ type: "interception", data: { id: "i1", url: "https://x/api", method: "GET" } }, { tab: { id: 7 } });
+  bg.state.tabsUpdatedListeners.forEach((fn) => fn(7, { status: "loading", url: "https://x/api" }));
+  const port7b = bg.connect("devtools:7");
+  const backlog = (port7b.posted.find((m) => m.type === "backlog") || {}).data || [];
+  assert.deepEqual(backlog, [{ id: "i1", url: "https://x/api", method: "GET" }], "log kept when the toggle is off");
+});

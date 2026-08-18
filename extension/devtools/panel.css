@@ -190,6 +190,16 @@ mark.search-hit.current { background: var(--ctp-peach); color: var(--ctp-base); 
 .bp-edited { background: var(--ctp-mauve); color: var(--ctp-base); }
 .bp-aborted { background: var(--ctp-red); color: var(--ctp-base); }
 .bp-passed { background: var(--ctp-surface1); color: var(--ctp-text); }
+.bp-chip { display: inline-block; font-size: 10px; margin-left: 4px; padding: 0 5px; border-radius: 3px; background: var(--ctp-mauve); color: var(--ctp-base); font-family: "SF Mono", Menlo, Consolas, monospace; white-space: nowrap; }
 .col-bp { white-space: nowrap; }
+.sf-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; user-select: none; cursor: pointer; }
+.sf-toggle input { margin: 0; accent-color: var(--ctp-blue); }
+.row-bp-edited { background: rgba(203,166,247,0.10); }
+[data-theme="light"] .row-bp-edited { background: rgba(136,57,239,0.07); }
+.bp-changes { width: 100%; table-layout: fixed; }
+.bp-changes td { vertical-align: top; padding: 3px 6px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11px; word-break: break-all; }
+.bp-changes .bp-arrow { width: 24px; color: var(--ctp-overlay1); text-align: center; }
+.bp-changes .bp-from { color: var(--ctp-red); }
+.bp-changes .bp-to { color: var(--ctp-green); }
 
 .bp-field textarea { font-family: "SF Mono", Menlo, Consolas, monospace; resize: vertical; min-height: 120px; line-height: 1.45; white-space: pre; }

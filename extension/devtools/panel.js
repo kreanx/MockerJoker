@@ -20,6 +20,7 @@
         applyFilter();
       }
       else if (msg.type === "interception") { if (msg.tabId === inspectedTabId) { var ex = null; for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].id === msg.data.id) { ex = entries[ei]; break; } } if (ex) { for (var dk in msg.data) ex[dk] = msg.data[dk]; } else { entries.push(msg.data); } applyFilter(); } }
+      else if (msg.type === "clearLog" && msg.tabId === inspectedTabId) { entries = []; filtered = []; selectedId = null; render(); }
       else if (msg.type === "breakpoint" && msg.tabId === inspectedTabId) { queueBreakpointHit(msg.bpMsgId, msg.data); }
       else if (msg.type === "bpPing") {
         // Echo the keepalive: the inbound reply resets the SW idle timer so
@@ -229,9 +230,17 @@
       if (e.bp) {
         var bpLabels = { paused: "BP ⏸", edited: "BP ✏", aborted: "BP ⛔", passed: "BP ✓" };
         var bpTitles = { paused: "Остановлен, ждёт Продолжить", edited: "Изменён через точку останова", aborted: "Отменён через точку останова", passed: "Прошёл точку останова без правок" };
+        var bpFieldNames = { url: "url", method: "метод", body: "тело", status: "статус" };
         bpCell = '<span class="bp-badge bp-' + e.bp.outcome + '" title="' + (e.bp.phase === "request" ? "Запрос" : "Ответ") + ": " + (bpTitles[e.bp.outcome] || "") + '">' + (bpLabels[e.bp.outcome] || "BP") + "</span>";
+        if (e.bp.changes && e.bp.changes.length) {
+          for (var ci = 0; ci < e.bp.changes.length; ci++) {
+            var chg = e.bp.changes[ci];
+            var fname = bpFieldNames[chg.f] || chg.f;
+            bpCell += '<span class="bp-chip" title="' + escapeHtml(fname + ":\n" + (chg.from || "") + "\n→\n" + (chg.to || "")) + '">✏ ' + escapeHtml(fname) + "</span>";
+          }
+        }
       }
-      var rc = (isPending ? "row-pending" : e.matched ? "row-matched" : "row-passthrough") + (e.id === selectedId ? " row-selected" : "");
+      var rc = (isPending ? "row-pending" : e.matched ? "row-matched" : "row-passthrough") + (e.bp && e.bp.outcome === "edited" ? " row-bp-edited" : "") + (e.id === selectedId ? " row-selected" : "");
       var mc = methodClass(e.method);
       html += '<tr class="' + rc + '" data-id="' + escapeHtml(e.id) + '"><td>' + escapeHtml(formatTime(e.timestamp)) + '</td><td' + (mc ? ' class="' + mc + '"' : '') + '>' + escapeHtml(e.method || "") + '</td><td class="col-url" title="' + escapeHtml(e.url) + '">' + renderUrl(e.url) + '</td><td class="' + sc + '">' + (isPending ? "..." : e.status != null ? e.status : "-") + '</td><td>' + (isPending ? "..." : formatSize(e.body, e.headers)) + '</td><td class="col-action">' + al + '</td><td>' + escapeHtml(e.ruleName || "-") + '</td><td class="col-bp">' + bpCell + '</td></tr>';
     }
@@ -303,6 +312,15 @@
     if (entry.actionType) g += '<tr><td class="hdr-key">Действие</td><td>' + escapeHtml(entry.actionType) + '</td></tr>';
     if (entry.delay) g += '<tr><td class="hdr-key">Задержка</td><td>' + entry.delay + 'ms</td></tr>';
     g += '</table>';
+    if (entry.bp && entry.bp.changes && entry.bp.changes.length) {
+      g += '<div class="section-label">Изменения точки останова</div>';
+      g += '<table class="detail-table bp-changes">';
+      for (var ci = 0; ci < entry.bp.changes.length; ci++) {
+        var chg = entry.bp.changes[ci];
+        g += '<tr><td class="hdr-key">' + escapeHtml(chg.f) + '</td><td class="bp-from">' + escapeHtml(chg.from || "") + '</td><td class="bp-arrow">→</td><td class="bp-to">' + escapeHtml(chg.to || "") + '</td></tr>';
+      }
+      g += '</table>';
+    }
     if (entry.reqBody) {
       g += '<div class="section-label">Тело запроса</div>';
       g += prettyBody(entry.reqBody);
@@ -516,6 +534,13 @@
     selectedId = null; render(); responseView.innerHTML = '<span class="empty">— выберите запрос —</span>';
   });
   filterInput.addEventListener("input", applyFilter);
+  var chkClearLog = document.getElementById("chkClearLog");
+  if (chkClearLog) {
+    chrome.storage.local.get({ clearLogOnReload: false }, function (d) { chkClearLog.checked = !!d.clearLogOnReload; });
+    chkClearLog.addEventListener("change", function () {
+      chrome.storage.local.set({ clearLogOnReload: chkClearLog.checked });
+    });
+  }
   clearBtn.addEventListener("click", function () {
     entries = []; filtered = []; render(); selectedId = null;
     detailPanel.classList.add("hidden"); hSplitHandle.classList.remove("visible");
