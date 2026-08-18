@@ -1,4 +1,10 @@
 (function () {
+  // Double-injection guard. Background re-injects content scripts when a
+  // DevTools panel attaches; without this the second instance adds duplicate
+  // message relays (each breakpoint hit reached the panel twice). The flag
+  // lives in the isolated world — the page cannot see or reset it.
+  if (window.__RM_CONTENT_INSTALLED__) return;
+  window.__RM_CONTENT_INSTALLED__ = true;
   var contextValid = true;
   var retryTimer = null;
 

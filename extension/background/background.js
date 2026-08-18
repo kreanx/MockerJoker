@@ -319,7 +319,7 @@ chrome.runtime.onConnect.addListener(function (port) {
   // would show nothing until a manual page reload. Inject now; injected.js
   // guards itself against double-wrapping fetch/XHR.
   chrome.scripting.executeScript({
-    target: { tabId: tabId },
+    target: { tabId: tabId, allFrames: true },
     files: ["shared/constants.js", "content/content.js"],
     injectImmediately: true
   }, function () { void chrome.runtime.lastError; });
