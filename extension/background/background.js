@@ -29,7 +29,27 @@ function broadcastToPanels(msg) {
 }
 var pendingBreakpoints = {};
 var clearLogOnReload = false; // panel toggle: wipe the log on page reload
-var tabNavState = {}; // per-tab "loading" | "complete" — guards the reload-clear
+// Reload-clear gating. `tabNavState` remembers the current navigation phase;
+// `lastNavStart` the moment the log was last wiped. Both survive SW restarts
+// via storage.session so a fresh SW cannot re-clear mid-navigation.
+var tabNavState = {}; // per-tab "loading" | "complete"
+var lastNavStart = {}; // per-tab ms of the loading that last cleared the log
+// A second loading arriving sooner than this after the previous clear is a
+// redirect (JS location change after a full load, or a meta refresh), not a
+// new user reload — do NOT wipe the first batch of requests again.
+var RELOAD_CLEAR_GAP_MS = 3000;
+
+function persistNavState() {
+  try { chrome.storage.session.set({ tabNavState: tabNavState, lastNavStart: lastNavStart }); } catch (e) {}
+}
+
+// Fresh SW (MV3 idle restart): restore the navigation-phase gate from the
+// session, otherwise a redirect's loading after a SW restart would clear the
+// log a second time.
+chrome.storage.session.get({ tabNavState: {}, lastNavStart: {} }, function (d) {
+  tabNavState = d.tabNavState || {};
+  lastNavStart = d.lastNavStart || {};
+});
 
 function updateBadge(tabId) {
   var count = tabInterceptedCount[tabId] || 0;
@@ -343,11 +363,13 @@ chrome.runtime.onConnect.addListener(function (port) {
 chrome.tabs.onRemoved.addListener(function (tabId) {
   resumeAllForTab(tabId); // content script is gone; drop its pauses
   delete tabNavState[tabId];
+  delete lastNavStart[tabId];
   delete tabInterceptedCount[tabId];
   delete tabVarsMap[tabId];
   delete tabSeenRequests[tabId];
   delete interceptionLog[tabId];
   delete devtoolsPorts[tabId];
+  persistNavState();
 });
 
 // The panel toggles clearLogOnReload in storage; keep the in-memory flag in
@@ -362,20 +384,32 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
   // Note: Chrome omits changeInfo.url on plain reloads (F5) — the URL is only
   // included when it actually changes — so gate on the loading status alone.
   if (changeInfo.status === "loading") {
+    var now = Date.now();
     tabInterceptedCount[tabId] = 0;
     updateBadge(tabId);
-    // One navigation can emit loading twice (initial commit + SPA redirect).
-    // Clearing on the second one would wipe the first batch of requests that
-    // already arrived — clear only on the FIRST loading of a navigation.
-    if (tabNavState[tabId] !== "loading") {
-      tabNavState[tabId] = "loading";
-      if (clearLogOnReload) {
-        delete interceptionLog[tabId];
-        broadcastToPanels({ type: "clearLog", tabId: tabId });
-      }
+    // 1) Repeated loading WITHOUT a complete in between (302/early redirect
+    //    inside one navigation): never clear twice.
+    if (tabNavState[tabId] === "loading") {
+      persistNavState();
+      return;
     }
+    tabNavState[tabId] = "loading";
+    // 2) loading after a complete (JS location change, meta refresh): clear
+    //    ONLY if this is a fresh user reload — the gap since the previous
+    //    navigation start must exceed the redirect window. Otherwise the
+    //    first batch of requests of the original load would be wiped.
+    //    lastNavStart updates on EVERY navigation start (cleared or not) so
+    //    a late second loading cannot outrun the gap and re-clear.
+    var freshNav = typeof lastNavStart[tabId] !== "number" || now - lastNavStart[tabId] >= RELOAD_CLEAR_GAP_MS;
+    lastNavStart[tabId] = now;
+    if (clearLogOnReload && freshNav) {
+      delete interceptionLog[tabId];
+      broadcastToPanels({ type: "clearLog", tabId: tabId });
+    }
+    persistNavState();
   } else if (changeInfo.status === "complete") {
     tabNavState[tabId] = "complete";
+    persistNavState();
   }
 });
 
