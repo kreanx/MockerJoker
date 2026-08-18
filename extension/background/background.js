@@ -28,6 +28,7 @@ function broadcastToPanels(msg) {
   });
 }
 var pendingBreakpoints = {};
+var clearLogOnReload = false; // panel toggle: wipe the log on page reload
 
 function updateBadge(tabId) {
   var count = tabInterceptedCount[tabId] || 0;
@@ -42,10 +43,11 @@ function updateBadge(tabId) {
 }
 
 function loadRules() {
-  chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true }, function (data) {
+  chrome.storage.local.get({ rules: [], varSavers: [], masterEnabled: true, clearLogOnReload: false }, function (data) {
     currentRules = data.rules || [];
     varSavers = data.varSavers || [];
     masterEnabled = data.masterEnabled !== false;
+    clearLogOnReload = data.clearLogOnReload === true;
     rulesLoaded = true;
     pushToAllTabs();
     loadCallbacks.forEach(function (cb) { cb(); });
@@ -346,10 +348,24 @@ chrome.tabs.onRemoved.addListener(function (tabId) {
   delete devtoolsPorts[tabId];
 });
 
+// The panel toggles clearLogOnReload in storage; keep the in-memory flag in
+// sync without waiting for the next SW start.
+chrome.storage.onChanged.addListener(function (changes, area) {
+  if (area === "local" && changes.clearLogOnReload) {
+    clearLogOnReload = changes.clearLogOnReload.newValue === true;
+  }
+});
+
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
-  if (changeInfo.status === "loading" && changeInfo.url) {
+  // Note: Chrome omits changeInfo.url on plain reloads (F5) — the URL is only
+  // included when it actually changes — so gate on the loading status alone.
+  if (changeInfo.status === "loading") {
     tabInterceptedCount[tabId] = 0;
     updateBadge(tabId);
+    if (clearLogOnReload) {
+      delete interceptionLog[tabId];
+      broadcastToPanels({ type: "clearLog", tabId: tabId });
+    }
   }
 });
 

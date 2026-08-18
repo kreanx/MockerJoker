@@ -111,6 +111,7 @@ function loadBackground(initialStorage) {
       sendMessage(msg, cb) { state.runtimeMessages.push(msg); if (cb) cb({ success: true }); }
     },
     storage: {
+      onChanged: { addListener(fn) { state.storageChangedListeners = state.storageChangedListeners || []; state.storageChangedListeners.push(fn); } },
       local: {
         get(defs, cb) {
           const out = {};

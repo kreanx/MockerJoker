@@ -160,11 +160,26 @@
   }
 
   // Breakpoint outcome for the interception log column: paused -> edited /
-  // passed / aborted on resume.
-  function bpInfo(phase, result) {
+  // passed / aborted on resume. When edited, `changes` carries what exactly
+  // changed (url/method/body/status with clipped old -> new values) so the
+  // panel can highlight the row and show the delta.
+  function bpInfo(phase, result, orig) {
     var outcome = result && result.action === "abort" ? "aborted"
       : (result && result.mods && Object.keys(result.mods).length > 0) ? "edited" : "passed";
-    return { phase: phase, outcome: outcome };
+    var info = { phase: phase, outcome: outcome };
+    if (outcome === "edited" && orig) info.changes = bpChanges(orig, result.mods);
+    return info;
+  }
+
+  function bpChanges(orig, mods) {
+    var ch = [];
+    if (!mods) return ch;
+    function clip(s) { s = s == null ? "" : String(s); return s.length > 160 ? s.slice(0, 160) + "…" : s; }
+    if (mods.url && mods.url !== orig.url) ch.push({ f: "url", from: clip(orig.url), to: clip(mods.url) });
+    if (mods.method && mods.method.toUpperCase() !== (orig.method || "GET").toUpperCase()) ch.push({ f: "method", from: orig.method || "GET", to: String(mods.method).toUpperCase() });
+    if (mods.body !== undefined && mods.body !== null && mods.body !== orig.body) ch.push({ f: "body", from: clip(orig.body), to: clip(mods.body) });
+    if (mods.status !== undefined && mods.status !== null && String(mods.status) !== String(orig.status != null ? orig.status : "")) ch.push({ f: "status", from: String(orig.status != null ? orig.status : ""), to: String(mods.status) });
+    return ch;
   }
 
   function splitPath(path) {
@@ -526,7 +541,7 @@
           reportInterception({ url: url, method: method, matched: false, status: 0, body: null, bp: bpInfo("request", result) }, reqId);
           throw new DOMException("Aborted", "AbortError");
         }
-        reportInterception({ url: url, method: method, matched: false, bp: bpInfo("request", result) }, reqId);
+        reportInterception({ url: url, method: method, matched: false, bp: bpInfo("request", result, { url: url, method: method, body: bpPayload.body }) }, reqId);
         var m = applyBpRequestMods(input, init, result.mods, bpPayload.body);
         _bpReqId = reqId;
         _bpSkip = true;
@@ -560,7 +575,7 @@
               reportInterception({ url: url, method: method, matched: false, status: 0, body: null, bp: bpInfo("response", result) }, reqId);
               throw new DOMException("Aborted", "AbortError");
             }
-            reportInterception({ url: url, method: method, matched: false, bp: bpInfo("response", result) }, reqId);
+            reportInterception({ url: url, method: method, matched: false, bp: bpInfo("response", result, { url: url, method: method, status: response.status, body: text }) }, reqId);
             var mod = buildBpResponse(response.status, hdrs, text, result.mods);
             return mod || response;
           });
@@ -853,7 +868,7 @@
           } catch (e) {}
           return;
         }
-        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("request", result) }, reqId);
+        reportInterception({ url: self.__rm.url, method: self.__rm.method, matched: false, bp: bpInfo("request", result, { url: self.__rm.url, method: self.__rm.method, body: reqBody == null ? null : (typeof reqBody === "string" ? reqBody : JSON.stringify(reqBody)) }) }, reqId);
         var mods = result.mods || {};
         if (mods.url || mods.method || (mods.body !== undefined && mods.body !== null)) {
           // open() resets headers set via setRequestHeader — replay them after re-open
